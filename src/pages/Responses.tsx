@@ -192,7 +192,7 @@ export default function Responses() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">Responses</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">Responses</h1>
           <p className="text-white/70 mt-2 text-lg">View and export form submissions</p>
         </div>
         <button

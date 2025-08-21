@@ -594,7 +594,7 @@ export default function FormBuilder() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 text-center animate-pulse">
           <div className="animate-spin rounded-full h-12 w-12 border-2 border-white/30 border-t-white mx-auto mb-4"></div>
           <p className="text-white/80 font-medium">Loading form builder...</p>
@@ -604,7 +604,7 @@ export default function FormBuilder() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900">
       {/* Header */}
       <div className="border-b border-white/10 bg-white/10 backdrop-blur-xl px-6 py-4 animate-fade-in">
         <div className="flex items-center justify-between">
@@ -616,7 +616,7 @@ export default function FormBuilder() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">
                 {isEditing ? 'Edit Form: ' : 'Create Form: '}{name || 'Untitled Form'}
               </h1>
               {clientId && (
@@ -643,7 +643,7 @@ export default function FormBuilder() {
             <button
               onClick={save}
               disabled={saving}
-              className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Form'}

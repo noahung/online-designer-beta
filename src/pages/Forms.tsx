@@ -105,14 +105,14 @@ export default function Forms() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">
             Forms
           </h1>
           <p className="text-white/70 mt-2 text-lg">Create and manage your client forms</p>
         </div>
         <button 
           onClick={() => navigate('/forms/new')} 
-          className="group flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 animate-slide-up"
+          className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
           style={{animationDelay: '0.2s'}}
         >
           <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-200" />

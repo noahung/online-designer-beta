@@ -8,7 +8,7 @@ export default function Settings() {
   return (
     <div className="p-8 animate-fade-in">
       <div className="mb-8 animate-slide-up">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">Settings</h1>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">Settings</h1>
         <p className="text-white/70 mt-2 text-lg">Manage your account and integration settings</p>
       </div>
 

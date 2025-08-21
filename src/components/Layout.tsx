@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, 
@@ -8,10 +8,10 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X,
-  Sparkles
+  X
 } from 'lucide-react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
+import logoPlaceholder from '../assets/images/advertomedia2024.png'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -47,10 +47,10 @@ export default function Layout() {
           {/* Logo */}
           <div className="flex h-16 items-center justify-between px-6 border-b border-white/10">
             <div className="flex items-center space-x-3 animate-fade-in">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <Sparkles className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 flex items-center justify-center">
+                <img src={logoPlaceholder} alt="Advertomedia Logo" className="w-10 h-10 object-contain" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              <span className="text-xl font-bold bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">
                 Online Designer
               </span>
             </div>
