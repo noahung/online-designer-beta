@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Copy, Eye, ExternalLink } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye } from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
+import { useNavigate } from 'react-router-dom'
 
 interface Form {
   id: string
@@ -44,11 +46,15 @@ export default function Forms() {
       if (error) throw error
       setForms(data || [])
     } catch (error) {
-      console.error('Error fetching forms:', error)
+    console.error('Error fetching forms:', error)
+    push({ type: 'error', message: 'Error loading forms' })
     } finally {
       setLoading(false)
     }
   }
+
+  const { push } = useToast()
+  const navigate = useNavigate()
 
   const toggleFormStatus = async (formId: string, currentStatus: boolean) => {
     try {
@@ -58,9 +64,11 @@ export default function Forms() {
         .eq('id', formId)
 
       if (error) throw error
-      fetchForms()
+  fetchForms()
+  push({ type: 'success', message: 'Form status updated' })
     } catch (error) {
       console.error('Error updating form status:', error)
+  push({ type: 'error', message: 'Error updating form' })
     }
   }
 
@@ -74,16 +82,23 @@ export default function Forms() {
         .eq('id', formId)
 
       if (error) throw error
-      fetchForms()
+  fetchForms()
+  push({ type: 'success', message: 'Form deleted' })
     } catch (error) {
       console.error('Error deleting form:', error)
+  push({ type: 'error', message: 'Error deleting form' })
     }
   }
 
   const copyEmbedCode = (formId: string) => {
     const embedCode = `<iframe src="${window.location.origin}/form/${formId}" width="100%" height="600" frameborder="0"></iframe>`
     navigator.clipboard.writeText(embedCode)
-    // In a real app, you'd show a toast notification here
+  push({ type: 'success', message: 'Embed code copied to clipboard' })
+  }
+
+  const openEditModal = async (formId: string) => {
+    // Navigate to the FormBuilder in edit mode instead of opening a modal
+    navigate(`/forms/edit/${formId}`)
   }
 
   return (
@@ -93,7 +108,7 @@ export default function Forms() {
           <h1 className="text-3xl font-bold text-slate-900">Forms</h1>
           <p className="text-slate-600 mt-2">Create and manage your client forms</p>
         </div>
-        <button className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+        <button onClick={() => navigate('/forms/new')} className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
           <Plus className="w-5 h-5 mr-2" />
           Create Form
         </button>
@@ -124,7 +139,7 @@ export default function Forms() {
           </div>
           <h3 className="text-lg font-medium text-slate-900 mb-2">No forms yet</h3>
           <p className="text-slate-600 mb-6">Create your first form to start collecting responses</p>
-          <button className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+          <button onClick={() => navigate('/forms/new')} className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
             <Plus className="w-5 h-5 mr-2" />
             Create Your First Form
           </button>
@@ -169,6 +184,7 @@ export default function Forms() {
                   <button
                     className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                     title="Preview form"
+                    onClick={() => window.open(`/form/${form.id}`, '_blank')}
                   >
                     <Eye className="w-5 h-5" />
                   </button>
@@ -176,6 +192,7 @@ export default function Forms() {
                   <button
                     className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                     title="Edit form"
+                    onClick={() => openEditModal(form.id)}
                   >
                     <Edit className="w-5 h-5" />
                   </button>

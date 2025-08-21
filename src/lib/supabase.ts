@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || 'https://bahloynyhjgmdndqabhu.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhaGxveW55aGpnbWRuZHFhYmh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3NjM0ODAsImV4cCI6MjA3MTMzOTQ4MH0.SYTUzUkXfjHO-odCTKVDHiBH6AqQmJLf2qoiiD8ecZ0'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim()
 
-// Validate URL format
+if (!supabaseUrl || !supabaseKey) {
+  // Fail fast with a clear message to help local devs set up env vars
+  throw new Error(
+    'Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment. See .env.example.'
+  )
+}
+
+// Basic URL sanity check
 if (!supabaseUrl.startsWith('https://') && !supabaseUrl.startsWith('http://')) {
   throw new Error('Invalid Supabase URL format. URL must start with https:// or http://')
 }

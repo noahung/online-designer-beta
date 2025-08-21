@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Download, Filter, Search, Calendar, User } from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
 
 interface Response {
   id: string
@@ -24,7 +25,8 @@ export default function Responses() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedForm, setSelectedForm] = useState('')
-  const [forms, setForms] = useState<any[]>([])
+  const [forms, setForms] = useState<{ id: string; name: string }[]>([])
+  const { push } = useToast()
 
   useEffect(() => {
     fetchData()
@@ -41,6 +43,7 @@ export default function Responses() {
         .eq('user_id', user.id)
       
       setForms(formsData || [])
+
 
       // Fetch responses
       const { data: responsesData, error } = await supabase
@@ -60,7 +63,8 @@ export default function Responses() {
       if (error) throw error
       setResponses(responsesData || [])
     } catch (error) {
-      console.error('Error fetching responses:', error)
+  console.error('Error fetching responses:', error)
+  push({ type: 'error', message: 'Error loading responses' })
     } finally {
       setLoading(false)
     }
@@ -99,6 +103,7 @@ export default function Responses() {
     a.download = `responses-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
+  push({ type: 'success', message: 'CSV export ready' })
   }
 
   return (

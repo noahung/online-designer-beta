@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import Layout from './components/Layout'
 import LoginForm from './components/LoginForm'
 import Dashboard from './pages/Dashboard'
@@ -8,6 +9,8 @@ import Clients from './pages/Clients'
 import Forms from './pages/Forms'
 import Responses from './pages/Responses'
 import Settings from './pages/Settings'
+import FormBuilder from './pages/FormBuilder'
+import FormEmbed from './pages/FormEmbed'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -49,6 +52,9 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="clients" element={<Clients />} />
         <Route path="forms" element={<Forms />} />
+  <Route path="forms/new" element={<FormBuilder />} />
+  <Route path="forms/edit/:id" element={<FormBuilder />} />
+  <Route path="form/:id" element={<FormEmbed />} />
         <Route path="responses" element={<Responses />} />
         <Route path="settings" element={<Settings />} />
       </Route>
@@ -59,9 +65,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <ToastProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   )
 }

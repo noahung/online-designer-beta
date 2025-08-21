@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Upload, Palette } from 'lucide-react'
+import { Plus, Edit, Trash2, Users } from 'lucide-react'
+import { useToast } from '../contexts/ToastContext'
 
 interface Client {
   id: string
@@ -14,6 +15,7 @@ interface Client {
 
 export default function Clients() {
   const { user } = useAuth()
+  const { push } = useToast()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -42,6 +44,7 @@ export default function Clients() {
       setClients(data || [])
     } catch (error) {
       console.error('Error fetching clients:', error)
+  push({ type: 'error', message: 'Error loading clients' })
     } finally {
       setLoading(false)
     }
@@ -82,6 +85,7 @@ export default function Clients() {
       fetchClients()
     } catch (error) {
       console.error('Error saving client:', error)
+  push({ type: 'error', message: 'Error saving client' })
     }
   }
 
@@ -108,7 +112,9 @@ export default function Clients() {
       fetchClients()
     } catch (error) {
       console.error('Error deleting client:', error)
+      push({ type: 'error', message: 'Error deleting client' })
     }
+    push({ type: 'success', message: 'Client deleted' })
   }
 
   return (
