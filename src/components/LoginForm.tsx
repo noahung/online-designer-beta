@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Eye, EyeOff, Sparkles, Mail, Lock } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import logoPlaceholder from '../assets/images/advertomedia2024.png'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
@@ -28,18 +29,18 @@ export default function LoginForm() {
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-red-500/20 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-orange-600/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
       </div>
 
       <div className="max-w-md w-full relative z-10 animate-fade-in">
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 shadow-2xl">
           <div className="text-center mb-8">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/25 animate-scale-in">
-              <Sparkles className="w-10 h-10 text-white" />
+            <div className="mx-auto w-20 h-20 flex items-center justify-center mb-6 animate-scale-in">
+              <img src={logoPlaceholder} alt="Advertomedia Logo" className="w-20 h-20 object-contain" />
             </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent animate-slide-up">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent animate-slide-up">
               Online Designer
             </h2>
             <p className="text-white/70 mt-2 text-lg animate-fade-in-delay">Sign in to your admin account</p>
@@ -107,7 +108,7 @@ export default function LoginForm() {
               className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 animate-slide-up ${
                 loading
                   ? 'bg-white/20 cursor-not-allowed opacity-50'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105'
+                  : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105'
               }`}
               style={{animationDelay: '0.6s'}}
             >
