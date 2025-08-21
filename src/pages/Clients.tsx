@@ -56,18 +56,23 @@ export default function Clients() {
 
     try {
       if (editingClient) {
+        // Update existing client
+        const updateData: any = {
+          name: formData.name,
+          primary_color: formData.primary_color,
+          secondary_color: formData.secondary_color
+        }
+
         const { error } = await supabase
           .from('clients')
-          .update({
-            name: formData.name,
-            primary_color: formData.primary_color,
-            secondary_color: formData.secondary_color
-          })
+          .update(updateData)
           .eq('id', editingClient.id)
 
         if (error) throw error
+        push({ type: 'success', message: 'Client updated successfully' })
       } else {
-        const { error } = await supabase
+        // Create new client
+        const { data: newClient, error } = await supabase
           .from('clients')
           .insert({
             name: formData.name,
@@ -75,17 +80,24 @@ export default function Clients() {
             secondary_color: formData.secondary_color,
             user_id: user.id
           })
+          .select()
+          .single()
 
         if (error) throw error
+        push({ type: 'success', message: 'Client created successfully' })
       }
 
       setShowModal(false)
       setEditingClient(null)
-      setFormData({ name: '', primary_color: '#2563EB', secondary_color: '#475569' })
+      setFormData({
+        name: '',
+        primary_color: '#2563EB',
+        secondary_color: '#475569'
+      })
       fetchClients()
     } catch (error) {
       console.error('Error saving client:', error)
-  push({ type: 'error', message: 'Error saving client' })
+      push({ type: 'error', message: 'Error saving client' })
     }
   }
 
@@ -169,9 +181,11 @@ export default function Clients() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-white mb-1 text-lg">{client.name}</h3>
-                  <p className="text-sm text-white/60">
-                    Created {new Date(client.created_at).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-white/60">
+                      Created {new Date(client.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -295,7 +309,11 @@ export default function Clients() {
                   onClick={() => {
                     setShowModal(false)
                     setEditingClient(null)
-                    setFormData({ name: '', primary_color: '#2563EB', secondary_color: '#475569' })
+                    setFormData({ 
+                      name: '', 
+                      primary_color: '#2563EB', 
+                      secondary_color: '#475569'
+                    })
                   }}
                   className="px-6 py-2 text-white/70 hover:text-white transition-colors hover:bg-white/10 rounded-xl"
                 >

@@ -11,6 +11,7 @@ import Responses from './pages/Responses'
 import Settings from './pages/Settings'
 import FormBuilder from './pages/FormBuilder'
 import FormEmbed from './pages/FormEmbed'
+import ClientResponses from './pages/ClientResponses'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -59,15 +60,28 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/" element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="clients" element={<Clients />} />
-        <Route path="forms" element={<Forms />} />
-  <Route path="forms/new" element={<FormBuilder />} />
-  <Route path="forms/edit/:id" element={<FormBuilder />} />
-  <Route path="form/:id" element={<FormEmbed />} />
-        <Route path="responses" element={<Responses />} />
-        <Route path="settings" element={<Settings />} />
+        {/* Client routes */}
+        {isClient ? (
+          <>
+            <Route index element={<Navigate to="/client-responses" replace />} />
+            <Route path="client-responses" element={<ClientResponses />} />
+            <Route path="*" element={<Navigate to="/client-responses" replace />} />
+          </>
+        ) : (
+          /* Admin routes */
+          <>
+            <Route index element={<Dashboard />} />
+            <Route path="clients" element={<Clients />} />
+            <Route path="forms" element={<Forms />} />
+            <Route path="forms/new" element={<FormBuilder />} />
+            <Route path="forms/edit/:id" element={<FormBuilder />} />
+            <Route path="responses" element={<Responses />} />
+            <Route path="settings" element={<Settings />} />
+          </>
+        )}
       </Route>
+      {/* Public form embed route */}
+      <Route path="form/:id" element={<FormEmbed />} />
     </Routes>
   )
 }
@@ -78,7 +92,7 @@ function App() {
       <div className="min-h-screen backdrop-blur-sm bg-black/20">
         <AuthProvider>
           <ToastProvider>
-            <Router>
+            <Router basename="/online-designer-beta">
               <AppRoutes />
             </Router>
           </ToastProvider>
