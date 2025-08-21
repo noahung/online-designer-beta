@@ -31,8 +31,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`max-w-sm w-full px-4 py-2 rounded-lg shadow-md text-sm text-white ${
-              t.type === 'error' ? 'bg-red-600' : t.type === 'info' ? 'bg-slate-600' : 'bg-green-600'
+            className={`max-w-sm w-full px-4 py-3 rounded-xl shadow-2xl text-sm text-white backdrop-blur-xl border animate-slide-in-right transform transition-all duration-300 hover:scale-105 ${
+              t.type === 'error' 
+                ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-400/30' 
+                : t.type === 'info' 
+                ? 'bg-gradient-to-r from-slate-500/20 to-slate-600/20 border-slate-400/30' 
+                : 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/30'
             }`}
             role="status"
             aria-live="polite"

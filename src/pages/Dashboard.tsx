@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Users, FileText, BarChart3, TrendingUp } from 'lucide-react'
+import { Users, FileText, BarChart3, TrendingUp, Sparkles, Zap, Star, Activity } from 'lucide-react'
 
 interface Stats {
   totalClients: number
@@ -68,110 +68,142 @@ export default function Dashboard() {
       name: 'Total Clients',
       value: stats.totalClients,
       icon: Users,
-      color: 'blue',
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'from-blue-500/20 to-cyan-500/20',
+      borderColor: 'border-blue-400/30',
     },
     {
       name: 'Active Forms',
       value: stats.totalForms,
       icon: FileText,
-      color: 'green',
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'from-green-500/20 to-emerald-500/20',
+      borderColor: 'border-green-400/30',
     },
     {
       name: 'Total Responses',
       value: stats.totalResponses,
       icon: BarChart3,
-      color: 'purple',
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'from-purple-500/20 to-pink-500/20',
+      borderColor: 'border-purple-400/30',
     },
     {
       name: 'Response Rate',
       value: `${stats.responseRate}%`,
       icon: TrendingUp,
-      color: 'orange',
+      color: 'from-orange-500 to-red-500',
+      bgColor: 'from-orange-500/20 to-red-500/20',
+      borderColor: 'border-orange-400/30',
     },
   ]
 
   return (
-    <div className="p-8">
+    <div className="p-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600 mt-2">Welcome back! Here's an overview of your forms and responses.</p>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent animate-slide-up">
+          Dashboard
+        </h1>
+        <p className="text-white/70 mt-2 text-lg animate-fade-in-delay">Welcome back! Here's an overview of your forms and responses.</p>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border border-slate-200 p-6 animate-pulse">
-              <div className="h-4 bg-slate-200 rounded w-24 mb-4"></div>
-              <div className="h-8 bg-slate-200 rounded w-16 mb-2"></div>
-              <div className="h-3 bg-slate-200 rounded w-20"></div>
+            <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="h-4 bg-white/20 rounded w-24 mb-3"></div>
+                  <div className="h-8 bg-white/20 rounded w-16 mb-2"></div>
+                </div>
+                <div className="w-14 h-14 bg-white/20 rounded-xl"></div>
+              </div>
+              <div className="mt-4 h-1 bg-white/20 rounded-full"></div>
             </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map((stat) => {
-            const colorClasses = {
-              blue: 'bg-blue-50 text-blue-600 border-blue-200',
-              green: 'bg-green-50 text-green-600 border-green-200',
-              purple: 'bg-purple-50 text-purple-600 border-purple-200',
-              orange: 'bg-orange-50 text-orange-600 border-orange-200',
-            }
-
-            return (
-              <div key={stat.name} className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">{stat.name}</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{stat.value}</p>
-                  </div>
-                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
-                    <stat.icon className="w-6 h-6" />
-                  </div>
+          {statCards.map((stat, index) => (
+            <div 
+              key={stat.name} 
+              className={`bg-white/10 backdrop-blur-xl rounded-2xl border ${stat.borderColor} p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in hover:scale-105`}
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/70">{stat.name}</p>
+                  <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
+                </div>
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-r ${stat.bgColor} backdrop-blur-sm border ${stat.borderColor} flex items-center justify-center shadow-lg`}>
+                  <stat.icon className={`w-7 h-7 text-transparent bg-gradient-to-r ${stat.color} bg-clip-text`} fill="currentColor" />
                 </div>
               </div>
-            )
-          })}
+              
+              <div className="mt-4 flex items-center">
+                <div className={`w-full h-1 rounded-full bg-gradient-to-r ${stat.bgColor} overflow-hidden`}>
+                  <div className={`h-full bg-gradient-to-r ${stat.color} rounded-full animate-pulse`} style={{ width: '70%' }}></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors">
-              <div className="font-medium text-blue-900">Create New Form</div>
-              <div className="text-sm text-blue-600">Build a new form for your clients</div>
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.5s'}}>
+          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+            <Zap className="w-6 h-6 mr-2 text-yellow-400" />
+            Quick Actions
+          </h3>
+          <div className="space-y-4">
+            <button className="w-full text-left px-5 py-4 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border border-blue-400/30 hover:border-blue-400/50 rounded-xl transition-all duration-200 group">
+              <div className="font-medium text-blue-200 group-hover:text-blue-100 transition-colors">Create New Form</div>
+              <div className="text-sm text-blue-300/70 group-hover:text-blue-200/70 transition-colors">Build a new form for your clients</div>
             </button>
-            <button className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors">
-              <div className="font-medium text-green-900">Add New Client</div>
-              <div className="text-sm text-green-600">Set up branding for a new client</div>
+            <button className="w-full text-left px-5 py-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-400/30 hover:border-green-400/50 rounded-xl transition-all duration-200 group">
+              <div className="font-medium text-green-200 group-hover:text-green-100 transition-colors">Add New Client</div>
+              <div className="text-sm text-green-300/70 group-hover:text-green-200/70 transition-colors">Set up branding for a new client</div>
             </button>
-            <button className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors">
-              <div className="font-medium text-purple-900">View Responses</div>
-              <div className="text-sm text-purple-600">Check the latest form submissions</div>
+            <button className="w-full text-left px-5 py-4 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-400/30 hover:border-purple-400/50 rounded-xl transition-all duration-200 group">
+              <div className="font-medium text-purple-200 group-hover:text-purple-100 transition-colors">View Responses</div>
+              <div className="text-sm text-purple-300/70 group-hover:text-purple-200/70 transition-colors">Check the latest form submissions</div>
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h3>
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.7s'}}>
+          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+            <Activity className="w-6 h-6 mr-2 text-green-400" />
+            Recent Activity
+          </h3>
           <div className="space-y-4">
-            <div className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <FileText className="w-4 h-4 text-blue-600" />
+            <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center border border-blue-400/30">
+                <FileText className="w-5 h-5 text-blue-300" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-slate-900">New form responses received</p>
-                <p className="text-xs text-slate-500">2 minutes ago</p>
+                <p className="text-sm font-medium text-white">New form responses received</p>
+                <p className="text-xs text-white/60">2 minutes ago</p>
+              </div>
+              <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
+            </div>
+            <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full flex items-center justify-center border border-green-400/30">
+                <Users className="w-5 h-5 text-green-300" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Client "Premium Windows" added</p>
+                <p className="text-xs text-white/60">1 hour ago</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                <Users className="w-4 h-4 text-green-600" />
+            <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center border border-purple-400/30">
+                <Sparkles className="w-5 h-5 text-purple-300" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-slate-900">Client "Premium Windows" added</p>
-                <p className="text-xs text-slate-500">1 hour ago</p>
+                <p className="text-sm font-medium text-white">Form "Contact Us" updated</p>
+                <p className="text-xs text-white/60">3 hours ago</p>
               </div>
             </div>
           </div>

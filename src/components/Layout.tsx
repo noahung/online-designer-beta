@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, 
@@ -7,7 +7,9 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  PanelLeft
+  Menu,
+  X,
+  Sparkles
 } from 'lucide-react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 
@@ -20,60 +22,124 @@ const navigation = [
 ]
 
 export default function Layout() {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg border-r border-slate-200">
-        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <PanelLeft className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-slate-900">Designer Tool</span>
-          </div>
+    <div className="flex h-screen">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
         </div>
-        
-        <nav className="mt-6 px-3">
-          <ul className="space-y-1">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href
-              return (
-                <li key={item.name}>
-                  <Link
-                    to={item.href}
-                    className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                  >
-                    <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-blue-500' : 'text-slate-400'}`} />
-                    {item.name}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+      )}
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
-          <button
-            onClick={signOut}
-            className="flex items-center w-full px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <LogOut className="mr-3 h-5 w-5 text-slate-400" />
-            Sign Out
-          </button>
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex h-full flex-col bg-white/10 backdrop-blur-xl border-r border-white/20 animate-slide-in-left">
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between px-6 border-b border-white/10">
+            <div className="flex items-center space-x-3 animate-fade-in">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                Online Designer
+              </span>
+            </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 space-y-2">
+            {navigation.map((item, index) => {
+              const isActive = location.pathname === item.href || 
+                (item.href === '/forms' && location.pathname.startsWith('/forms'));
+              
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`
+                    group flex items-center px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-300 animate-fade-in
+                    ${isActive 
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white border border-blue-400/30 shadow-lg shadow-blue-500/25 transform scale-105' 
+                      : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
+                    }
+                  `}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <item.icon className={`mr-3 h-5 w-5 transition-colors ${
+                    isActive ? 'text-blue-300' : 'text-white/50 group-hover:text-white/70'
+                  }`} />
+                  {item.name}
+                  {isActive && (
+                    <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* User section */}
+          <div className="px-4 py-4 border-t border-white/10">
+            <div className="flex items-center space-x-3 px-4 py-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-200 animate-fade-in-delay">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-sm font-bold text-white">
+                  {user?.email?.[0]?.toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.email}
+                </p>
+                <p className="text-xs text-white/60">Online</p>
+              </div>
+              <button
+                onClick={signOut}
+                className="p-2 text-white/70 hover:text-white hover:bg-red-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="ml-64">
-        <main className="min-h-screen">
-          <Outlet />
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top bar for mobile */}
+        <div className="lg:hidden flex items-center justify-between h-16 px-4 bg-white/10 backdrop-blur-xl border-b border-white/20">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <span className="text-lg font-semibold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+            Online Designer
+          </span>
+          <div className="w-10"></div>
+        </div>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="h-full animate-fade-in">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

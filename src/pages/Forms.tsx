@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Copy, Eye } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -102,71 +102,85 @@ export default function Forms() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Forms</h1>
-          <p className="text-slate-600 mt-2">Create and manage your client forms</p>
+        <div className="animate-slide-up">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
+            Forms
+          </h1>
+          <p className="text-white/70 mt-2 text-lg">Create and manage your client forms</p>
         </div>
-        <button onClick={() => navigate('/forms/new')} className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-          <Plus className="w-5 h-5 mr-2" />
+        <button 
+          onClick={() => navigate('/forms/new')} 
+          className="group flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 animate-slide-up"
+          style={{animationDelay: '0.2s'}}
+        >
+          <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-200" />
           Create Form
         </button>
       </div>
 
       {loading ? (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border border-slate-200 p-6 animate-pulse">
+            <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-pulse">
               <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <div className="h-5 bg-slate-200 rounded w-48"></div>
-                  <div className="h-4 bg-slate-200 rounded w-32"></div>
-                  <div className="h-3 bg-slate-200 rounded w-24"></div>
+                <div className="space-y-3">
+                  <div className="h-6 bg-white/20 rounded-lg w-48"></div>
+                  <div className="h-4 bg-white/20 rounded-lg w-32"></div>
+                  <div className="h-3 bg-white/20 rounded-lg w-24"></div>
                 </div>
-                <div className="flex space-x-2">
-                  <div className="h-8 w-20 bg-slate-200 rounded"></div>
-                  <div className="h-8 w-8 bg-slate-200 rounded"></div>
+                <div className="flex space-x-3">
+                  <div className="h-10 w-24 bg-white/20 rounded-lg"></div>
+                  <div className="h-10 w-10 bg-white/20 rounded-lg"></div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : forms.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Plus className="w-8 h-8 text-slate-400" />
+        <div className="text-center py-16 animate-fade-in">
+          <div className="w-20 h-20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-blue-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
+            <Sparkles className="w-10 h-10 text-blue-300" />
           </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">No forms yet</h3>
-          <p className="text-slate-600 mb-6">Create your first form to start collecting responses</p>
-          <button onClick={() => navigate('/forms/new')} className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+          <h3 className="text-2xl font-bold text-white mb-3">No forms yet</h3>
+          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
+          <button 
+            onClick={() => navigate('/forms/new')} 
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
+          >
             <Plus className="w-5 h-5 mr-2" />
             Create Your First Form
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {forms.map((form) => (
-            <div key={form.id} className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg transition-shadow">
+        <div className="space-y-6">
+          {forms.map((form, index) => (
+            <div key={form.id} className="group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in" style={{animationDelay: `${index * 0.1}s`}}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-slate-900">{form.name}</h3>
-                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                  <div className="flex items-center space-x-4 mb-3">
+                    <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
+                      {form.name}
+                    </h3>
+                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
                       form.is_active 
-                        ? 'bg-green-100 text-green-700 border border-green-200'
-                        : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        ? 'bg-green-500/20 text-green-300 border-green-400/30'
+                        : 'bg-slate-500/20 text-slate-300 border-slate-400/30'
                     }`}>
                       {form.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   
                   {form.description && (
-                    <p className="text-slate-600 mb-3">{form.description}</p>
+                    <p className="text-white/70 mb-4 text-base leading-relaxed">{form.description}</p>
                   )}
                   
-                  <div className="flex items-center space-x-4 text-sm text-slate-500">
-                    <span>Client: {form.clients?.name}</span>
+                  <div className="flex items-center space-x-4 text-sm text-white/60">
+                    <span className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                      Client: {form.clients?.name}
+                    </span>
                     <span>•</span>
                     <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
                   </div>
@@ -175,14 +189,14 @@ export default function Forms() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => copyEmbedCode(form.id)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
                     title="Copy embed code"
                   >
                     <Copy className="w-5 h-5" />
                   </button>
                   
                   <button
-                    className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                    className="p-3 text-white/60 hover:text-green-300 hover:bg-green-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-green-400/30"
                     title="Preview form"
                     onClick={() => window.open(`/form/${form.id}`, '_blank')}
                   >
@@ -190,7 +204,7 @@ export default function Forms() {
                   </button>
                   
                   <button
-                    className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                    className="p-3 text-white/60 hover:text-purple-300 hover:bg-purple-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-purple-400/30"
                     title="Edit form"
                     onClick={() => openEditModal(form.id)}
                   >
@@ -199,10 +213,10 @@ export default function Forms() {
 
                   <button
                     onClick={() => toggleFormStatus(form.id, form.is_active)}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border ${
                       form.is_active
-                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        ? 'bg-slate-500/20 text-slate-300 border-slate-400/30 hover:bg-slate-500/30'
+                        : 'bg-green-500/20 text-green-300 border-green-400/30 hover:bg-green-500/30'
                     }`}
                   >
                     {form.is_active ? 'Deactivate' : 'Activate'}
@@ -210,7 +224,7 @@ export default function Forms() {
 
                   <button
                     onClick={() => deleteForm(form.id)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-3 text-white/60 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-red-400/30"
                     title="Delete form"
                   >
                     <Trash2 className="w-5 h-5" />

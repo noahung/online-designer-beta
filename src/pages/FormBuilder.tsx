@@ -3,11 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { Button } from '../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Textarea } from '../components/ui/textarea'
 import FormPreview from '../components/FormPreview'
 import { 
   ArrowLeft, 
@@ -599,182 +594,199 @@ export default function FormBuilder() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 text-center animate-pulse">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-white/30 border-t-white mx-auto mb-4"></div>
+          <p className="text-white/80 font-medium">Loading form builder...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
-      <div className="border-b bg-white px-6 py-3">
+      <div className="border-b border-white/10 bg-white/10 backdrop-blur-xl px-6 py-4 animate-fade-in">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/forms')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/forms')}
+              className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 hover:scale-110"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
                 {isEditing ? 'Edit Form: ' : 'Create Form: '}{name || 'Untitled Form'}
               </h1>
               {clientId && (
-                <p className="text-sm text-slate-500">
+                <p className="text-white/70 mt-1">
                   {clients.find(c => c.id === clientId)?.name}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={debugStorageConnection}>
+          <div className="flex space-x-3">
+            <button
+              onClick={debugStorageConnection}
+              className="px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-200 rounded-xl border border-cyan-400/30 text-sm transition-all duration-200 hover:scale-105 shadow-lg"
+            >
               🔍 Test Storage
-            </Button>
-            <Button variant="outline" onClick={() => setShowPreview(true)}>
+            </button>
+            <button
+              onClick={() => setShowPreview(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 rounded-xl border border-purple-400/30 transition-all duration-200 hover:scale-105 shadow-lg"
+            >
               <Eye className="mr-2 h-4 w-4" />
               Preview
-            </Button>
-            <Button onClick={save} disabled={saving}>
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Form'}
-            </Button>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-64px)]">
+      <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar */}
-        <div className="w-[400px] border-r bg-white overflow-y-auto">
+        <div className="w-[400px] border-r border-white/10 bg-white/5 backdrop-blur-sm overflow-y-auto animate-slide-in-left">
           <div className="p-6 space-y-6">
             {/* Form Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Form Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.1s'}}>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <FileText className="w-5 h-5 mr-2 text-blue-400" />
+                Form Settings
+              </h3>
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="form-title">Form Title</Label>
-                  <Input 
-                    id="form-title"
+                  <label className="block text-sm font-medium text-white/90">Form Title</label>
+                  <input
+                    type="text"
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Enter form title"
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="form-description">Description</Label>
-                  <Textarea 
-                    id="form-description"
+                  <label className="block text-sm font-medium text-white/90">Description</label>
+                  <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Brief description of your form"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 resize-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="welcome-message">Welcome Message</Label>
-                  <Textarea 
-                    id="welcome-message"
+                  <label className="block text-sm font-medium text-white/90">Welcome Message</label>
+                  <textarea
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
                     placeholder="Welcome message for form users"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 resize-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="client-select">Client</Label>
+                  <label className="block text-sm font-medium text-white/90">Client</label>
                   <select 
-                    id="client-select"
-                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2" 
                     value={clientId ?? ''} 
                     onChange={e => setClientId(e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                   >
-                    <option value="">Select client</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="" className="bg-slate-800 text-white">Select client</option>
+                    {clients.map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
                   </select>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Form Steps */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Form Steps</CardTitle>
-                  <div className="flex space-x-1">
-                    {stepTypes.map((stepType) => (
-                      <Button 
-                        key={stepType.type}
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => addStep(stepType.type)}
-                        title={`Add ${stepType.title}`}
-                      >
-                        {stepType.icon}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {steps.map((step, index) => (
-                    <div
-                      key={index}
-                      onClick={() => setSelectedStepIndex(index)}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                        selectedStepIndex === index
-                          ? 'bg-blue-50 border-blue-200'
-                          : 'bg-slate-50 hover:bg-slate-100 border-transparent'
-                      }`}
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.2s'}}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white flex items-center">
+                  <MessageSquare className="w-5 h-5 mr-2 text-purple-400" />
+                  Form Steps
+                </h3>
+                <div className="flex space-x-1">
+                  {stepTypes.map((stepType) => (
+                    <button
+                      key={stepType.type}
+                      onClick={() => addStep(stepType.type)}
+                      title={`Add ${stepType.title}`}
+                      className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-200 text-white/80 hover:text-white hover:scale-110 shadow-lg"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm text-slate-900">
-                            {step.title || `Step ${index + 1}`}
-                          </p>
-                          <p className="text-xs text-slate-500 capitalize">
-                            {step.question_type.replace('_', ' ')}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-slate-400">{index + 1}</span>
-                          {steps.length > 1 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteStep(index)
-                              }}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      {stepType.icon}
+                    </button>
                   ))}
-                  
-                  {steps.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-slate-500 mb-4">No steps added yet</p>
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {stepTypes.map((stepType) => (
-                          <Button 
-                            key={stepType.type}
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => addStep(stepType.type)}
+                </div>
+              </div>
+              <div className="space-y-3">
+                {steps.map((step, index) => (
+                  <div
+                    key={index}
+                    onClick={() => setSelectedStepIndex(index)}
+                    className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${
+                      selectedStepIndex === index
+                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
+                        : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm text-white">
+                          {step.title || `Step ${index + 1}`}
+                        </p>
+                        <p className="text-xs text-white/60 capitalize mt-1">
+                          {step.question_type.replace('_', ' ')}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+                        {steps.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteStep(index)
+                            }}
+                            className="p-1 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-all duration-200 hover:scale-110"
                           >
-                            {stepType.icon}
-                            <span className="ml-1">{stepType.title}</span>
-                          </Button>
-                        ))}
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                ))}
+                
+                {steps.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
+                      <Plus className="w-6 h-6 text-white/60" />
+                    </div>
+                    <p className="text-sm text-white/70 mb-6">Create a step to start building your form</p>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {stepTypes.map((stepType) => (
+                        <button
+                          key={stepType.type}
+                          onClick={() => addStep(stepType.type)}
+                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                        >
+                          {stepType.icon}
+                          <span className="ml-2 text-sm">{stepType.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -782,72 +794,73 @@ export default function FormBuilder() {
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             {currentStep ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in">
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                    Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}
+                  </h2>
+                </div>
+                <div className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="step-title">Step Title</Label>
-                    <Input 
-                      id="step-title"
+                    <label className="block text-sm font-medium text-white/90">Step Title</label>
+                    <input
+                      type="text"
                       value={currentStep.title} 
                       onChange={(e) => updateStep(selectedStepIndex!, { ...currentStep, title: e.target.value })}
                       placeholder="What are you looking for?"
+                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                     />
                   </div>
 
                   {(currentStep.question_type === 'image_selection' || currentStep.question_type === 'multiple_choice') && (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <Label>Options</Label>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
+                        <label className="text-sm font-medium text-white/90">Options</label>
+                        <button
                           onClick={() => addOption(selectedStepIndex!)}
+                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105"
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Option
-                        </Button>
+                        </button>
                       </div>
                       
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {currentStep.options.map((option, optIndex) => (
-                          <Card key={optIndex} className="p-4">
-                            <div className="space-y-3">
+                          <div key={optIndex} className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/10 transition-all duration-200">
+                            <div className="space-y-4">
                               <div className="flex items-start justify-between">
-                                <div className="flex-1 space-y-2">
-                                  <Input
+                                <div className="flex-1 space-y-3">
+                                  <input
+                                    type="text"
                                     value={option.label}
                                     onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, label: e.target.value })}
                                     placeholder="Option label"
-                                    className="font-medium"
+                                    className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 font-medium"
                                   />
-                                  <Textarea
+                                  <textarea
                                     value={option.description || ''}
                                     onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, description: e.target.value })}
                                     placeholder="Option description"
-                                    className="text-sm"
                                     rows={2}
+                                    className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm resize-none"
                                   />
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="ml-2"
-                                  onClick={() => deleteOption(selectedStepIndex!, optIndex)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
+                                <div className="ml-4 space-y-3">
+                                  <button
+                                    onClick={() => deleteOption(selectedStepIndex!, optIndex)}
+                                    className="p-2 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 hover:scale-110"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </div>
 
                               {currentStep.question_type === 'image_selection' && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center space-x-2">
-                                    <Label className="text-sm">Image</Label>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
+                                <div className="space-y-3 mt-4">
+                                  <div className="flex items-center space-x-3">
+                                    <label className="text-sm text-white/90">Image</label>
+                                    <button
                                       onClick={() => {
                                         const input = document.createElement('input')
                                         input.type = 'file'
@@ -858,34 +871,33 @@ export default function FormBuilder() {
                                         }
                                         input.click()
                                       }}
+                                      className="inline-flex items-center px-3 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-200 rounded-xl border border-cyan-400/30 transition-all duration-200 hover:scale-105 shadow-lg text-sm"
                                     >
                                       <Upload className="mr-2 h-4 w-4" />
                                       Upload Image
-                                    </Button>
+                                    </button>
                                   </div>
                                   {option.image_url && (
-                                    <div className="relative">
+                                    <div className="relative inline-block">
                                       <img 
                                         src={option.image_url} 
                                         alt="Option preview" 
-                                        className="h-24 w-32 object-cover rounded border"
+                                        className="h-24 w-32 object-cover rounded-xl border border-white/20 shadow-lg"
                                       />
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute -top-2 -right-2 h-6 w-6 bg-white shadow-sm"
+                                      <button
                                         onClick={() => updateOption(selectedStepIndex!, optIndex, { ...option, image_url: undefined, imageFile: null })}
+                                        className="absolute -top-2 -right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg"
                                       >
                                         <X className="h-3 w-3" />
-                                      </Button>
+                                      </button>
                                     </div>
                                   )}
                                 </div>
                               )}
 
-                              <div className="space-y-2">
-                                <Label className="text-sm">Jump to step (optional)</Label>
-                                <Input
+                              <div className="space-y-2 mt-4">
+                                <label className="block text-xs text-white/70">Jump to step (optional)</label>
+                                <input
                                   type="number"
                                   min={1}
                                   max={steps.length}
@@ -895,51 +907,53 @@ export default function FormBuilder() {
                                     jump_to_step: e.target.value ? Number(e.target.value) : undefined 
                                   })}
                                   placeholder="Step number"
-                                  className="w-24"
+                                  className="w-24 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
                                 />
                               </div>
                             </div>
-                          </Card>
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
                   {/* Save Step Button */}
-                  <div className="flex justify-end pt-4 border-t">
-                    <Button 
+                  <div className="flex justify-end pt-6 mt-6 border-t border-white/20">
+                    <button
                       onClick={() => saveStep(selectedStepIndex!)} 
                       disabled={saving}
-                      size="sm"
-                      variant={isEditing && formId ? "outline" : "default"}
+                      className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isEditing && formId 
+                          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-blue-200 border border-blue-400/30 shadow-blue-500/25' 
+                          : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-green-500/25 hover:shadow-green-500/40'
+                      }`}
                     >
                       <Save className="mr-2 h-4 w-4" />
                       {saving ? 'Saving...' : (isEditing && formId ? 'Save Step' : 'Save Form & Step')}
-                    </Button>
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No step selected</h3>
-                    <p className="text-slate-500 mb-6">Create a step to start building your form</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {stepTypes.map((stepType) => (
-                        <Button 
-                          key={stepType.type}
-                          variant="outline"
-                          onClick={() => addStep(stepType.type)}
-                        >
-                          {stepType.icon}
-                          <span className="ml-2">{stepType.title}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-12 text-center animate-fade-in">
+                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/20">
+                  <MessageSquare className="w-8 h-8 text-white/60" />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-3">No step selected</h3>
+                <p className="text-white/70 mb-8 text-lg">Create a step to start building your form</p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  {stepTypes.map((stepType) => (
+                    <button
+                      key={stepType.type}
+                      onClick={() => addStep(stepType.type)}
+                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                    >
+                      {stepType.icon}
+                      <span className="ml-3">{stepType.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

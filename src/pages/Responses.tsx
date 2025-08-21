@@ -189,15 +189,16 @@ export default function Responses() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Responses</h1>
-          <p className="text-slate-600 mt-2">View and export form submissions</p>
+        <div className="animate-slide-up">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">Responses</h1>
+          <p className="text-white/70 mt-2 text-lg">View and export form submissions</p>
         </div>
         <button
           onClick={exportToCSV}
-          className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 animate-slide-up"
+          style={{animationDelay: '0.2s'}}
         >
           <Download className="w-5 h-5 mr-2" />
           Export CSV
@@ -205,36 +206,36 @@ export default function Responses() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+      <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 mb-8 animate-fade-in" style={{animationDelay: '0.3s'}}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-white/90 mb-2">
               Search
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                 placeholder="Search by name or email..."
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-white/90 mb-2">
               Form
             </label>
             <select
               value={selectedForm}
               onChange={(e) => setSelectedForm(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
             >
-              <option value="">All Forms</option>
+              <option value="" className="bg-slate-800 text-white">All Forms</option>
               {forms.map((form) => (
-                <option key={form.id} value={form.name}>
+                <option key={form.id} value={form.name} className="bg-slate-800 text-white">
                   {form.name}
                 </option>
               ))}
@@ -242,17 +243,17 @@ export default function Responses() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-white/90 mb-2">
               Client
             </label>
             <select
               value={selectedClient}
               onChange={(e) => setSelectedClient(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
             >
-              <option value="">All Clients</option>
+              <option value="" className="bg-slate-800 text-white">All Clients</option>
               {clients.map((client) => (
-                <option key={client.name} value={client.name}>
+                <option key={client.name} value={client.name} className="bg-slate-800 text-white">
                   {client.name}
                 </option>
               ))}
@@ -260,7 +261,7 @@ export default function Responses() {
           </div>
 
           <div className="flex items-end">
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-white/60 px-3 py-3 bg-white/5 rounded-xl border border-white/10">
               {filteredResponses.length} of {responses.length} responses
             </span>
           </div>
@@ -268,29 +269,29 @@ export default function Responses() {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="p-6">
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 overflow-hidden animate-fade-in" style={{animationDelay: '0.4s'}}>
+          <div className="p-8">
             <div className="space-y-4">
-              {[...Array(10)].map((_, i) => (
+              {[...Array(5)].map((_, i) => (
                 <div key={i} className="flex items-center space-x-4 animate-pulse">
-                  <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
+                  <div className="w-12 h-12 bg-white/20 rounded-full"></div>
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-slate-200 rounded w-48"></div>
-                    <div className="h-3 bg-slate-200 rounded w-32"></div>
+                    <div className="h-4 bg-white/20 rounded w-48"></div>
+                    <div className="h-3 bg-white/20 rounded w-32"></div>
                   </div>
-                  <div className="h-3 bg-slate-200 rounded w-20"></div>
+                  <div className="h-3 bg-white/20 rounded w-24"></div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       ) : filteredResponses.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-slate-400" />
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-12 text-center animate-fade-in" style={{animationDelay: '0.4s'}}>
+          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-white/60" />
           </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">No responses yet</h3>
-          <p className="text-slate-600">
+          <h3 className="text-xl font-semibold text-white mb-2">No responses yet</h3>
+          <p className="text-white/70">
             {searchTerm || selectedForm 
               ? 'No responses match your current filters'
               : 'Responses will appear here when users submit your forms'
@@ -298,64 +299,66 @@ export default function Responses() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 overflow-hidden animate-fade-in" style={{animationDelay: '0.4s'}}>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
+            <table className="min-w-full">
+              <thead className="bg-white/5 border-b border-white/10">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
                     Contact
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
                     Form
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
                     Client
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
                     Submitted
                   </th>
-                  <th className="relative px-6 py-3">
+                  <th className="relative px-6 py-4">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {filteredResponses.map((response) => (
-                  <tr key={response.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+              <tbody className="divide-y divide-white/10">
+                {filteredResponses.map((response, index) => (
+                  <tr key={response.id} className="hover:bg-white/5 transition-all duration-200 group animate-slide-up" style={{animationDelay: `${0.1 * index}s`}}>
+                    <td className="px-6 py-4">
                       <div>
-                        <div className="text-sm font-medium text-slate-900">
+                        <div className="text-sm font-medium text-white">
                           {response.contact_name || 'Anonymous'}
                         </div>
-                        <div className="text-sm text-slate-500">
+                        <div className="text-sm text-white/70">
                           {response.contact_email}
                         </div>
                         {response.contact_phone && (
-                          <div className="text-sm text-slate-500">
+                          <div className="text-sm text-white/60">
                             {response.contact_phone}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                      {response.forms?.[0]?.name}
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-200 border border-blue-400/30">
+                        {response.forms?.[0]?.name}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    <td className="px-6 py-4 text-sm text-white/80">
                       {response.forms?.[0]?.clients?.[0]?.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    <td className="px-6 py-4 text-sm text-white/70">
                       <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
+                        <Calendar className="w-4 h-4 mr-2 text-white/50" />
                         {new Date(response.submitted_at).toLocaleDateString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 text-right">
                       <button 
                         onClick={() => fetchResponseDetails(response.id)}
-                        className="flex items-center text-blue-600 hover:text-blue-900 transition-colors"
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-purple-500/25"
                       >
-                        <Eye className="w-4 h-4 mr-1" />
+                        <Eye className="w-4 h-4 mr-2" />
                         View Details
                       </button>
                     </td>
@@ -369,20 +372,20 @@ export default function Responses() {
 
       {/* Response Details Modal */}
       {selectedResponse && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-scale-in shadow-2xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
+            <div className="flex items-center justify-between p-6 border-b border-white/20 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Response Details</h2>
-                <p className="text-sm text-slate-500 mt-1">
+                <h2 className="text-2xl font-semibold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Response Details</h2>
+                <p className="text-sm text-white/70 mt-1">
                   Submitted {new Date(selectedResponse.submitted_at).toLocaleDateString()} at{' '}
                   {new Date(selectedResponse.submitted_at).toLocaleTimeString()}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedResponse(null)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-white/60 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-xl"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -390,71 +393,71 @@ export default function Responses() {
 
             <div className="flex-1 overflow-y-auto">
               {/* Contact Information */}
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="text-lg font-medium text-slate-900 mb-4">Contact Information</h3>
+              <div className="p-6 border-b border-white/10">
+                <h3 className="text-lg font-semibold text-white mb-4">Contact Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-                    <p className="text-slate-900">{selectedResponse.contact_name || 'Not provided'}</p>
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <label className="block text-sm font-medium text-white/70 mb-1">Name</label>
+                    <p className="text-white">{selectedResponse.contact_name || 'Not provided'}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <p className="text-slate-900">{selectedResponse.contact_email || 'Not provided'}</p>
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <label className="block text-sm font-medium text-white/70 mb-1">Email</label>
+                    <p className="text-white">{selectedResponse.contact_email || 'Not provided'}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-                    <p className="text-slate-900">{selectedResponse.contact_phone || 'Not provided'}</p>
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <label className="block text-sm font-medium text-white/70 mb-1">Phone</label>
+                    <p className="text-white">{selectedResponse.contact_phone || 'Not provided'}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Postcode</label>
-                    <p className="text-slate-900">{selectedResponse.contact_postcode || 'Not provided'}</p>
+                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <label className="block text-sm font-medium text-white/70 mb-1">Postcode</label>
+                    <p className="text-white">{selectedResponse.contact_postcode || 'Not provided'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Form Information */}
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="text-lg font-medium text-slate-900 mb-4">Form Details</h3>
+              <div className="p-6 border-b border-white/10">
+                <h3 className="text-lg font-semibold text-white mb-4">Form Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-blue-700 mb-1">Form Name</label>
-                    <p className="text-blue-900 font-medium">{selectedResponse.forms?.[0]?.name}</p>
+                  <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl p-4 border border-blue-400/30">
+                    <label className="block text-sm font-medium text-blue-200 mb-1">Form Name</label>
+                    <p className="text-white font-medium">{selectedResponse.forms?.[0]?.name}</p>
                   </div>
-                  <div className="bg-green-50 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-green-700 mb-1">Client</label>
-                    <p className="text-green-900 font-medium">{selectedResponse.forms?.[0]?.clients?.[0]?.name || 'No client assigned'}</p>
+                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-400/30">
+                    <label className="block text-sm font-medium text-green-200 mb-1">Client</label>
+                    <p className="text-white font-medium">{selectedResponse.forms?.[0]?.clients?.[0]?.name || 'No client assigned'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Response Answers */}
               <div className="p-6">
-                <h3 className="text-lg font-medium text-slate-900 mb-6">Response Answers</h3>
+                <h3 className="text-lg font-semibold text-white mb-6">Response Answers</h3>
                 {selectedResponse.response_answers && selectedResponse.response_answers.length > 0 ? (
                   <div className="space-y-6">
                     {selectedResponse.response_answers.map((answer, index) => (
-                      <div key={answer.id} className="border border-slate-200 rounded-lg p-6">
+                      <div key={answer.id} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-200">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h4 className="font-medium text-slate-900 mb-2">
+                            <h4 className="font-medium text-white mb-2">
                               {answer.form_steps?.[0]?.title || `Question ${index + 1}`}
                             </h4>
-                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 border border-purple-400/30">
                               {answer.form_steps?.[0]?.question_type || 'Unknown'}
                             </span>
                           </div>
-                          <span className="text-sm text-slate-500">#{index + 1}</span>
+                          <span className="text-sm text-white/50 bg-white/10 px-2 py-1 rounded-lg">#{index + 1}</span>
                         </div>
                         
                         <div className="mt-4">
-                          <label className="block text-sm font-medium text-slate-700 mb-2">Answer</label>
-                          <div className="bg-slate-50 rounded-lg p-4 min-h-[60px]">
+                          <label className="block text-sm font-medium text-white/70 mb-2">Answer</label>
+                          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 min-h-[60px] border border-white/10">
                             {answer.answer_text ? (
-                              <p className="text-slate-900 whitespace-pre-wrap">{answer.answer_text}</p>
+                              <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
                             ) : answer.form_options?.[0]?.label ? (
-                              <p className="text-slate-900 font-medium">{answer.form_options[0].label}</p>
+                              <p className="text-white font-medium">{answer.form_options[0].label}</p>
                             ) : (
-                              <p className="text-slate-400 italic">No answer provided</p>
+                              <p className="text-white/50 italic">No answer provided</p>
                             )}
                           </div>
                         </div>
@@ -463,21 +466,21 @@ export default function Responses() {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <ChevronRight className="w-8 h-8 text-slate-400" />
+                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ChevronRight className="w-8 h-8 text-white/60" />
                     </div>
-                    <h4 className="text-lg font-medium text-slate-900 mb-2">No detailed answers available</h4>
-                    <p className="text-slate-600">This response doesn't contain detailed answer data.</p>
+                    <h4 className="text-lg font-medium text-white mb-2">No detailed answers available</h4>
+                    <p className="text-white/70">This response doesn't contain detailed answer data.</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end px-6 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+            <div className="flex items-center justify-end px-6 py-4 border-t border-white/10 bg-white/5 flex-shrink-0">
               <button
                 onClick={() => setSelectedResponse(null)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors"
+                className="px-6 py-2 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl transition-all duration-200 font-medium transform hover:scale-105 shadow-lg"
               >
                 Close
               </button>
