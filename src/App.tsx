@@ -60,25 +60,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/" element={<Layout />}>
-        {/* Client routes */}
-        {isClient ? (
-          <>
-            <Route index element={<Navigate to="/client-responses" replace />} />
-            <Route path="client-responses" element={<ClientResponses />} />
-            <Route path="*" element={<Navigate to="/client-responses" replace />} />
-          </>
-        ) : (
-          /* Admin routes */
-          <>
-            <Route index element={<Dashboard />} />
-            <Route path="clients" element={<Clients />} />
-            <Route path="forms" element={<Forms />} />
-            <Route path="forms/new" element={<FormBuilder />} />
-            <Route path="forms/edit/:id" element={<FormBuilder />} />
-            <Route path="responses" element={<Responses />} />
-            <Route path="settings" element={<Settings />} />
-          </>
-        )}
+        {/* Admin routes - temporarily showing all routes since we removed client system */}
+        <Route index element={<Dashboard />} />
+        <Route path="clients" element={<Clients />} />
+        <Route path="forms" element={<Forms />} />
+        <Route path="forms/new" element={<FormBuilder />} />
+        <Route path="forms/edit/:id" element={<FormBuilder />} />
+        <Route path="responses" element={<Responses />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       {/* Public form embed route */}
       <Route path="form/:id" element={<FormEmbed />} />
@@ -87,12 +76,15 @@ function AppRoutes() {
 }
 
 function App() {
+  // Use basename only in production for GitHub Pages
+  const basename = import.meta.env.PROD ? '/online-designer-beta' : '';
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900">
       <div className="min-h-screen backdrop-blur-sm bg-black/20">
         <AuthProvider>
           <ToastProvider>
-            <Router basename="/online-designer-beta">
+            <Router basename={basename}>
               <AppRoutes />
             </Router>
           </ToastProvider>

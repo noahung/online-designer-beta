@@ -1,16 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
+// GitHub Pages production config
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/online-designer-beta/' : '/',
+  base: '/online-designer-beta/',
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
+    outDir: 'dist',
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
