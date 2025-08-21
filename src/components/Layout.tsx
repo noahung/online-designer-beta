@@ -13,7 +13,7 @@ import {
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import logoPlaceholder from '../assets/images/advertomedia2024.png'
 
-const navigation = [
+const adminNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Forms', href: '/forms', icon: FileText },
@@ -21,10 +21,16 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
+const clientNavigation = [
+  { name: 'Responses', href: '/responses', icon: BarChart3 },
+]
+
 export default function Layout() {
-  const { user, signOut } = useAuth()
+  const { user, userType, clientData, signOut } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  const navigation = userType === 'client' ? clientNavigation : adminNavigation
 
   return (
     <div className="flex h-screen">
@@ -34,7 +40,7 @@ export default function Layout() {
           className="fixed inset-0 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
         </div>
       )}
 
@@ -103,9 +109,11 @@ export default function Layout() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  {user?.email}
+                  {userType === 'client' && clientData ? clientData.name : user?.email}
                 </p>
-                <p className="text-xs text-white/60">Online</p>
+                <p className="text-xs text-white/60">
+                  {userType === 'client' ? 'Client Portal' : 'Agency Admin'}
+                </p>
               </div>
               <button
                 onClick={signOut}

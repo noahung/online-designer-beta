@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 ALTER TABLE clients 
 ADD COLUMN IF NOT EXISTS client_email text,
 ADD COLUMN IF NOT EXISTS client_password_hash text,
-ADD COLUMN IF NOT EXISTS client_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS client_user_id text; -- Changed from uuid REFERENCES to just text
 
 -- 4. Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);

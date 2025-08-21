@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
+import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import LoginForm from './components/LoginForm'
 import Dashboard from './pages/Dashboard'
@@ -11,10 +12,9 @@ import Responses from './pages/Responses'
 import Settings from './pages/Settings'
 import FormBuilder from './pages/FormBuilder'
 import FormEmbed from './pages/FormEmbed'
-import ClientResponses from './pages/ClientResponses'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
+  const { user, userType, loading } = useAuth()
   
   if (loading) {
     return (
@@ -33,13 +33,21 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
   
+  // If this is an admin-only route and user is a client, redirect to responses
+  if (adminOnly && userType === 'client') {
+    return <Navigate to="/responses" replace />
+  }
+  
   return <>{children}</>
 }
 
 function AppRoutes() {
-  const { user, loading } = useAuth()
+  const { user, userType, loading } = useAuth()
+  
+  console.log('AppRoutes: State', { user: user?.email, userType, loading })
   
   if (loading) {
+    console.log('AppRoutes: Showing loading screen')
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
         <div className="text-center animate-fade-in">
@@ -53,21 +61,49 @@ function AppRoutes() {
   }
   
   if (!user) {
+    console.log('AppRoutes: No user, showing login')
     return <LoginForm />
   }
   
+  console.log('AppRoutes: User authenticated, showing routes')
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/" element={<Layout />}>
-        {/* Admin routes - temporarily showing all routes since we removed client system */}
-        <Route index element={<Dashboard />} />
-        <Route path="clients" element={<Clients />} />
-        <Route path="forms" element={<Forms />} />
-        <Route path="forms/new" element={<FormBuilder />} />
-        <Route path="forms/edit/:id" element={<FormBuilder />} />
-        <Route path="responses" element={<Responses />} />
-        <Route path="settings" element={<Settings />} />
+        {/* Client gets redirected to responses if they try to access admin routes */}
+        <Route index element={
+          userType === 'client' ? <Navigate to="/responses" replace /> : <Dashboard />
+        } />
+        <Route path="clients" element={
+          <ProtectedRoute adminOnly>
+            <Clients />
+          </ProtectedRoute>
+        } />
+        <Route path="forms" element={
+          <ProtectedRoute adminOnly>
+            <Forms />
+          </ProtectedRoute>
+        } />
+        <Route path="forms/new" element={
+          <ProtectedRoute adminOnly>
+            <FormBuilder />
+          </ProtectedRoute>
+        } />
+        <Route path="forms/edit/:id" element={
+          <ProtectedRoute adminOnly>
+            <FormBuilder />
+          </ProtectedRoute>
+        } />
+        <Route path="responses" element={
+          <ProtectedRoute>
+            <Responses />
+          </ProtectedRoute>
+        } />
+        <Route path="settings" element={
+          <ProtectedRoute adminOnly>
+            <Settings />
+          </ProtectedRoute>
+        } />
       </Route>
       {/* Public form embed route */}
       <Route path="form/:id" element={<FormEmbed />} />
@@ -80,17 +116,19 @@ function App() {
   const basename = import.meta.env.PROD ? '/online-designer-beta' : '';
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900">
-      <div className="min-h-screen backdrop-blur-sm bg-black/20">
-        <AuthProvider>
-          <ToastProvider>
-            <Router basename={basename}>
-              <AppRoutes />
-            </Router>
-          </ToastProvider>
-        </AuthProvider>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900">
+        <div className="min-h-screen backdrop-blur-sm bg-black/20">
+          <AuthProvider>
+            <ToastProvider>
+              <Router basename={basename}>
+                <AppRoutes />
+              </Router>
+            </ToastProvider>
+          </AuthProvider>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   )
 }
 

@@ -38,7 +38,7 @@ interface Client {
 }
 
 export default function Responses() {
-  const { user } = useAuth()
+  const { user, userType, clientData } = useAuth()
   const [responses, setResponses] = useState<Response[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -57,47 +57,94 @@ export default function Responses() {
     if (!user) return
 
     try {
-      // Fetch forms for filter dropdown
-      const { data: formsData } = await supabase
-        .from('forms')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .order('name')
-      
-      setForms(formsData || [])
+      let formsData: any[] = []
+      let clientsData: any[] = []
+      let responsesData: any[] = []
 
-      // Fetch clients for filter dropdown
-      const { data: clientsData } = await supabase
-        .from('clients')
-        .select('name')
-        .eq('user_id', user.id)
-        .order('name')
+      if (userType === 'client' && clientData) {
+        // Client view - only show forms and responses for their client
+        const { data: clientFormsData } = await supabase
+          .from('forms')
+          .select('id, name')
+          .eq('client_id', clientData.id)
+          .order('name')
+        
+        formsData = clientFormsData || []
+        clientsData = [{ name: clientData.name }]
 
-      setClients(clientsData || [])
+        // Fetch responses only for this client's forms
+        const formIds = formsData.map(f => f.id)
+        if (formIds.length > 0) {
+          const { data: clientResponsesData, error } = await supabase
+            .from('responses')
+            .select(`
+              id,
+              contact_name,
+              contact_email,
+              contact_phone,
+              contact_postcode,
+              submitted_at,
+              forms (
+                id,
+                name,
+                clients (
+                  name
+                )
+              )
+            `)
+            .in('form_id', formIds)
+            .order('submitted_at', { ascending: false })
+          
+          if (error) throw error
+          responsesData = clientResponsesData || []
+        }
+      } else {
+        // Admin view - show all forms and responses
+        const { data: adminFormsData } = await supabase
+          .from('forms')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .order('name')
+        
+        formsData = adminFormsData || []
 
-      // Fetch responses
-      const { data: responsesData, error } = await supabase
-        .from('responses')
-        .select(`
-          id,
-          contact_name,
-          contact_email,
-          contact_phone,
-          contact_postcode,
-          submitted_at,
-          forms (
+        // Fetch clients for filter dropdown
+        const { data: adminClientsData } = await supabase
+          .from('clients')
+          .select('name')
+          .eq('user_id', user.id)
+          .order('name')
+
+        clientsData = adminClientsData || []
+
+        // Fetch responses
+        const { data: adminResponsesData, error } = await supabase
+          .from('responses')
+          .select(`
             id,
-            name,
-            clients (
-              name
+            contact_name,
+            contact_email,
+            contact_phone,
+            contact_postcode,
+            submitted_at,
+            forms (
+              id,
+              name,
+              clients (
+                name
+              )
             )
-          )
-        `)
-        .in('form_id', (formsData || []).map(f => f.id))
-        .order('submitted_at', { ascending: false })
+          `)
+          .in('form_id', formsData.map(f => f.id))
+          .order('submitted_at', { ascending: false })
 
-      if (error) throw error
-      setResponses((responsesData || []) as unknown as Response[])
+        if (error) throw error
+        responsesData = adminResponsesData || []
+      }
+      
+      setForms(formsData)
+      setClients(clientsData)
+      setResponses(responsesData as unknown as Response[])
     } catch (error) {
       console.error('Error fetching responses:', error)
       push({ type: 'error', message: 'Error loading responses' })
@@ -192,8 +239,15 @@ export default function Responses() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">Responses</h1>
-          <p className="text-white/70 mt-2 text-lg">View and export form submissions</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">
+            {userType === 'client' ? `${clientData?.name} - Form Responses` : 'Responses'}
+          </h1>
+          <p className="text-white/70 mt-2 text-lg">
+            {userType === 'client' 
+              ? 'View and export your form submissions' 
+              : 'View and export form submissions'
+            }
+          </p>
         </div>
         <button
           onClick={exportToCSV}
@@ -207,7 +261,7 @@ export default function Responses() {
 
       {/* Filters */}
       <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 mb-8 animate-fade-in" style={{animationDelay: '0.3s'}}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 gap-4 ${userType === 'admin' ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
           <div>
             <label className="block text-sm font-medium text-white/90 mb-2">
               Search
@@ -242,23 +296,25 @@ export default function Responses() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">
-              Client
-            </label>
-            <select
-              value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
-              className="w-full px-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-            >
-              <option value="" className="bg-slate-800 text-white">All Clients</option>
-              {clients.map((client) => (
-                <option key={client.name} value={client.name} className="bg-slate-800 text-white">
-                  {client.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {userType === 'admin' && (
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">
+                Client
+              </label>
+              <select
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className="w-full px-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+              >
+                <option value="" className="bg-slate-800 text-white">All Clients</option>
+                {clients.map((client) => (
+                  <option key={client.name} value={client.name} className="bg-slate-800 text-white">
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex items-end">
             <span className="text-sm text-white/60 px-3 py-3 bg-white/5 rounded-xl border border-white/10">
@@ -372,7 +428,7 @@ export default function Responses() {
 
       {/* Response Details Modal */}
       {selectedResponse && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-scale-in shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-white/20 flex-shrink-0">
