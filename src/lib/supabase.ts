@@ -17,6 +17,25 @@ if (!supabaseUrl.startsWith('https://') && !supabaseUrl.startsWith('http://')) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
+// Helper function to set client context for RLS policies
+export const setClientContext = async (clientId: string | null) => {
+  if (clientId) {
+    // Set the client_id context for RLS policies
+    await supabase.rpc('set_app_config', {
+      setting_name: 'app.client_id',
+      setting_value: clientId,
+      is_local: true
+    })
+  } else {
+    // Clear the client context
+    await supabase.rpc('set_app_config', {
+      setting_name: 'app.client_id',
+      setting_value: '',
+      is_local: true
+    })
+  }
+}
+
 export type Database = {
   public: {
     Tables: {

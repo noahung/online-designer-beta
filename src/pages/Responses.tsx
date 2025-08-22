@@ -67,99 +67,67 @@ export default function Responses() {
       if (userType === 'client' && clientData) {
         console.log('Client view - fetching for client:', clientData.id)
         
-        // Client view - use same query as admin but filter for client's forms
-        const { data: clientFormsData } = await supabase
+        // Get forms for this client (same as admin pattern but filtered by client_id)
+        const { data: clientFormsData, error: formsError } = await supabase
           .from('forms')
-          .select('id, name')
+          .select('id, name, client_id')
           .eq('client_id', clientData.id)
           .order('name')
         
         console.log('Client forms data:', clientFormsData)
+        console.log('Client forms error:', formsError)
+        
+        if (formsError) throw formsError
         formsData = clientFormsData || []
         clientsData = [{ name: clientData.name }]
 
-        // Note: Responses should be created by form submissions, not by clients directly
-        // Client users can only VIEW responses, not create them due to RLS policies
+        // Get responses for client's forms (same pattern as admin)
+        if (formsData.length > 0) {
+          const { data: clientResponsesData, error: responsesError } = await supabase
+            .from('responses')
+            .select(`
+              id,
+              contact_name,
+              contact_email,
+              contact_phone,
+              contact_postcode,
+              submitted_at,
+              form_id
+            `)
+            .in('form_id', formsData.map(f => f.id))
+            .order('submitted_at', { ascending: false })
 
-        // Use same response fetching logic as admin, but for client's forms only
-        console.log('Form IDs to query:', formsData.map(f => f.id))
-        
-        // Debug: Check what responses exist and their form_ids
-        const { data: allResponsesDebug } = await supabase
-          .from('responses')
-          .select('id, form_id, contact_name')
-        console.log('All responses in database:', allResponsesDebug)
-        
-        const { data: clientResponsesData, error } = await supabase
-          .from('responses')
-          .select(`
-            id,
-            contact_name,
-            contact_email,
-            contact_phone,
-            contact_postcode,
-            submitted_at,
-            form_id
-          `)
-          .in('form_id', formsData.map(f => f.id))
-          .order('submitted_at', { ascending: false })
-
-        console.log('Raw client responses data:', clientResponsesData)
-        console.log('Client responses error:', error)
-        console.log('Number of responses found:', clientResponsesData?.length || 0)
-        if (error) throw error
-        
-        // Manually fetch form and client data for each response (same as admin)
-        if (clientResponsesData && clientResponsesData.length > 0) {
-          const enrichedClientResponses = await Promise.all(
-            clientResponsesData.map(async (response) => {
-              const { data: formData } = await supabase
-                .from('forms')
-                .select(`
-                  id,
-                  name,
-                  client_id,
-                  clients (
-                    id,
-                    name
-                  )
-                `)
-                .eq('id', response.form_id)
-                .single()
-
-              console.log('Client form data for response:', response.id, formData)
-
-              return {
-                ...response,
-                forms: formData ? [formData] : null
-              }
-            })
-          )
+          console.log('Client responses data:', clientResponsesData)
+          console.log('Client responses error:', responsesError)
           
-          responsesData = enrichedClientResponses
-        } else {
-          responsesData = clientResponsesData || []
+          if (responsesError) throw responsesError
+          
+          // Enrich responses with form data (same pattern as admin)
+          if (clientResponsesData && clientResponsesData.length > 0) {
+            const enrichedResponses = await Promise.all(
+              clientResponsesData.map(async (response) => {
+                const formData = formsData.find(f => f.id === response.form_id)
+                return {
+                  ...response,
+                  forms: formData ? [{
+                    id: formData.id,
+                    name: formData.name,
+                    clients: { name: clientData.name }
+                  }] : null
+                }
+              })
+            )
+            
+            console.log('Enriched client responses:', enrichedResponses)
+            responsesData = enrichedResponses
+          } else {
+            responsesData = clientResponsesData || []
+          }
         }
       } else {
         console.log('Admin view - fetching for admin user:', user.id)
         
-        // First, let's check what forms exist and their client associations
-        const { data: debugForms } = await supabase
-          .from('forms')
-          .select(`
-            id, 
-            name, 
-            client_id,
-            clients (
-              id,
-              name
-            )
-          `)
-          .eq('user_id', user.id)
-        
-        console.log('Debug: Forms with client associations:', debugForms)
-        
-        // Admin view - show all forms and responses
+        // Admin view (existing working code)
         const { data: adminFormsData } = await supabase
           .from('forms')
           .select('id, name')
@@ -179,15 +147,7 @@ export default function Responses() {
         console.log('Admin clients data:', adminClientsData)
         clientsData = adminClientsData || []
 
-        // Now let's get all responses for these forms (without joins first)
-        const { data: simpleResponses } = await supabase
-          .from('responses')
-          .select('*')
-          .in('form_id', formsData.map(f => f.id))
-        
-        console.log('Simple responses (no joins):', simpleResponses)
-
-        // Fetch responses with a different approach
+        // Fetch responses with the same working pattern
         const { data: adminResponsesData, error } = await supabase
           .from('responses')
           .select(`
