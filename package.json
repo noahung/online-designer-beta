@@ -8,10 +8,12 @@
     "dev": "vite",
     "build": "vite build",
     "build:gh-pages": "vite build --config vite.config.gh-pages.ts",
+    "build:main": "vite build --config vite.config.gh-pages.ts --outDir docs",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build:gh-pages",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "deploy:main": "npm run build:main"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",

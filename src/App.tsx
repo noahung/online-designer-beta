@@ -44,10 +44,10 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 function AppRoutes() {
   const { user, userType, loading } = useAuth()
   
-  console.log('AppRoutes: State', { user: user?.email, userType, loading })
+  console.log('AppRoutes: Simple state check', { user: user?.email, userType, loading })
   
   if (loading) {
-    console.log('AppRoutes: Showing loading screen')
+    console.log('AppRoutes: Still loading')
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
         <div className="text-center animate-fade-in">

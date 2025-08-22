@@ -27,8 +27,9 @@ interface Response {
     id: string
     name: string
     clients: {
+      id: string
       name: string
-    }[] | null
+    } | null
   }[] | null
   response_answers?: ResponseAnswer[]
 }
@@ -57,48 +58,107 @@ export default function Responses() {
     if (!user) return
 
     try {
+      console.log('Fetching responses data for user:', user.id, 'userType:', userType)
+      
       let formsData: any[] = []
       let clientsData: any[] = []
       let responsesData: any[] = []
 
       if (userType === 'client' && clientData) {
-        // Client view - only show forms and responses for their client
+        console.log('Client view - fetching for client:', clientData.id)
+        
+        // Client view - use same query as admin but filter for client's forms
         const { data: clientFormsData } = await supabase
           .from('forms')
           .select('id, name')
           .eq('client_id', clientData.id)
           .order('name')
         
+        console.log('Client forms data:', clientFormsData)
         formsData = clientFormsData || []
         clientsData = [{ name: clientData.name }]
 
-        // Fetch responses only for this client's forms
-        const formIds = formsData.map(f => f.id)
-        if (formIds.length > 0) {
-          const { data: clientResponsesData, error } = await supabase
-            .from('responses')
-            .select(`
-              id,
-              contact_name,
-              contact_email,
-              contact_phone,
-              contact_postcode,
-              submitted_at,
-              forms (
-                id,
-                name,
-                clients (
-                  name
-                )
-              )
-            `)
-            .in('form_id', formIds)
-            .order('submitted_at', { ascending: false })
+        // Note: Responses should be created by form submissions, not by clients directly
+        // Client users can only VIEW responses, not create them due to RLS policies
+
+        // Use same response fetching logic as admin, but for client's forms only
+        console.log('Form IDs to query:', formsData.map(f => f.id))
+        
+        // Debug: Check what responses exist and their form_ids
+        const { data: allResponsesDebug } = await supabase
+          .from('responses')
+          .select('id, form_id, contact_name')
+        console.log('All responses in database:', allResponsesDebug)
+        
+        const { data: clientResponsesData, error } = await supabase
+          .from('responses')
+          .select(`
+            id,
+            contact_name,
+            contact_email,
+            contact_phone,
+            contact_postcode,
+            submitted_at,
+            form_id
+          `)
+          .in('form_id', formsData.map(f => f.id))
+          .order('submitted_at', { ascending: false })
+
+        console.log('Raw client responses data:', clientResponsesData)
+        console.log('Client responses error:', error)
+        console.log('Number of responses found:', clientResponsesData?.length || 0)
+        if (error) throw error
+        
+        // Manually fetch form and client data for each response (same as admin)
+        if (clientResponsesData && clientResponsesData.length > 0) {
+          const enrichedClientResponses = await Promise.all(
+            clientResponsesData.map(async (response) => {
+              const { data: formData } = await supabase
+                .from('forms')
+                .select(`
+                  id,
+                  name,
+                  client_id,
+                  clients (
+                    id,
+                    name
+                  )
+                `)
+                .eq('id', response.form_id)
+                .single()
+
+              console.log('Client form data for response:', response.id, formData)
+
+              return {
+                ...response,
+                forms: formData ? [formData] : null
+              }
+            })
+          )
           
-          if (error) throw error
+          responsesData = enrichedClientResponses
+        } else {
           responsesData = clientResponsesData || []
         }
       } else {
+        console.log('Admin view - fetching for admin user:', user.id)
+        
+        // First, let's check what forms exist and their client associations
+        const { data: debugForms } = await supabase
+          .from('forms')
+          .select(`
+            id, 
+            name, 
+            client_id,
+            clients (
+              id,
+              name
+            )
+          `)
+          .eq('user_id', user.id)
+        
+        console.log('Debug: Forms with client associations:', debugForms)
+        
         // Admin view - show all forms and responses
         const { data: adminFormsData } = await supabase
           .from('forms')
@@ -106,6 +166,7 @@ export default function Responses() {
           .eq('user_id', user.id)
           .order('name')
         
+        console.log('Admin forms data:', adminFormsData)
         formsData = adminFormsData || []
 
         // Fetch clients for filter dropdown
@@ -115,9 +176,18 @@ export default function Responses() {
           .eq('user_id', user.id)
           .order('name')
 
+        console.log('Admin clients data:', adminClientsData)
         clientsData = adminClientsData || []
 
-        // Fetch responses
+        // Now let's get all responses for these forms (without joins first)
+        const { data: simpleResponses } = await supabase
+          .from('responses')
+          .select('*')
+          .in('form_id', formsData.map(f => f.id))
+        
+        console.log('Simple responses (no joins):', simpleResponses)
+
+        // Fetch responses with a different approach
         const { data: adminResponsesData, error } = await supabase
           .from('responses')
           .select(`
@@ -127,20 +197,50 @@ export default function Responses() {
             contact_phone,
             contact_postcode,
             submitted_at,
-            forms (
-              id,
-              name,
-              clients (
-                name
-              )
-            )
+            form_id
           `)
           .in('form_id', formsData.map(f => f.id))
           .order('submitted_at', { ascending: false })
 
+        console.log('Simple admin responses:', { adminResponsesData, error })
+
         if (error) throw error
-        responsesData = adminResponsesData || []
+        
+        // Manually fetch form and client data for each response
+        if (adminResponsesData && adminResponsesData.length > 0) {
+          const enrichedResponses = await Promise.all(
+            adminResponsesData.map(async (response) => {
+              const { data: formData } = await supabase
+                .from('forms')
+                .select(`
+                  id,
+                  name,
+                  client_id,
+                  clients (
+                    name
+                  )
+                `)
+                .eq('id', response.form_id)
+                .single()
+
+              console.log('Form data for response:', response.id, formData)
+
+              return {
+                ...response,
+                forms: formData ? [formData] : null
+              }
+            })
+          )
+          
+          console.log('Enriched responses:', enrichedResponses)
+          responsesData = enrichedResponses
+        } else {
+          responsesData = adminResponsesData || []
+        }
       }
+      
+      console.log('Final data:', { formsData: formsData.length, clientsData: clientsData.length, responsesData: responsesData.length })
+      console.log('Sample response data:', responsesData[0])
       
       setForms(formsData)
       setClients(clientsData)
@@ -203,7 +303,7 @@ export default function Responses() {
     const formName = response.forms?.[0]?.name
     const matchesForm = selectedForm === '' || formName === selectedForm
     
-    const clientName = response.forms?.[0]?.clients?.[0]?.name
+    const clientName = response.forms?.[0]?.clients?.name
     const matchesClient = selectedClient === '' || clientName === selectedClient
 
     return matchesSearch && matchesForm && matchesClient
@@ -217,7 +317,7 @@ export default function Responses() {
       response.contact_phone || '',
       response.contact_postcode || '',
       response.forms?.[0]?.name || '',
-      response.forms?.[0]?.clients?.[0]?.name || '',
+      response.forms?.[0]?.clients?.name || '',
       new Date(response.submitted_at).toLocaleDateString()
     ])
 
@@ -401,7 +501,7 @@ export default function Responses() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-white/80">
-                      {response.forms?.[0]?.clients?.[0]?.name}
+                      {response.forms?.[0]?.clients?.name}
                     </td>
                     <td className="px-6 py-4 text-sm text-white/70">
                       <div className="flex items-center">
@@ -481,7 +581,7 @@ export default function Responses() {
                   </div>
                   <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-400/30">
                     <label className="block text-sm font-medium text-green-200 mb-1">Client</label>
-                    <p className="text-white font-medium">{selectedResponse.forms?.[0]?.clients?.[0]?.name || 'No client assigned'}</p>
+                    <p className="text-white font-medium">{selectedResponse.forms?.[0]?.clients?.name || 'No client assigned'}</p>
                   </div>
                 </div>
               </div>
