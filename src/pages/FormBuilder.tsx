@@ -63,6 +63,7 @@ type Step = {
   scale_type?: 'number' | 'star' // for opinion scale step
   scale_min?: number // minimum scale value (default 1)
   scale_max?: number // maximum scale value (default 10 for number, 5 for star)
+  images_per_row?: number // for image_selection step layout (default 2)
 }
 
 interface StepTypeOption {
@@ -340,6 +341,11 @@ export default function FormBuilder() {
         is_required: step.is_required,
         max_file_size: step.max_file_size,
         allowed_file_types: step.allowed_file_types,
+        dimension_type: step.dimension_type,
+        scale_type: step.scale_type,
+        scale_min: step.scale_min,
+        scale_max: step.scale_max,
+        images_per_row: step.images_per_row,
         options: (step.form_options || []).map((option: any) => ({
           id: option.id,
           label: option.label,
@@ -422,7 +428,8 @@ export default function FormBuilder() {
       dimension_type: type === 'dimensions' ? '2d' : undefined, // Default to 2D for dimensions
       scale_type: type === 'opinion_scale' ? 'number' : undefined, // Default to number scale
       scale_min: type === 'opinion_scale' ? 1 : undefined,
-      scale_max: type === 'opinion_scale' ? 10 : undefined
+      scale_max: type === 'opinion_scale' ? 10 : undefined,
+      images_per_row: type === 'image_selection' ? 2 : undefined // Default 2 images per row
     }
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
@@ -551,9 +558,11 @@ export default function FormBuilder() {
           step_order: step.step_order,
           max_file_size: step.max_file_size,
           allowed_file_types: step.allowed_file_types,
+          dimension_type: step.dimension_type,
           scale_type: step.scale_type,
           scale_min: step.scale_min,
-          scale_max: step.scale_max
+          scale_max: step.scale_max,
+          images_per_row: step.images_per_row
         }]).select().single()
         if (stepErr) throw stepErr
         const stepId = stepData.id
@@ -1167,6 +1176,31 @@ export default function FormBuilder() {
                       className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                     />
                   </div>
+
+                  {currentStep.question_type === 'image_selection' && (
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+                      <label className="block text-sm font-medium text-white/90 mb-3">Layout Settings</label>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-white/70">Images per row</label>
+                        <select
+                          value={currentStep.images_per_row || 2}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            images_per_row: parseInt(e.target.value) 
+                          })}
+                          className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-sm focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                        >
+                          <option value={1} className="bg-gray-800">1 (Full width)</option>
+                          <option value={2} className="bg-gray-800">2 (Default)</option>
+                          <option value={3} className="bg-gray-800">3 (Compact)</option>
+                          <option value={4} className="bg-gray-800">4 (Grid)</option>
+                        </select>
+                        <div className="text-xs text-white/60">
+                          Controls how many image cards display per row. Use fewer for larger cards on mobile.
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {(currentStep.question_type === 'image_selection' || currentStep.question_type === 'multiple_choice') && (
                     <div className="space-y-4">

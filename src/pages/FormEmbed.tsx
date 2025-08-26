@@ -16,6 +16,7 @@ type Step = {
   scale_type?: 'number' | 'star';
   scale_min?: number;
   scale_max?: number;
+  images_per_row?: number;
 }
 
 export default function FormEmbed() {
@@ -985,7 +986,17 @@ export default function FormEmbed() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div 
+            className={`grid gap-4 mt-6 ${
+              step.images_per_row === 1 
+                ? 'grid-cols-1' 
+                : step.images_per_row === 3 
+                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' 
+                : step.images_per_row === 4
+                ? 'grid-cols-2 md:grid-cols-4'
+                : 'grid-cols-1 md:grid-cols-2' // default case
+            }`}
+          >
             {step.options.map((opt: any) => (
               <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded-lg p-4 text-left hover:shadow-md transition-all duration-200 ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
                 {opt.image_url && (
