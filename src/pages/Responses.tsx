@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Download, Search, Calendar, User, Eye, X, ChevronRight, ExternalLink, FileText, Ruler } from 'lucide-react'
+import { Download, Search, Calendar, User, Eye, X, ChevronRight, ExternalLink, FileText, Ruler, Star } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 
 interface ResponseAnswer {
   id: string
   answer_text: string | null
+  selected_option_id: string | null
   // File upload fields
   file_url: string | null
   file_name: string | null
@@ -16,6 +17,8 @@ interface ResponseAnswer {
   height: number | null
   depth: number | null
   units: string | null
+  // Opinion scale field
+  scale_rating: number | null
   step_id: string
   form_steps: {
     id: string
@@ -24,8 +27,10 @@ interface ResponseAnswer {
     step_order: number
   } | null
   form_options: {
+    id: string
     label: string
-  }[] | null
+    image_url: string | null
+  } | null
 }
 
 interface Response {
@@ -246,6 +251,7 @@ export default function Responses() {
           response_answers (
             id,
             answer_text,
+            selected_option_id,
             file_url,
             file_name,
             file_size,
@@ -253,15 +259,13 @@ export default function Responses() {
             height,
             depth,
             units,
+            scale_rating,
             step_id,
             form_steps!step_id (
               id,
               title,
               question_type,
               step_order
-            ),
-            form_options (
-              label
             )
           )
         `)
@@ -269,6 +273,34 @@ export default function Responses() {
         .single()
 
       if (error) throw error
+
+      // Fetch form options for answers that have selected_option_id
+      if (data.response_answers) {
+        const optionIds = data.response_answers
+          .map((answer: any) => answer.selected_option_id)
+          .filter(Boolean)
+
+        let optionsMap = new Map()
+        
+        if (optionIds.length > 0) {
+          const { data: optionsData, error: optionsError } = await supabase
+            .from('form_options')
+            .select('id, label, image_url')
+            .in('id', optionIds)
+
+          if (optionsError) throw optionsError
+
+          optionsData?.forEach(option => {
+            optionsMap.set(option.id, option)
+          })
+        }
+
+        // Attach form_options to response_answers
+        data.response_answers = data.response_answers.map((answer: any) => ({
+          ...answer,
+          form_options: answer.selected_option_id ? optionsMap.get(answer.selected_option_id) : null
+        }))
+      }
 
       // Sort answers by step order
       if (data.response_answers) {
@@ -600,7 +632,7 @@ export default function Responses() {
                           <label className="block text-sm font-medium text-white/70 mb-2">Answer</label>
                           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
                             {/* Handle different question types */}
-                            {answer.form_steps?.[0]?.question_type === 'dimensions' ? (
+                            {answer.form_steps?.question_type === 'dimensions' ? (
                               /* Dimensions Display */
                               <div className="space-y-3">
                                 <div className="flex items-center space-x-2 mb-3">
@@ -625,6 +657,44 @@ export default function Responses() {
                                 </div>
                                 <div className="text-xs text-white/50 mt-2">
                                   Type: {answer.depth ? '3D' : '2D'} • Units: {answer.units || 'mm'}
+                                </div>
+                              </div>
+                            ) : answer.form_steps?.question_type === 'opinion_scale' ? (
+                              /* Opinion Scale Display */
+                              <div className="space-y-3">
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <Star className="w-4 h-4 text-yellow-400" />
+                                  <span className="text-white font-medium">Opinion Scale</span>
+                                </div>
+                                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-white mb-2">
+                                      {answer.scale_rating || 'Not rated'}
+                                    </div>
+                                    {answer.scale_rating && (
+                                      <div className="flex justify-center">
+                                        {/* Show stars if it's a star rating (1-5) or numbers if it's number scale */}
+                                        {answer.scale_rating <= 5 ? (
+                                          <div className="flex space-x-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                              <span
+                                                key={star}
+                                                className={`text-xl ${
+                                                  star <= answer.scale_rating! ? 'text-yellow-400' : 'text-gray-600'
+                                                }`}
+                                              >
+                                                ⭐
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div className="text-white/70">
+                                            Number scale rating: {answer.scale_rating}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ) : answer.form_steps?.question_type === 'file_upload' ? (
@@ -699,14 +769,42 @@ export default function Responses() {
                                   <p className="text-red-200 text-sm">No file uploaded</p>
                                 </div>
                               )
+                            ) : answer.form_steps?.question_type === 'text_input' && answer.answer_text ? (
+                              /* Text Input Answer */
+                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
+                              </div>
+                            ) : answer.form_steps?.question_type === 'multiple_choice' && answer.form_options?.label ? (
+                              /* Multiple Choice Answer */
+                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                  <p className="text-white font-medium">{answer.form_options?.label}</p>
+                                </div>
+                              </div>
+                            ) : answer.form_steps?.question_type === 'image_selection' && answer.form_options?.label ? (
+                              /* Image Selection Answer */
+                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                <div className="space-y-3">
+                                  {answer.form_options?.image_url && (
+                                    <div className="flex justify-center">
+                                      <img 
+                                        src={answer.form_options.image_url} 
+                                        alt={answer.form_options.label}
+                                        className="max-w-32 max-h-32 rounded-lg object-cover border border-white/20"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    <p className="text-white font-medium">{answer.form_options?.label}</p>
+                                  </div>
+                                </div>
+                              </div>
                             ) : answer.answer_text ? (
-                              /* Text Answer */
-                              <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
-                            ) : answer.form_options?.[0]?.label ? (
-                              /* Multiple Choice/Image Selection */
-                              <div className="flex items-center space-x-2">
-                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                <p className="text-white font-medium">{answer.form_options[0].label}</p>
+                              /* Fallback Text Answer */
+                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
                               </div>
                             ) : (
                               <p className="text-white/50 italic">No answer provided</p>

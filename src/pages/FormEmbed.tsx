@@ -13,6 +13,9 @@ type Step = {
   max_file_size?: number;
   allowed_file_types?: string[];
   dimension_type?: '2d' | '3d';
+  scale_type?: 'number' | 'star';
+  scale_min?: number;
+  scale_max?: number;
 }
 
 export default function FormEmbed() {
@@ -37,6 +40,8 @@ export default function FormEmbed() {
     height?: string;
     depth?: string;
     units?: string;
+    // Opinion scale response
+    scale_rating?: number;
   }>>({})
 
   const [clientInfo, setClientInfo] = useState<{name: string; logo_url?: string; primary_color?: string} | null>(null)
@@ -230,7 +235,9 @@ export default function FormEmbed() {
           width: ans.width ? parseFloat(ans.width) : null,
           height: ans.height ? parseFloat(ans.height) : null,
           depth: ans.depth ? parseFloat(ans.depth) : null,
-          units: ans.units ?? null
+          units: ans.units ?? null,
+          // Opinion scale rating
+          scale_rating: ans.scale_rating ?? null
         })
       }
 
@@ -766,9 +773,69 @@ export default function FormEmbed() {
               )}
             </div>
           </div>
+        ) : step.question_type === 'opinion_scale' ? (
+          <div className="mt-6">
+            <div className="space-y-4">
+              <div className="text-center">
+                {step.scale_type === 'star' ? (
+                  // Star Rating (1-5)
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((rating) => (
+                      <button
+                        key={rating}
+                        type="button"
+                        onClick={() => setResponses(prev => ({
+                          ...prev,
+                          [currentStepIndex]: { scale_rating: rating }
+                        }))}
+                        className={`text-4xl transition-colors ${
+                          responses[currentStepIndex]?.scale_rating === rating
+                            ? 'text-yellow-400'
+                            : 'text-gray-300 hover:text-yellow-200'
+                        }`}
+                      >
+                        ⭐
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  // Number Scale (configurable range)
+                  <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+                    {Array.from(
+                      { length: (step.scale_max || 10) - (step.scale_min || 1) + 1 },
+                      (_, i) => (step.scale_min || 1) + i
+                    ).map((rating) => (
+                      <button
+                        key={rating}
+                        type="button"
+                        onClick={() => setResponses(prev => ({
+                          ...prev,
+                          [currentStepIndex]: { scale_rating: rating }
+                        }))}
+                        className={`w-12 h-12 rounded-lg border-2 font-semibold transition-all ${
+                          responses[currentStepIndex]?.scale_rating === rating
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        {rating}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {responses[currentStepIndex]?.scale_rating && (
+                  <p className="mt-4 text-gray-600">
+                    You rated: {responses[currentStepIndex]?.scale_rating}
+                    {step.scale_type === 'star' ? ' stars' : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            {step.options.map(opt => (
+            {step.options.map((opt: any) => (
               <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded p-4 text-left hover:shadow ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-300' : ''}`}>
                 {opt.image_url && <img src={opt.image_url} alt={opt.label} className="h-28 w-full object-cover mb-2 rounded" />}
                 <div className="font-medium">{opt.label}</div>

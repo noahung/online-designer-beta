@@ -17,7 +17,9 @@ import {
   Paperclip,
   User,
   GripVertical,
-  Ruler
+  Ruler,
+  Star,
+  ChevronDown
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -51,13 +53,16 @@ type Option = {
 type Step = { 
   id?: string
   title: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale'
   is_required?: boolean
   step_order: number
   options: Option[]
   max_file_size?: number // in MB
   allowed_file_types?: string[] // array of mime types
   dimension_type?: '2d' | '3d' // for dimensions step
+  scale_type?: 'number' | 'star' // for opinion scale step
+  scale_min?: number // minimum scale value (default 1)
+  scale_max?: number // maximum scale value (default 10 for number, 5 for star)
 }
 
 interface StepTypeOption {
@@ -97,6 +102,12 @@ const stepTypes: StepTypeOption[] = [
     title: 'Dimensions',
     description: 'Collect 2D or 3D measurements',
     icon: <Ruler className="h-4 w-4" />
+  },
+  {
+    type: 'opinion_scale',
+    title: 'Opinion Scale',
+    description: 'Rate using numbers (1-10) or stars (1-5)',
+    icon: <Star className="h-4 w-4" />
   },
   {
     type: 'contact_fields',
@@ -196,6 +207,7 @@ export default function FormBuilder() {
   const [showPreview, setShowPreview] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -240,6 +252,23 @@ export default function FormBuilder() {
       }
     }
   }, [user, formId])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showStepTypeDropdown && event.target instanceof Element) {
+        const dropdown = document.querySelector('.step-type-dropdown')
+        if (dropdown && !dropdown.contains(event.target)) {
+          setShowStepTypeDropdown(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showStepTypeDropdown])
 
   const fetchClients = async () => {
     if (!user) return
@@ -381,7 +410,10 @@ export default function FormBuilder() {
       ] : [],
       max_file_size: type === 'file_upload' ? 5 : undefined, // Default 5MB
       allowed_file_types: type === 'file_upload' ? ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] : undefined,
-      dimension_type: type === 'dimensions' ? '2d' : undefined // Default to 2D for dimensions
+      dimension_type: type === 'dimensions' ? '2d' : undefined, // Default to 2D for dimensions
+      scale_type: type === 'opinion_scale' ? 'number' : undefined, // Default to number scale
+      scale_min: type === 'opinion_scale' ? 1 : undefined,
+      scale_max: type === 'opinion_scale' ? 10 : undefined
     }
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
@@ -501,7 +533,10 @@ export default function FormBuilder() {
           is_required: step.is_required ?? true, 
           step_order: step.step_order,
           max_file_size: step.max_file_size,
-          allowed_file_types: step.allowed_file_types
+          allowed_file_types: step.allowed_file_types,
+          scale_type: step.scale_type,
+          scale_min: step.scale_min,
+          scale_max: step.scale_max
         }]).select().single()
         if (stepErr) throw stepErr
         const stepId = stepData.id
@@ -604,7 +639,10 @@ export default function FormBuilder() {
             is_required: step.is_required ?? true, 
             step_order: step.step_order,
             max_file_size: step.max_file_size,
-            allowed_file_types: step.allowed_file_types
+            allowed_file_types: step.allowed_file_types,
+            scale_type: step.scale_type,
+            scale_min: step.scale_min,
+            scale_max: step.scale_max
           })
           .eq('id', stepId)
           .eq('form_id', formId)
@@ -628,7 +666,10 @@ export default function FormBuilder() {
             is_required: step.is_required ?? true, 
             step_order: step.step_order,
             max_file_size: step.max_file_size,
-            allowed_file_types: step.allowed_file_types
+            allowed_file_types: step.allowed_file_types,
+            scale_type: step.scale_type,
+            scale_min: step.scale_min,
+            scale_max: step.scale_max
           }])
           .select()
           .single()
@@ -878,17 +919,38 @@ export default function FormBuilder() {
                   <MessageSquare className="w-5 h-5 mr-2 text-purple-400" />
                   Form Steps
                 </h3>
-                <div className="flex space-x-1">
-                  {stepTypes.map((stepType) => (
-                    <button
-                      key={stepType.type}
-                      onClick={() => addStep(stepType.type)}
-                      title={`Add ${stepType.title}`}
-                      className="p-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-200 text-white/80 hover:text-white hover:scale-110 shadow-lg"
-                    >
-                      {stepType.icon}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStepTypeDropdown(!showStepTypeDropdown)}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Step
+                    <ChevronDown className={`w-4 h-4 ml-2 transition-transform duration-200 ${showStepTypeDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {showStepTypeDropdown && (
+                    <div className="step-type-dropdown absolute right-0 top-full mt-2 w-64 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-xl z-50 overflow-hidden">
+                      {stepTypes.map((stepType) => (
+                        <button
+                          key={stepType.type}
+                          onClick={() => {
+                            addStep(stepType.type)
+                            setShowStepTypeDropdown(false)
+                          }}
+                          className="w-full flex items-center px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/10 last:border-b-0"
+                        >
+                          <div className="flex items-center justify-center w-8 h-8 bg-white/10 rounded-lg mr-3 flex-shrink-0">
+                            {stepType.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium text-sm">{stepType.title}</p>
+                            <p className="text-white/60 text-xs truncate">{stepType.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <DndContext 
@@ -1204,6 +1266,96 @@ export default function FormBuilder() {
                           </label>
                         </div>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Required</label>
+                        <select
+                          value={currentStep.is_required ? 'true' : 'false'}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            is_required: e.target.value === 'true' 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="true" className="bg-slate-800">Required</option>
+                          <option value="false" className="bg-slate-800">Optional</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {currentStep.question_type === 'opinion_scale' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Scale Type</label>
+                        <div className="space-y-3">
+                          <label className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="scaleType"
+                              value="number"
+                              checked={currentStep.scale_type === 'number'}
+                              onChange={(e) => updateStep(selectedStepIndex!, { 
+                                ...currentStep, 
+                                scale_type: e.target.value as 'number' | 'star',
+                                scale_min: 1,
+                                scale_max: e.target.value === 'number' ? 10 : 5
+                              })}
+                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
+                            />
+                            <span className="text-white/90">Number Scale (1-10)</span>
+                          </label>
+                          <label className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="scaleType"
+                              value="star"
+                              checked={currentStep.scale_type === 'star'}
+                              onChange={(e) => updateStep(selectedStepIndex!, { 
+                                ...currentStep, 
+                                scale_type: e.target.value as 'number' | 'star',
+                                scale_min: 1,
+                                scale_max: e.target.value === 'number' ? 10 : 5
+                              })}
+                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
+                            />
+                            <span className="text-white/90">Star Rating (1-5)</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      {currentStep.scale_type === 'number' && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-white/90">Minimum Value</label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={9}
+                              value={currentStep.scale_min || 1}
+                              onChange={(e) => updateStep(selectedStepIndex!, { 
+                                ...currentStep, 
+                                scale_min: Number(e.target.value) || 1 
+                              })}
+                              className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-white/90">Maximum Value</label>
+                            <input
+                              type="number"
+                              min={2}
+                              max={10}
+                              value={currentStep.scale_max || 10}
+                              onChange={(e) => updateStep(selectedStepIndex!, { 
+                                ...currentStep, 
+                                scale_max: Number(e.target.value) || 10 
+                              })}
+                              className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                            />
+                          </div>
+                        </div>
+                      )}
                       
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Required</label>
