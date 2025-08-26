@@ -23,6 +23,8 @@ export default function FormEmbed() {
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [responses, setResponses] = useState<Record<number, { 
     option_id?: string; 
     answer_text?: string; 
@@ -49,56 +51,103 @@ export default function FormEmbed() {
   useEffect(() => { if (id) loadForm(id) }, [id])
 
   const loadForm = async (formId: string) => {
-    // Load form with client information
-    const { data: form } = await supabase
-      .from('forms')
-      .select(`
-        id,
-        name,
-        description,
-        clients (
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('Loading form:', formId)
+      
+      // Load form with client information
+      const { data: form, error: formError } = await supabase
+        .from('forms')
+        .select(`
+          id,
           name,
-          logo_url,
-          primary_color
-        )
-      `)
-      .eq('id', formId)
-      .maybeSingle()
-    
-    if (!form) return
-    
-    setFormName(form.name)
-    setClientInfo(form.clients)
+          description,
+          clients (
+            name,
+            logo_url,
+            primary_color
+          )
+        `)
+        .eq('id', formId)
+        .maybeSingle()
+      
+      console.log('Form query result:', { form, formError })
+      
+      if (formError) {
+        console.error('Form query error:', formError)
+        setError(`Failed to load form: ${formError.message}`)
+        return
+      }
+      
+      if (!form) {
+        console.log('No form found with ID:', formId)
+        setError('Form not found')
+        return
+      }
+      
+      setFormName(form.name)
+      setClientInfo(form.clients)
 
-    const { data: s } = await supabase.from('form_steps').select('*, form_options(*)').eq('form_id', formId).order('step_order', { ascending: true })
-    if (!s) return
+      const { data: s, error: stepsError } = await supabase
+        .from('form_steps')
+        .select('*, form_options(*)')
+        .eq('form_id', formId)
+        .order('step_order', { ascending: true })
+        
+      console.log('Steps query result:', { s, stepsError })
+      
+      if (stepsError) {
+        console.error('Steps query error:', stepsError)
+        setError(`Failed to load form steps: ${stepsError.message}`)
+        return
+      }
+        
+      if (!s || s.length === 0) {
+        console.log('No steps found for form:', formId)
+        setError('This form has no steps configured')
+        return
+      }
 
-    // Map steps and options, handling both public URLs and object paths
-    const mapped: Step[] = s.map((row: any) => {
-      const opts = (row.form_options || []).map((o: any) => {
-        let image_url = o.image_url
-        // If image_url doesn't start with http, it might be an object path that needs a signed URL
-        // But since we're using public buckets now, this should mostly be public URLs already
+      // Map steps and options, handling both public URLs and object paths
+      const mapped: Step[] = s.map((row: any) => {
+        const opts = (row.form_options || []).map((o: any) => {
+          let image_url = o.image_url
+          // If image_url doesn't start with http, it might be an object path that needs a signed URL
+          // But since we're using public buckets now, this should mostly be public URLs already
+          return { 
+            id: o.id, 
+            label: o.label, 
+            description: o.description, 
+            image_url, 
+            jump_to_step: o.jump_to_step 
+          }
+        })
         return { 
-          id: o.id, 
-          label: o.label, 
-          description: o.description, 
-          image_url, 
-          jump_to_step: o.jump_to_step 
+          id: row.id, 
+          title: row.title, 
+          question_type: row.question_type, 
+          is_required: row.is_required, 
+          step_order: row.step_order, 
+          max_file_size: row.max_file_size,
+          allowed_file_types: row.allowed_file_types,
+          dimension_type: row.dimension_type,
+          scale_type: row.scale_type,
+          scale_min: row.scale_min,
+          scale_max: row.scale_max,
+          options: opts 
         }
       })
-      return { 
-        id: row.id, 
-        title: row.title, 
-        question_type: row.question_type, 
-        is_required: row.is_required, 
-        step_order: row.step_order, 
-        max_file_size: row.max_file_size,
-        allowed_file_types: row.allowed_file_types,
-        options: opts 
-      }
-    })
-    setSteps(mapped)
+      
+      console.log('Mapped steps:', mapped)
+      setSteps(mapped)
+    } catch (err) {
+      console.error('Unexpected error loading form:', err)
+      setError('An unexpected error occurred while loading the form')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const selectOption = (option: Option) => {
@@ -254,6 +303,36 @@ export default function FormEmbed() {
   }
 
   const goPrev = () => setCurrentStepIndex(Math.max(0, currentStepIndex - 1))
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white p-8 rounded shadow max-w-2xl w-full text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold">Loading form...</h2>
+          <p className="text-slate-600">Please wait while we load your form.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white p-8 rounded shadow max-w-2xl w-full text-center">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-red-600">Error Loading Form</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <button 
+            onClick={() => id && loadForm(id)}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!steps || steps.length === 0) {
     return (
