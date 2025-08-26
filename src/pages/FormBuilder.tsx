@@ -16,7 +16,8 @@ import {
   X,
   Paperclip,
   User,
-  GripVertical
+  GripVertical,
+  Ruler
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -50,12 +51,13 @@ type Option = {
 type Step = { 
   id?: string
   title: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
   is_required?: boolean
   step_order: number
   options: Option[]
   max_file_size?: number // in MB
   allowed_file_types?: string[] // array of mime types
+  dimension_type?: '2d' | '3d' // for dimensions step
 }
 
 interface StepTypeOption {
@@ -89,6 +91,12 @@ const stepTypes: StepTypeOption[] = [
     title: 'File Upload',
     description: 'Allow users to upload files',
     icon: <Paperclip className="h-4 w-4" />
+  },
+  {
+    type: 'dimensions',
+    title: 'Dimensions',
+    description: 'Collect 2D or 3D measurements',
+    icon: <Ruler className="h-4 w-4" />
   },
   {
     type: 'contact_fields',
@@ -372,7 +380,8 @@ export default function FormBuilder() {
         { label: 'Option 1', description: '' }
       ] : [],
       max_file_size: type === 'file_upload' ? 5 : undefined, // Default 5MB
-      allowed_file_types: type === 'file_upload' ? ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] : undefined
+      allowed_file_types: type === 'file_upload' ? ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] : undefined,
+      dimension_type: type === 'dimensions' ? '2d' : undefined // Default to 2D for dimensions
     }
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
@@ -1156,6 +1165,59 @@ export default function FormBuilder() {
                             <span>Text Files</span>
                           </label>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {currentStep.question_type === 'dimensions' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Dimension Type</label>
+                        <div className="space-y-3">
+                          <label className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="dimensionType"
+                              value="2d"
+                              checked={currentStep.dimension_type === '2d'}
+                              onChange={(e) => updateStep(selectedStepIndex!, { 
+                                ...currentStep, 
+                                dimension_type: e.target.value as '2d' | '3d'
+                              })}
+                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
+                            />
+                            <span className="text-white/90">2D (Width × Height)</span>
+                          </label>
+                          <label className="flex items-center space-x-3">
+                            <input
+                              type="radio"
+                              name="dimensionType"
+                              value="3d"
+                              checked={currentStep.dimension_type === '3d'}
+                              onChange={(e) => updateStep(selectedStepIndex!, { 
+                                ...currentStep, 
+                                dimension_type: e.target.value as '2d' | '3d'
+                              })}
+                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
+                            />
+                            <span className="text-white/90">3D (Width × Height × Depth)</span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Required</label>
+                        <select
+                          value={currentStep.is_required ? 'true' : 'false'}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            is_required: e.target.value === 'true' 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="true" className="bg-slate-800">Required</option>
+                          <option value="false" className="bg-slate-800">Optional</option>
+                        </select>
                       </div>
                     </div>
                   )}

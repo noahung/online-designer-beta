@@ -1,16 +1,28 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Download, Search, Calendar, User, Eye, X, ChevronRight } from 'lucide-react'
+import { Download, Search, Calendar, User, Eye, X, ChevronRight, ExternalLink, FileText, Ruler } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 
 interface ResponseAnswer {
   id: string
   answer_text: string | null
+  // File upload fields
+  file_url: string | null
+  file_name: string | null
+  file_size: number | null
+  // Dimension fields
+  width: number | null
+  height: number | null
+  depth: number | null
+  units: string | null
+  step_id: string
   form_steps: {
+    id: string
     title: string
     question_type: string
-  }[] | null
+    step_order: number
+  } | null
   form_options: {
     label: string
   }[] | null
@@ -234,9 +246,19 @@ export default function Responses() {
           response_answers (
             id,
             answer_text,
-            form_steps (
+            file_url,
+            file_name,
+            file_size,
+            width,
+            height,
+            depth,
+            units,
+            step_id,
+            form_steps!step_id (
+              id,
               title,
-              question_type
+              question_type,
+              step_order
             ),
             form_options (
               label
@@ -247,6 +269,15 @@ export default function Responses() {
         .single()
 
       if (error) throw error
+
+      // Sort answers by step order
+      if (data.response_answers) {
+        data.response_answers.sort((a: any, b: any) => {
+          const aOrder = a.form_steps?.step_order || 0
+          const bOrder = b.form_steps?.step_order || 0
+          return aOrder - bOrder
+        })
+      }
 
       setSelectedResponse(data as unknown as Response)
     } catch (error) {
@@ -556,10 +587,10 @@ export default function Responses() {
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <h4 className="font-medium text-white mb-2">
-                              {answer.form_steps?.[0]?.title || `Question ${index + 1}`}
+                              {answer.form_steps?.title || `Question ${index + 1}`}
                             </h4>
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 border border-purple-400/30">
-                              {answer.form_steps?.[0]?.question_type || 'Unknown'}
+                              {answer.form_steps?.question_type || 'Unknown'}
                             </span>
                           </div>
                           <span className="text-sm text-white/50 bg-white/10 px-2 py-1 rounded-lg">#{index + 1}</span>
@@ -567,11 +598,116 @@ export default function Responses() {
                         
                         <div className="mt-4">
                           <label className="block text-sm font-medium text-white/70 mb-2">Answer</label>
-                          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 min-h-[60px] border border-white/10">
-                            {answer.answer_text ? (
+                          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                            {/* Handle different question types */}
+                            {answer.form_steps?.[0]?.question_type === 'dimensions' ? (
+                              /* Dimensions Display */
+                              <div className="space-y-3">
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <Ruler className="w-4 h-4 text-blue-400" />
+                                  <span className="text-white font-medium">Dimensions</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                    <label className="text-xs text-white/60 uppercase tracking-wider">Width</label>
+                                    <p className="text-white font-medium">{answer.width || 0} {answer.units || 'mm'}</p>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                    <label className="text-xs text-white/60 uppercase tracking-wider">Height</label>
+                                    <p className="text-white font-medium">{answer.height || 0} {answer.units || 'mm'}</p>
+                                  </div>
+                                  {answer.depth && (
+                                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                      <label className="text-xs text-white/60 uppercase tracking-wider">Depth</label>
+                                      <p className="text-white font-medium">{answer.depth} {answer.units || 'mm'}</p>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-xs text-white/50 mt-2">
+                                  Type: {answer.depth ? '3D' : '2D'} • Units: {answer.units || 'mm'}
+                                </div>
+                              </div>
+                            ) : answer.form_steps?.question_type === 'file_upload' ? (
+                              /* File Upload Display */
+                              answer.file_url || answer.file_name || (answer.answer_text && answer.answer_text.includes('.')) ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center space-x-2 mb-3">
+                                    <FileText className="w-4 h-4 text-green-400" />
+                                    <span className="text-white font-medium">File Upload</span>
+                                  </div>
+                                  <div className="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                          <FileText className="w-6 h-6 text-blue-400" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-white font-medium truncate" title={answer.file_name || answer.answer_text || 'Uploaded file'}>
+                                            {answer.file_name || answer.answer_text || 'Uploaded file'}
+                                          </p>
+                                          <div className="flex items-center space-x-2 text-xs text-white/60">
+                                            {answer.file_size && (
+                                              <span>{Math.round(answer.file_size / 1024)} KB</span>
+                                            )}
+                                            {answer.file_url ? (
+                                              <span className="text-green-400">✓ Available for download</span>
+                                            ) : (
+                                              <span className="text-yellow-400">⚠ File reference only</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex space-x-2 flex-shrink-0">
+                                        {answer.file_url ? (
+                                          <>
+                                            <button
+                                              onClick={() => window.open(answer.file_url!, '_blank')}
+                                              className="inline-flex items-center px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded-lg text-sm transition-colors border border-blue-400/30 hover:scale-105"
+                                              title="View file in new tab"
+                                            >
+                                              <ExternalLink className="w-4 h-4 mr-1" />
+                                              View
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                const link = document.createElement('a')
+                                                link.href = answer.file_url!
+                                                link.download = answer.file_name || answer.answer_text || 'download'
+                                                link.target = '_blank'
+                                                document.body.appendChild(link)
+                                                link.click()
+                                                document.body.removeChild(link)
+                                              }}
+                                              className="inline-flex items-center px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-200 rounded-lg text-sm transition-colors border border-green-400/30 hover:scale-105"
+                                              title="Download file"
+                                            >
+                                              <Download className="w-4 h-4 mr-1" />
+                                              Download
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <div className="text-xs text-yellow-200 bg-yellow-500/20 px-3 py-2 rounded-lg border border-yellow-400/30">
+                                            File uploaded but URL not available
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="bg-red-500/10 rounded-lg p-3 border border-red-400/20">
+                                  <p className="text-red-200 text-sm">No file uploaded</p>
+                                </div>
+                              )
+                            ) : answer.answer_text ? (
+                              /* Text Answer */
                               <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
                             ) : answer.form_options?.[0]?.label ? (
-                              <p className="text-white font-medium">{answer.form_options[0].label}</p>
+                              /* Multiple Choice/Image Selection */
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                <p className="text-white font-medium">{answer.form_options[0].label}</p>
+                              </div>
                             ) : (
                               <p className="text-white/50 italic">No answer provided</p>
                             )}

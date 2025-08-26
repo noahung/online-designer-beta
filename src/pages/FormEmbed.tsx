@@ -12,6 +12,7 @@ type Step = {
   options: Option[];
   max_file_size?: number;
   allowed_file_types?: string[];
+  dimension_type?: '2d' | '3d';
 }
 
 export default function FormEmbed() {
@@ -31,6 +32,11 @@ export default function FormEmbed() {
     contact_postcode?: string;
     project_details?: string;
     preferred_contact?: string;
+    // Dimension responses
+    width?: string;
+    height?: string;
+    depth?: string;
+    units?: string;
   }>>({})
 
   const [clientInfo, setClientInfo] = useState<{name: string; logo_url?: string; primary_color?: string} | null>(null)
@@ -219,7 +225,12 @@ export default function FormEmbed() {
           selected_option_id: ans.option_id ?? null,
           file_url,
           file_name,
-          file_size
+          file_size,
+          // Dimension fields
+          width: ans.width ? parseFloat(ans.width) : null,
+          height: ans.height ? parseFloat(ans.height) : null,
+          depth: ans.depth ? parseFloat(ans.depth) : null,
+          units: ans.units ?? null
         })
       }
 
@@ -616,6 +627,142 @@ export default function FormEmbed() {
               />
               {step.is_required && (
                 <p className="text-xs text-gray-500">* This field is required</p>
+              )}
+            </div>
+          </div>
+        ) : step.question_type === 'dimensions' ? (
+          <div className="mt-6">
+            <div className="space-y-6">
+              <div className="text-sm text-slate-600 mb-4">Enter measurements</div>
+              
+              {/* Dimension Type Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-6">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name={`dimensionType-${currentStepIndex}`}
+                      value="2d"
+                      checked={(responses[currentStepIndex] as any)?.dimension_type === '2d' || !(responses[currentStepIndex] as any)?.dimension_type}
+                      onChange={(e) => setResponses(r => ({
+                        ...r,
+                        [currentStepIndex]: {
+                          ...(r[currentStepIndex] || {}),
+                          dimension_type: e.target.value,
+                          depth: undefined // Clear depth when switching to 2D
+                        }
+                      }))}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">2D (Width × Height)</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name={`dimensionType-${currentStepIndex}`}
+                      value="3d"
+                      checked={(responses[currentStepIndex] as any)?.dimension_type === '3d'}
+                      onChange={(e) => setResponses(r => ({
+                        ...r,
+                        [currentStepIndex]: {
+                          ...(r[currentStepIndex] || {}),
+                          dimension_type: e.target.value
+                        }
+                      }))}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">3D (Width × Height × Depth)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Units Selection */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Units</label>
+                <select
+                  value={responses[currentStepIndex]?.units || 'mm'}
+                  onChange={(e) => setResponses(r => ({
+                    ...r,
+                    [currentStepIndex]: {
+                      ...(r[currentStepIndex] || {}),
+                      units: e.target.value
+                    }
+                  }))}
+                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="mm">Millimeters (mm)</option>
+                  <option value="cm">Centimeters (cm)</option>
+                  <option value="m">Meters (m)</option>
+                  <option value="in">Inches (in)</option>
+                  <option value="ft">Feet (ft)</option>
+                </select>
+              </div>
+
+              {/* Dimension Input Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Width</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={responses[currentStepIndex]?.width || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        width: e.target.value
+                      }
+                    }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required={step.is_required}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Height</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={responses[currentStepIndex]?.height || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        height: e.target.value
+                      }
+                    }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required={step.is_required}
+                  />
+                </div>
+                {((responses[currentStepIndex] as any)?.dimension_type === '3d') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Depth</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={responses[currentStepIndex]?.depth || ''}
+                      onChange={(e) => setResponses(r => ({
+                        ...r,
+                        [currentStepIndex]: {
+                          ...(r[currentStepIndex] || {}),
+                          depth: e.target.value
+                        }
+                      }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      required={step.is_required}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {step.is_required && (
+                <p className="text-xs text-gray-500">* These fields are required</p>
               )}
             </div>
           </div>

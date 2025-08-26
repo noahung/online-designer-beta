@@ -102,7 +102,7 @@ export type Database = {
           id: string
           form_id: string
           title: string
-          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields'
+          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
           is_required: boolean
           step_order: number
           created_at: string
@@ -111,7 +111,7 @@ export type Database = {
           id?: string
           form_id: string
           title: string
-          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields'
+          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
           is_required?: boolean
           step_order: number
           created_at?: string
@@ -120,7 +120,7 @@ export type Database = {
           id?: string
           form_id?: string
           title?: string
-          question_type?: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields'
+          question_type?: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
           is_required?: boolean
           step_order?: number
           created_at?: string

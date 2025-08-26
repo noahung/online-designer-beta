@@ -17,6 +17,7 @@ interface FormPreviewProps {
     }>
     max_file_size?: number
     allowed_file_types?: string[]
+    dimension_type?: '2d' | '3d'
   }>
 }
 
@@ -213,6 +214,83 @@ export default function FormPreview({ isOpen, onClose, formName, steps }: FormPr
                             disabled
                           />
                           <label htmlFor="longTextPreview">Long text (multiple lines)</label>
+                        </div>
+                      </div>
+                    ) : step.question_type === 'dimensions' ? (
+                      <div className="space-y-6">
+                        <div className="text-sm text-slate-600 mb-4">Enter measurements</div>
+                        
+                        {/* Dimension Type Selection */}
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-6">
+                            <label className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                name="dimensionTypePreview"
+                                value="2d"
+                                checked={step.dimension_type === '2d' || !step.dimension_type}
+                                className="text-blue-600 focus:ring-blue-500"
+                                disabled
+                              />
+                              <span className="text-gray-700">2D (Width × Height)</span>
+                            </label>
+                            <label className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                name="dimensionTypePreview"
+                                value="3d"
+                                checked={step.dimension_type === '3d'}
+                                className="text-blue-600 focus:ring-blue-500"
+                                disabled
+                              />
+                              <span className="text-gray-700">3D (Width × Height × Depth)</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Units Selection */}
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700">Units</label>
+                          <select
+                            defaultValue="mm"
+                            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            disabled
+                          >
+                            <option value="mm">Millimeters (mm)</option>
+                          </select>
+                        </div>
+
+                        {/* Dimension Input Fields */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Width</label>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              disabled
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Height</label>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              disabled
+                            />
+                          </div>
+                          {step.dimension_type === '3d' && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Depth</label>
+                              <input
+                                type="number"
+                                placeholder="0"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                disabled
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
