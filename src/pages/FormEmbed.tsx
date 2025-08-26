@@ -596,6 +596,29 @@ export default function FormEmbed() {
               </div>
             )}
           </div>
+        ) : step.question_type === 'text_input' ? (
+          <div className="mt-6">
+            <div className="space-y-4">
+              <div className="text-sm text-slate-600 mb-4">Enter your response</div>
+              <textarea
+                value={responses[currentStepIndex]?.answer_text || ''}
+                onChange={(e) => setResponses(r => ({
+                  ...r,
+                  [currentStepIndex]: {
+                    ...(r[currentStepIndex] || {}),
+                    answer_text: e.target.value
+                  }
+                }))}
+                placeholder="Enter your answer here..."
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-gray-900 placeholder-gray-500"
+                required={step.is_required}
+              />
+              {step.is_required && (
+                <p className="text-xs text-gray-500">* This field is required</p>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             {step.options.map(opt => (

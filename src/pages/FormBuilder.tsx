@@ -15,8 +15,28 @@ import {
   Upload,
   X,
   Paperclip,
-  User
+  User,
+  GripVertical
 } from 'lucide-react'
+import { 
+  DndContext, 
+  closestCenter, 
+  KeyboardSensor, 
+  PointerSensor, 
+  useSensor, 
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core'
+import { 
+  arrayMove, 
+  SortableContext, 
+  sortableKeyboardCoordinates, 
+  verticalListSortingStrategy 
+} from '@dnd-kit/sortable'
+import { 
+  useSortable 
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 type Option = { 
   id?: string
@@ -78,6 +98,80 @@ const stepTypes: StepTypeOption[] = [
   }
 ]
 
+// Sortable Step Item Component
+interface SortableStepItemProps {
+  step: Step
+  index: number
+  isSelected: boolean
+  onClick: () => void
+  onDelete: () => void
+  canDelete: boolean
+}
+
+function SortableStepItem({ step, index, isSelected, onClick, onDelete, canDelete }: SortableStepItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `step-${index}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${
+        isSelected
+          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
+          : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
+      } ${isDragging ? 'rotate-2 scale-105' : ''}`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3 flex-1">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 text-white/50 hover:text-white/80 transition-colors"
+            title="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
+          <div className="flex-1" onClick={onClick}>
+            <p className="font-medium text-sm text-white">
+              {step.title || `Step ${index + 1}`}
+            </p>
+            <p className="text-xs text-white/60 capitalize mt-1">
+              {step.question_type.replace('_', ' ')}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+          {canDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="p-1 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function FormBuilder() {
   const { user } = useAuth()
   const { push } = useToast()
@@ -94,6 +188,41 @@ export default function FormBuilder() {
   const [showPreview, setShowPreview] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const activeIndex = parseInt(active.id.toString().replace('step-', ''))
+      const overIndex = parseInt(over.id.toString().replace('step-', ''))
+
+      if (activeIndex !== overIndex) {
+        const newSteps = arrayMove(steps, activeIndex, overIndex)
+        // Update step orders
+        const updatedSteps = newSteps.map((step, index) => ({
+          ...step,
+          step_order: index + 1
+        }))
+        setSteps(updatedSteps)
+        
+        // Update selected index if needed
+        if (selectedStepIndex === activeIndex) {
+          setSelectedStepIndex(overIndex)
+        } else if (selectedStepIndex === overIndex) {
+          setSelectedStepIndex(activeIndex)
+        }
+      }
+    }
+  }
 
   useEffect(() => { 
     if (user) {
@@ -753,65 +882,51 @@ export default function FormBuilder() {
                   ))}
                 </div>
               </div>
-              <div className="space-y-3">
-                {steps.map((step, index) => (
-                  <div
-                    key={index}
-                    onClick={() => setSelectedStepIndex(index)}
-                    className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${
-                      selectedStepIndex === index
-                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
-                        : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
-                    }`}
+              <DndContext 
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="space-y-3">
+                  <SortableContext 
+                    items={steps.map((_, index) => `step-${index}`)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm text-white">
-                          {step.title || `Step ${index + 1}`}
-                        </p>
-                        <p className="text-xs text-white/60 capitalize mt-1">
-                          {step.question_type.replace('_', ' ')}
-                        </p>
+                    {steps.map((step, index) => (
+                      <SortableStepItem
+                        key={`step-${index}`}
+                        step={step}
+                        index={index}
+                        isSelected={selectedStepIndex === index}
+                        onClick={() => setSelectedStepIndex(index)}
+                        onDelete={() => deleteStep(index)}
+                        canDelete={steps.length > 1}
+                      />
+                    ))}
+                  </SortableContext>
+                  
+                  {steps.length === 0 && (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
+                        <Plus className="w-6 h-6 text-white/60" />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
-                        {steps.length > 1 && (
+                      <p className="text-sm text-white/70 mb-6">Create a step to start building your form</p>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {stepTypes.map((stepType) => (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              deleteStep(index)
-                            }}
-                            className="p-1 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+                            key={stepType.type}
+                            onClick={() => addStep(stepType.type)}
+                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
                           >
-                            <X className="h-4 w-4" />
+                            {stepType.icon}
+                            <span className="ml-2 text-sm">{stepType.title}</span>
                           </button>
-                        )}
+                        ))}
                       </div>
                     </div>
-                  </div>
-                ))}
-                
-                {steps.length === 0 && (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-                      <Plus className="w-6 h-6 text-white/60" />
-                    </div>
-                    <p className="text-sm text-white/70 mb-6">Create a step to start building your form</p>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {stepTypes.map((stepType) => (
-                        <button
-                          key={stepType.type}
-                          onClick={() => addStep(stepType.type)}
-                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
-                        >
-                          {stepType.icon}
-                          <span className="ml-2 text-sm">{stepType.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </DndContext>
             </div>
           </div>
         </div>

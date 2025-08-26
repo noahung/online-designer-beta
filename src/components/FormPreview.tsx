@@ -196,6 +196,25 @@ export default function FormPreview({ isOpen, onClose, formName, steps }: FormPr
                           </div>
                         </div>
                       </div>
+                    ) : step.question_type === 'text_input' ? (
+                      <div className="space-y-4">
+                        <div className="text-sm text-slate-600 mb-4">Enter your response</div>
+                        <textarea
+                          placeholder="Enter your answer here..."
+                          rows={4}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 resize-none text-gray-900 placeholder-gray-500"
+                          disabled
+                        />
+                        <div className="flex items-center space-x-2 text-sm text-slate-500">
+                          <input
+                            type="checkbox"
+                            id="longTextPreview"
+                            className="rounded border-gray-300"
+                            disabled
+                          />
+                          <label htmlFor="longTextPreview">Long text (multiple lines)</label>
+                        </div>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {step.options.map((option, index) => (
