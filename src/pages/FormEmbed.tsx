@@ -1,23 +1,63 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
-type Step = { id: string; title: string; question_type: string; is_required: boolean; step_order: number; options: Option[] }
+type Step = { 
+  id: string; 
+  title: string; 
+  question_type: string; 
+  is_required: boolean; 
+  step_order: number; 
+  options: Option[];
+  max_file_size?: number;
+  allowed_file_types?: string[];
+}
 
 export default function FormEmbed() {
   const { id } = useParams()
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-  const [responses, setResponses] = useState<Record<number, { option_id?: string; answer_text?: string }>>({})
+  const [responses, setResponses] = useState<Record<number, { 
+    option_id?: string; 
+    answer_text?: string; 
+    file?: File;
+    file_url?: string;
+    // Contact field responses
+    contact_name?: string;
+    contact_email?: string;
+    contact_phone?: string;
+    contact_postcode?: string;
+    project_details?: string;
+    preferred_contact?: string;
+  }>>({})
+
+  const [clientInfo, setClientInfo] = useState<{name: string; logo_url?: string; primary_color?: string} | null>(null)
 
   useEffect(() => { if (id) loadForm(id) }, [id])
 
   const loadForm = async (formId: string) => {
-    const { data: form } = await supabase.from('forms').select('id,name,description').eq('id', formId).maybeSingle()
+    // Load form with client information
+    const { data: form } = await supabase
+      .from('forms')
+      .select(`
+        id,
+        name,
+        description,
+        clients (
+          name,
+          logo_url,
+          primary_color
+        )
+      `)
+      .eq('id', formId)
+      .maybeSingle()
+    
     if (!form) return
+    
     setFormName(form.name)
+    setClientInfo(form.clients)
 
     const { data: s } = await supabase.from('form_steps').select('*, form_options(*)').eq('form_id', formId).order('step_order', { ascending: true })
     if (!s) return
@@ -42,6 +82,8 @@ export default function FormEmbed() {
         question_type: row.question_type, 
         is_required: row.is_required, 
         step_order: row.step_order, 
+        max_file_size: row.max_file_size,
+        allowed_file_types: row.allowed_file_types,
         options: opts 
       }
     })
@@ -59,20 +101,74 @@ export default function FormEmbed() {
     }
   }
 
+  const handleFileUpload = (file: File) => {
+    const step = steps[currentStepIndex]
+    if (!step) return
+
+    // Validate file size
+    const maxSize = (step.max_file_size || 5) * 1024 * 1024 // Convert MB to bytes
+    if (file.size > maxSize) {
+      alert(`File size must be less than ${step.max_file_size || 5}MB`)
+      return
+    }
+
+    // Validate file type
+    if (step.allowed_file_types && step.allowed_file_types.length > 0) {
+      const isAllowed = step.allowed_file_types.some(type => {
+        if (type === 'image/*') return file.type.startsWith('image/')
+        if (type === 'text/*') return file.type.startsWith('text/')
+        return file.type === type
+      })
+      
+      if (!isAllowed) {
+        alert('File type not allowed')
+        return
+      }
+    }
+
+    setResponses(r => ({ 
+      ...r, 
+      [currentStepIndex]: { 
+        ...(r[currentStepIndex] || {}), 
+        file,
+        answer_text: file.name
+      } 
+    }))
+  }
+
   const goNext = async () => {
     const step = steps[currentStepIndex]
     if (!step) return
 
     // require answer if needed
     const resp = responses[currentStepIndex]
-    if (step.is_required && (!resp || (!resp.option_id && !resp.answer_text))) {
+    if (step.is_required && (!resp || (!resp.option_id && !resp.answer_text && !resp.file && !resp.contact_name && !resp.contact_email))) {
       alert('Please answer this step before continuing')
       return
     }
 
     if (currentStepIndex === steps.length - 1) {
+      // Find contact information from responses
+      let contactData = {}
+      for (const [stepIndexStr, ans] of Object.entries(responses)) {
+        const si = Number(stepIndexStr)
+        const stepObj = steps[si]
+        if (stepObj?.question_type === 'contact_fields' && ans) {
+          contactData = {
+            contact_name: ans.contact_name || null,
+            contact_email: ans.contact_email || null,
+            contact_phone: ans.contact_phone || null,
+            contact_postcode: ans.contact_postcode || null
+          }
+          break
+        }
+      }
+
       // submit: create responses row and response_answers
-      const { data: inserted, error: resErr } = await supabase.from('responses').insert([{ form_id: id }]).select().single()
+      const { data: inserted, error: resErr } = await supabase.from('responses').insert([{ 
+        form_id: id,
+        ...contactData
+      }]).select().single()
       if (resErr || !inserted) {
         console.error('Error creating response', resErr)
         alert('Submission failed')
@@ -86,7 +182,45 @@ export default function FormEmbed() {
         const si = Number(stepIndexStr)
         const stepObj = steps[si]
         if (!stepObj) continue
-        answers.push({ response_id: responseId, step_id: stepObj.id, answer_text: ans.answer_text ?? null, selected_option_id: ans.option_id ?? null })
+
+        let file_url = null
+        let file_name = null
+        let file_size = null
+
+        // Handle file upload if present
+        if (ans.file) {
+          try {
+            const filename = `responses/${responseId}/${stepObj.id}/${Date.now()}-${ans.file.name}`
+            const { error: uploadErr } = await supabase.storage
+              .from('form-assets')
+              .upload(filename, ans.file)
+            
+            if (uploadErr) {
+              console.error('File upload error:', uploadErr)
+              alert('File upload failed, but form will be submitted without the file')
+            } else {
+              const { data: publicUrl } = supabase.storage
+                .from('form-assets')
+                .getPublicUrl(filename)
+              file_url = publicUrl.publicUrl
+              file_name = ans.file.name
+              file_size = ans.file.size
+            }
+          } catch (error) {
+            console.error('File upload error:', error)
+            alert('File upload failed, but form will be submitted without the file')
+          }
+        }
+
+        answers.push({ 
+          response_id: responseId, 
+          step_id: stepObj.id, 
+          answer_text: ans.answer_text ?? null, 
+          selected_option_id: ans.option_id ?? null,
+          file_url,
+          file_name,
+          file_size
+        })
       }
 
       if (answers.length > 0) {
@@ -131,6 +265,21 @@ export default function FormEmbed() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="bg-white rounded-xl shadow p-6 w-full max-w-3xl">
+        {/* Client Header */}
+        {clientInfo && (
+          <div className="text-center mb-6 pb-4 border-b border-gray-200">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center mr-2">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900">{clientInfo.name}</h2>
+            </div>
+            <p className="text-sm text-gray-600">Quality Windows & Doors</p>
+          </div>
+        )}
+        
         <h1 className="text-2xl font-bold">{formName}</h1>
         <p className="text-slate-600">{step.title}</p>
 
@@ -139,20 +288,341 @@ export default function FormEmbed() {
         </div>
         <div className="text-sm text-slate-500 text-right mt-1">{percent}%</div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          {step.options.map(opt => (
-            <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded p-4 text-left hover:shadow ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-300' : ''}`}>
-              {opt.image_url && <img src={opt.image_url} alt={opt.label} className="h-28 w-full object-cover mb-2 rounded" />}
-              <div className="font-medium">{opt.label}</div>
-              {opt.description && <div className="text-sm text-slate-500">{opt.description}</div>}
-            </button>
-          ))}
-        </div>
+        {step.question_type === 'contact_fields' ? (
+          <div className="mt-6">
+            <div className="bg-gray-50 rounded-lg p-6">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Get Your Free Quote</h3>
+                <p className="text-gray-600">Tell us about your project and we'll provide a personalised quote</p>
+                <div className="text-blue-600 text-sm mt-2">Your Selection: {step.title}</div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="firstName"
+                      type="text"
+                      value={responses[currentStepIndex]?.contact_name?.split(' ')[0] || ''}
+                      onChange={(e) => {
+                        const currentResponse = responses[currentStepIndex] || {}
+                        const lastName = currentResponse.contact_name?.split(' ').slice(1).join(' ') || ''
+                        const fullName = e.target.value + (lastName ? ' ' + lastName : '')
+                        setResponses(r => ({
+                          ...r,
+                          [currentStepIndex]: {
+                            ...currentResponse,
+                            contact_name: fullName
+                          }
+                        }))
+                      }}
+                      placeholder="Enter your first name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="lastName"
+                      type="text"
+                      value={responses[currentStepIndex]?.contact_name?.split(' ').slice(1).join(' ') || ''}
+                      onChange={(e) => {
+                        const currentResponse = responses[currentStepIndex] || {}
+                        const firstName = currentResponse.contact_name?.split(' ')[0] || ''
+                        const fullName = firstName + (e.target.value ? ' ' + e.target.value : '')
+                        setResponses(r => ({
+                          ...r,
+                          [currentStepIndex]: {
+                            ...currentResponse,
+                            contact_name: fullName
+                          }
+                        }))
+                      }}
+                      placeholder="Enter your last name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={responses[currentStepIndex]?.contact_email || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        contact_email: e.target.value
+                      }
+                    }))}
+                    placeholder="Enter your email address"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={responses[currentStepIndex]?.contact_phone || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        contact_phone: e.target.value
+                      }
+                    }))}
+                    placeholder="Enter your phone number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+                    Property Address <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="address"
+                    value={responses[currentStepIndex]?.contact_postcode || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        contact_postcode: e.target.value
+                      }
+                    }))}
+                    placeholder="Enter your full address"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="projectDetails" className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Details
+                  </label>
+                  <textarea
+                    id="projectDetails"
+                    value={responses[currentStepIndex]?.project_details || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        project_details: e.target.value,
+                        answer_text: e.target.value // Store in answer_text for compatibility
+                      }
+                    }))}
+                    placeholder="Tell us more about your project, preferred timeline, budget range, etc."
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Preferred Contact Method</label>
+                  <div className="flex space-x-4">
+                    {['Phone Call', 'Email', 'Both'].map((method) => (
+                      <label key={method} className="flex items-center">
+                        <input
+                          type="radio"
+                          name="contactMethod"
+                          value={method}
+                          checked={responses[currentStepIndex]?.preferred_contact === method}
+                          onChange={(e) => setResponses(r => ({
+                            ...r,
+                            [currentStepIndex]: {
+                              ...(r[currentStepIndex] || {}),
+                              preferred_contact: e.target.value
+                            }
+                          }))}
+                          className="mr-2 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">{method}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                     onClick={() => {
+                       const input = document.createElement('input')
+                       input.type = 'file'
+                       input.accept = 'image/*,application/pdf'
+                       input.multiple = true
+                       input.onchange = (e) => {
+                         const files = Array.from((e.target as HTMLInputElement).files || [])
+                         if (files.length > 0) {
+                           // For now, just store the first file
+                           handleFileUpload(files[0])
+                         }
+                       }
+                       input.click()
+                     }}>
+                  <div className="flex flex-col items-center">
+                    <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-lg font-medium text-gray-600 mb-1">
+                      Upload Plans or Reference Images (Optional)
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Click to upload or drag and drop<br/>
+                      PNG, JPG, PDF up to 10MB each
+                    </p>
+                  </div>
+                </div>
+
+                {responses[currentStepIndex]?.file && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-sm font-medium text-green-800">{responses[currentStepIndex]?.file?.name}</span>
+                      </div>
+                      <button
+                        onClick={() => setResponses(r => ({
+                          ...r,
+                          [currentStepIndex]: {
+                            ...(r[currentStepIndex] || {}),
+                            file: undefined
+                          }
+                        }))}
+                        className="text-green-600 hover:text-green-800 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start space-x-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="consent"
+                    required
+                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="consent" className="text-sm text-gray-600 flex-1">
+                    <span className="text-orange-500">⚠️</span> I agree to be contacted by PremiumHome regarding my enquiry <span className="text-red-500">*</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : step.question_type === 'file_upload' ? (
+          <div className="mt-6">
+            <div 
+              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors cursor-pointer"
+              onClick={() => {
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = step.allowed_file_types?.join(',') || '*'
+                input.onchange = (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (file) handleFileUpload(file)
+                }
+                input.click()
+              }}
+            >
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-lg font-medium text-gray-900 mb-2">
+                    {responses[currentStepIndex]?.file ? 'Change file' : 'Drop files here or click to browse'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Maximum file size: {step.max_file_size || 5}MB each
+                  </p>
+                  {step.allowed_file_types && step.allowed_file_types.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Allowed types: {step.allowed_file_types.map(type => {
+                        if (type === 'image/*') return 'Images'
+                        if (type === 'application/pdf') return 'PDF'
+                        if (type.includes('word')) return 'Word docs'
+                        if (type === 'text/*') return 'Text files'
+                        return type.split('/')[1]?.toUpperCase() || type
+                      }).join(', ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            {responses[currentStepIndex]?.file && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                      <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{responses[currentStepIndex]?.file?.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {Math.round((responses[currentStepIndex]?.file?.size || 0) / 1024)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setResponses(r => ({ ...r, [currentStepIndex]: { ...(r[currentStepIndex] || {}), file: undefined, answer_text: undefined } }))}
+                    className="text-red-500 hover:text-red-700 text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            {step.options.map(opt => (
+              <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded p-4 text-left hover:shadow ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-300' : ''}`}>
+                {opt.image_url && <img src={opt.image_url} alt={opt.label} className="h-28 w-full object-cover mb-2 rounded" />}
+                <div className="font-medium">{opt.label}</div>
+                {opt.description && <div className="text-sm text-slate-500">{opt.description}</div>}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex justify-between items-center gap-2 mt-6">
           <button onClick={goPrev} disabled={currentStepIndex === 0} className="px-4 py-2 bg-slate-200 rounded">Previous</button>
           <div className="flex items-center gap-2">
-            <button onClick={goNext} className="px-4 py-2 bg-blue-600 text-white rounded">{currentStepIndex === steps.length -1 ? 'Submit' : 'Next'}</button>
+            <button 
+              onClick={goNext} 
+              className={`px-6 py-3 text-white rounded font-medium transition-all ${
+                currentStepIndex === steps.length - 1 && step.question_type === 'contact_fields'
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {currentStepIndex === steps.length - 1 
+                ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit') 
+                : 'Next'}
+            </button>
           </div>
         </div>
       </div>

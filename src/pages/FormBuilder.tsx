@@ -13,7 +13,9 @@ import {
   FileText, 
   MessageSquare,
   Upload,
-  X
+  X,
+  Paperclip,
+  User
 } from 'lucide-react'
 
 type Option = { 
@@ -28,10 +30,12 @@ type Option = {
 type Step = { 
   id?: string
   title: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload'
   is_required?: boolean
   step_order: number
-  options: Option[] 
+  options: Option[]
+  max_file_size?: number // in MB
+  allowed_file_types?: string[] // array of mime types
 }
 
 interface StepTypeOption {
@@ -59,6 +63,18 @@ const stepTypes: StepTypeOption[] = [
     title: 'Text Input',
     description: 'Single line or paragraph text input',
     icon: <MessageSquare className="h-4 w-4" />
+  },
+  {
+    type: 'file_upload',
+    title: 'File Upload',
+    description: 'Allow users to upload files',
+    icon: <Paperclip className="h-4 w-4" />
+  },
+  {
+    type: 'contact_fields',
+    title: 'Contact Information',
+    description: 'Collect contact details from users',
+    icon: <User className="h-4 w-4" />
   }
 ]
 
@@ -147,6 +163,8 @@ export default function FormBuilder() {
         question_type: step.question_type as Step['question_type'],
         step_order: step.step_order,
         is_required: step.is_required,
+        max_file_size: step.max_file_size,
+        allowed_file_types: step.allowed_file_types,
         options: (step.form_options || []).map((option: any) => ({
           id: option.id,
           label: option.label,
@@ -223,7 +241,9 @@ export default function FormBuilder() {
       is_required: true,
       options: type === 'image_selection' || type === 'multiple_choice' ? [
         { label: 'Option 1', description: '' }
-      ] : []
+      ] : [],
+      max_file_size: type === 'file_upload' ? 5 : undefined, // Default 5MB
+      allowed_file_types: type === 'file_upload' ? ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] : undefined
     }
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
@@ -341,7 +361,9 @@ export default function FormBuilder() {
           title: step.title, 
           question_type: step.question_type, 
           is_required: step.is_required ?? true, 
-          step_order: step.step_order 
+          step_order: step.step_order,
+          max_file_size: step.max_file_size,
+          allowed_file_types: step.allowed_file_types
         }]).select().single()
         if (stepErr) throw stepErr
         const stepId = stepData.id
@@ -442,7 +464,9 @@ export default function FormBuilder() {
             title: step.title, 
             question_type: step.question_type, 
             is_required: step.is_required ?? true, 
-            step_order: step.step_order 
+            step_order: step.step_order,
+            max_file_size: step.max_file_size,
+            allowed_file_types: step.allowed_file_types
           })
           .eq('id', stepId)
           .eq('form_id', formId)
@@ -464,7 +488,9 @@ export default function FormBuilder() {
             title: step.title, 
             question_type: step.question_type, 
             is_required: step.is_required ?? true, 
-            step_order: step.step_order 
+            step_order: step.step_order,
+            max_file_size: step.max_file_size,
+            allowed_file_types: step.allowed_file_types
           }])
           .select()
           .single()
@@ -913,6 +939,108 @@ export default function FormBuilder() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {currentStep.question_type === 'file_upload' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-white/90">Maximum File Size (MB)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={currentStep.max_file_size || 5}
+                            onChange={(e) => updateStep(selectedStepIndex!, { 
+                              ...currentStep, 
+                              max_file_size: Number(e.target.value) || 5 
+                            })}
+                            className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-white/90">Required</label>
+                          <select
+                            value={currentStep.is_required ? 'true' : 'false'}
+                            onChange={(e) => updateStep(selectedStepIndex!, { 
+                              ...currentStep, 
+                              is_required: e.target.value === 'true' 
+                            })}
+                            className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                          >
+                            <option value="true" className="bg-slate-800">Required</option>
+                            <option value="false" className="bg-slate-800">Optional</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Allowed File Types</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="flex items-center space-x-2 text-sm text-white/90">
+                            <input
+                              type="checkbox"
+                              checked={(currentStep.allowed_file_types || []).includes('image/*')}
+                              onChange={(e) => {
+                                const types = currentStep.allowed_file_types || []
+                                const newTypes = e.target.checked 
+                                  ? [...types.filter(t => t !== 'image/*'), 'image/*']
+                                  : types.filter(t => t !== 'image/*')
+                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
+                              }}
+                              className="rounded border-white/20 bg-white/10"
+                            />
+                            <span>Images</span>
+                          </label>
+                          <label className="flex items-center space-x-2 text-sm text-white/90">
+                            <input
+                              type="checkbox"
+                              checked={(currentStep.allowed_file_types || []).includes('application/pdf')}
+                              onChange={(e) => {
+                                const types = currentStep.allowed_file_types || []
+                                const newTypes = e.target.checked 
+                                  ? [...types.filter(t => t !== 'application/pdf'), 'application/pdf']
+                                  : types.filter(t => t !== 'application/pdf')
+                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
+                              }}
+                              className="rounded border-white/20 bg-white/10"
+                            />
+                            <span>PDF Documents</span>
+                          </label>
+                          <label className="flex items-center space-x-2 text-sm text-white/90">
+                            <input
+                              type="checkbox"
+                              checked={(currentStep.allowed_file_types || []).some(t => t.includes('word'))}
+                              onChange={(e) => {
+                                const types = currentStep.allowed_file_types || []
+                                const wordTypes = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+                                const newTypes = e.target.checked 
+                                  ? [...types.filter(t => !wordTypes.includes(t)), ...wordTypes]
+                                  : types.filter(t => !wordTypes.includes(t))
+                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
+                              }}
+                              className="rounded border-white/20 bg-white/10"
+                            />
+                            <span>Word Documents</span>
+                          </label>
+                          <label className="flex items-center space-x-2 text-sm text-white/90">
+                            <input
+                              type="checkbox"
+                              checked={(currentStep.allowed_file_types || []).includes('text/*')}
+                              onChange={(e) => {
+                                const types = currentStep.allowed_file_types || []
+                                const newTypes = e.target.checked 
+                                  ? [...types.filter(t => t !== 'text/*'), 'text/*']
+                                  : types.filter(t => t !== 'text/*')
+                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
+                              }}
+                              className="rounded border-white/20 bg-white/10"
+                            />
+                            <span>Text Files</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   )}
