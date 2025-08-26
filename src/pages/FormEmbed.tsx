@@ -22,7 +22,15 @@ export default function FormEmbed() {
   const { id } = useParams()
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
+  const [formDescription, setFormDescription] = useState('')
+  const [formColors, setFormColors] = useState({
+    primaryButtonColor: '#3B82F6',
+    primaryButtonTextColor: '#FFFFFF',
+    secondaryButtonColor: '#E5E7EB',
+    secondaryButtonTextColor: '#374151'
+  })
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [navigationHistory, setNavigationHistory] = useState<number[]>([0])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [responses, setResponses] = useState<Record<number, { 
@@ -64,6 +72,10 @@ export default function FormEmbed() {
           id,
           name,
           description,
+          primary_button_color,
+          primary_button_text_color,
+          secondary_button_color,
+          secondary_button_text_color,
           clients (
             name,
             logo_url,
@@ -88,6 +100,13 @@ export default function FormEmbed() {
       }
       
       setFormName(form.name)
+      setFormDescription(form.description)
+      setFormColors({
+        primaryButtonColor: form.primary_button_color || '#3B82F6',
+        primaryButtonTextColor: form.primary_button_text_color || '#FFFFFF',
+        secondaryButtonColor: form.secondary_button_color || '#E5E7EB',
+        secondaryButtonTextColor: form.secondary_button_text_color || '#374151'
+      })
       setClientInfo(form.clients)
 
       const { data: s, error: stepsError } = await supabase
@@ -156,7 +175,11 @@ export default function FormEmbed() {
     if (option.jump_to_step) {
       // find index for jump_to_step
       const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
-      if (idx >= 0) setCurrentStepIndex(idx)
+      if (idx >= 0) {
+        // Add current step to history before jumping
+        setNavigationHistory(prev => [...prev, currentStepIndex])
+        setCurrentStepIndex(idx)
+      }
       return
     }
   }
@@ -299,10 +322,24 @@ export default function FormEmbed() {
       return
     }
 
+    // Regular next step navigation - add to history
+    setNavigationHistory(prev => [...prev, currentStepIndex])
     setCurrentStepIndex(currentStepIndex + 1)
   }
 
-  const goPrev = () => setCurrentStepIndex(Math.max(0, currentStepIndex - 1))
+  const goPrev = () => {
+    if (navigationHistory.length > 1) {
+      // Go back to the previous step in history
+      const newHistory = [...navigationHistory]
+      newHistory.pop() // Remove current step
+      const previousStep = newHistory[newHistory.length - 1]
+      setNavigationHistory(newHistory)
+      setCurrentStepIndex(previousStep)
+    } else {
+      // Regular previous navigation if no history (shouldn't happen but safeguard)
+      setCurrentStepIndex(Math.max(0, currentStepIndex - 1))
+    }
+  }
 
   if (loading) {
     return (
@@ -325,7 +362,11 @@ export default function FormEmbed() {
           <p className="text-slate-600 mb-4">{error}</p>
           <button 
             onClick={() => id && loadForm(id)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            style={{
+              backgroundColor: formColors.primaryButtonColor,
+              color: formColors.primaryButtonTextColor
+            }}
+            className="px-4 py-2 rounded hover:opacity-90 transition-all duration-200"
           >
             Try Again
           </button>
@@ -365,15 +406,32 @@ export default function FormEmbed() {
         {/* Client Header */}
         {clientInfo && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
-            <div className="flex items-center justify-center mb-2">
-              <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center mr-2">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
+            {/* Client Logo */}
+            {clientInfo.logo_url ? (
+              <div className="flex justify-center mb-3">
+                <img 
+                  src={clientInfo.logo_url} 
+                  alt={`${clientInfo.name} logo`}
+                  className="h-12 w-auto object-contain"
+                />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900">{clientInfo.name}</h2>
-            </div>
-            <p className="text-sm text-gray-600">Quality Windows & Doors</p>
+            ) : (
+              <div className="flex justify-center mb-3">
+                <div className="w-12 h-12 bg-blue-600 rounded flex items-center justify-center">
+                  <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+            )}
+            
+            {/* Client Name */}
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{clientInfo.name}</h2>
+            
+            {/* Form Description */}
+            {formDescription && (
+              <p className="text-sm text-gray-600">{formDescription}</p>
+            )}
           </div>
         )}
         
@@ -381,7 +439,13 @@ export default function FormEmbed() {
         <p className="text-slate-600">{step.title}</p>
 
         <div className="w-full bg-slate-100 rounded-full h-2 mt-4">
-          <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${percent}%` }} />
+          <div 
+            className="h-2 rounded-full transition-all duration-300" 
+            style={{ 
+              width: `${percent}%`,
+              backgroundColor: formColors.primaryButtonColor
+            }}
+          />
         </div>
         <div className="text-sm text-slate-500 text-right mt-1">{percent}%</div>
 
@@ -869,9 +933,12 @@ export default function FormEmbed() {
                         }))}
                         className={`text-4xl transition-colors ${
                           responses[currentStepIndex]?.scale_rating === rating
-                            ? 'text-yellow-400'
-                            : 'text-gray-300 hover:text-yellow-200'
+                            ? ''
+                            : 'text-gray-300 hover:text-gray-400'
                         }`}
+                        style={responses[currentStepIndex]?.scale_rating === rating ? {
+                          color: formColors.primaryButtonColor
+                        } : {}}
                       >
                         ⭐
                       </button>
@@ -893,9 +960,14 @@ export default function FormEmbed() {
                         }))}
                         className={`w-12 h-12 rounded-lg border-2 font-semibold transition-all ${
                           responses[currentStepIndex]?.scale_rating === rating
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                            ? 'border-2'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                         }`}
+                        style={responses[currentStepIndex]?.scale_rating === rating ? {
+                          backgroundColor: formColors.primaryButtonColor,
+                          color: formColors.primaryButtonTextColor,
+                          borderColor: formColors.primaryButtonColor
+                        } : {}}
                       >
                         {rating}
                       </button>
@@ -915,25 +987,43 @@ export default function FormEmbed() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             {step.options.map((opt: any) => (
-              <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded p-4 text-left hover:shadow ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-300' : ''}`}>
-                {opt.image_url && <img src={opt.image_url} alt={opt.label} className="h-28 w-full object-cover mb-2 rounded" />}
-                <div className="font-medium">{opt.label}</div>
-                {opt.description && <div className="text-sm text-slate-500">{opt.description}</div>}
+              <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded-lg p-4 text-left hover:shadow-md transition-all duration-200 ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                {opt.image_url && (
+                  <div className="aspect-square w-full mb-3 rounded-lg overflow-hidden bg-gray-100">
+                    <img 
+                      src={opt.image_url} 
+                      alt={opt.label} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                )}
+                <div className="font-medium text-gray-900">{opt.label}</div>
+                {opt.description && <div className="text-sm text-gray-500 mt-1">{opt.description}</div>}
               </button>
             ))}
           </div>
         )}
 
         <div className="flex justify-between items-center gap-2 mt-6">
-          <button onClick={goPrev} disabled={currentStepIndex === 0} className="px-4 py-2 bg-slate-200 rounded">Previous</button>
+          <button 
+            onClick={goPrev} 
+            disabled={currentStepIndex === 0} 
+            style={{
+              backgroundColor: currentStepIndex === 0 ? '#9CA3AF' : formColors.secondaryButtonColor,
+              color: currentStepIndex === 0 ? '#FFFFFF' : formColors.secondaryButtonTextColor
+            }}
+            className="px-4 py-2 rounded font-medium transition-all duration-200 disabled:opacity-50"
+          >
+            Previous
+          </button>
           <div className="flex items-center gap-2">
             <button 
               onClick={goNext} 
-              className={`px-6 py-3 text-white rounded font-medium transition-all ${
-                currentStepIndex === steps.length - 1 && step.question_type === 'contact_fields'
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              style={{
+                backgroundColor: formColors.primaryButtonColor,
+                color: formColors.primaryButtonTextColor
+              }}
+              className="px-6 py-3 rounded font-medium transition-all duration-200 hover:opacity-90"
             >
               {currentStepIndex === steps.length - 1 
                 ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit') 

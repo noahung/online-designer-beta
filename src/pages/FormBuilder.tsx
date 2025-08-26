@@ -201,6 +201,11 @@ export default function FormBuilder() {
   const [welcomeMessage, setWelcomeMessage] = useState('Welcome to our design tool! Let\'s create the perfect windows and doors for your home.')
   const [clientId, setClientId] = useState<string | null>(null)
   const [clients, setClients] = useState<{ id: string; name: string }[]>([])
+  // Color customization states
+  const [primaryButtonColor, setPrimaryButtonColor] = useState('#3B82F6')
+  const [primaryButtonTextColor, setPrimaryButtonTextColor] = useState('#FFFFFF')
+  const [secondaryButtonColor, setSecondaryButtonColor] = useState('#E5E7EB')
+  const [secondaryButtonTextColor, setSecondaryButtonTextColor] = useState('#374151')
   const [steps, setSteps] = useState<Step[]>([])
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -320,6 +325,10 @@ export default function FormBuilder() {
       setDescription(formData.description)
       setWelcomeMessage(formData.welcome_message || '')
       setClientId(formData.client_id)
+      setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
+      setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
+      setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
+      setSecondaryButtonTextColor(formData.secondary_button_text_color || '#374151')
       setIsEditing(true)
 
       // Convert database steps to component format
@@ -496,7 +505,11 @@ export default function FormBuilder() {
             name, 
             description, 
             client_id: clientId,
-            welcome_message: welcomeMessage 
+            welcome_message: welcomeMessage,
+            primary_button_color: primaryButtonColor,
+            primary_button_text_color: primaryButtonTextColor,
+            secondary_button_color: secondaryButtonColor,
+            secondary_button_text_color: secondaryButtonTextColor
           })
           .eq('id', formId)
           .eq('user_id', user.id)
@@ -517,7 +530,11 @@ export default function FormBuilder() {
           description, 
           client_id: clientId, 
           user_id: user.id,
-          welcome_message: welcomeMessage
+          welcome_message: welcomeMessage,
+          primary_button_color: primaryButtonColor,
+          primary_button_text_color: primaryButtonTextColor,
+          secondary_button_color: secondaryButtonColor,
+          secondary_button_text_color: secondaryButtonTextColor
         }]).select().single()
         
         if (formErr) throw formErr
@@ -908,6 +925,133 @@ export default function FormBuilder() {
                     <option value="" className="bg-slate-800 text-white">Select client</option>
                     {clients.map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Color Customization */}
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.15s'}}>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <svg className="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
+                Button Colors
+              </h3>
+              <div className="space-y-6">
+                {/* Primary Button Colors */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-white/80">Next Button</div>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-white/70">Background Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={primaryButtonColor}
+                          onChange={(e) => setPrimaryButtonColor(e.target.value)}
+                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={primaryButtonColor}
+                          onChange={(e) => setPrimaryButtonColor(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                          placeholder="#3B82F6"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-white/70">Text Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={primaryButtonTextColor}
+                          onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
+                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={primaryButtonTextColor}
+                          onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                          placeholder="#FFFFFF"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Secondary Button Colors */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-white/80">Previous Button</div>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-white/70">Background Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={secondaryButtonColor}
+                          onChange={(e) => setSecondaryButtonColor(e.target.value)}
+                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={secondaryButtonColor}
+                          onChange={(e) => setSecondaryButtonColor(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                          placeholder="#E5E7EB"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-white/70">Text Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={secondaryButtonTextColor}
+                          onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
+                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={secondaryButtonTextColor}
+                          onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                          placeholder="#374151"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Color Preview */}
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                  <div className="text-xs text-white/70 mb-3">Button Preview:</div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      style={{
+                        backgroundColor: secondaryButtonColor,
+                        color: secondaryButtonTextColor
+                      }}
+                      className="px-3 py-2 rounded text-xs font-medium transition-colors duration-200"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        backgroundColor: primaryButtonColor,
+                        color: primaryButtonTextColor
+                      }}
+                      className="px-3 py-2 rounded text-xs font-medium transition-colors duration-200"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
