@@ -1,0 +1,23 @@
+{
+  "name": "zapier-online-designer-forms",
+  "version": "1.0.0",
+  "description": "Zapier app for Online Designer Forms integration",
+  "main": "index.js",
+  "scripts": {
+    "test": "zapier test",
+    "validate": "zapier validate",
+    "build": "zapier build",
+    "push": "zapier push"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "zapier-platform-core": "^15.0.0"
+  },
+  "devDependencies": {
+    "zapier-platform-cli": "^15.0.0"
+  },
+  "private": true
+}

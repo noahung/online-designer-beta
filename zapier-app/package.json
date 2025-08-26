@@ -1,0 +1,163 @@
+{
+  "name": "Online Designer Forms",
+  "description": "Connect your Online Designer forms to automate workflows when new responses are submitted",
+  "version": "1.0.0",
+  "platformVersion": "15.0.0",
+  "homepage": "https://noahung.github.io/online-designer-beta",
+  "support": "https://github.com/noahung/online-designer-beta/issues",
+  "author": {
+    "name": "Online Designer",
+    "email": "support@onlinedesigner.com"
+  },
+  "authentication": {
+    "type": "api_key",
+    "test": {
+      "url": "{{process.env.BASE_URL}}/api/forms",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "params": {
+        "api_key": "{{bundle.authData.api_key}}"
+      }
+    },
+    "fields": [
+      {
+        "key": "api_key",
+        "label": "API Key",
+        "required": true,
+        "type": "string",
+        "helpText": "Get your API key from the Settings page in your Online Designer account"
+      }
+    ]
+  },
+  "triggers": {
+    "new_form_response": {
+      "key": "new_form_response",
+      "noun": "Form Response",
+      "display": {
+        "label": "New Form Response",
+        "description": "Triggers when a new form response is submitted",
+        "important": true
+      },
+      "operation": {
+        "type": "hook",
+        "performSubscribe": {
+          "url": "{{process.env.BASE_URL}}/api/webhooks/subscribe",
+          "method": "POST",
+          "body": {
+            "target_url": "{{bundle.targetUrl}}",
+            "form_id": "{{bundle.inputData.form_id}}",
+            "api_key": "{{bundle.authData.api_key}}"
+          }
+        },
+        "performUnsubscribe": {
+          "url": "{{process.env.BASE_URL}}/api/webhooks/unsubscribe",
+          "method": "DELETE",
+          "body": {
+            "target_url": "{{bundle.targetUrl}}",
+            "form_id": "{{bundle.inputData.form_id}}",
+            "api_key": "{{bundle.authData.api_key}}"
+          }
+        },
+        "performList": {
+          "url": "{{process.env.BASE_URL}}/api/forms/{{bundle.inputData.form_id}}/responses/recent",
+          "method": "GET",
+          "params": {
+            "api_key": "{{bundle.authData.api_key}}"
+          }
+        },
+        "inputFields": [
+          {
+            "key": "form_id",
+            "label": "Form",
+            "required": true,
+            "dynamic": "form_list.id.name",
+            "helpText": "Select which form to monitor for new responses"
+          }
+        ],
+        "outputFields": [
+          {
+            "key": "response_id",
+            "label": "Response ID"
+          },
+          {
+            "key": "form_id",
+            "label": "Form ID"
+          },
+          {
+            "key": "form_name",
+            "label": "Form Name"
+          },
+          {
+            "key": "submitted_at",
+            "label": "Submitted At",
+            "type": "datetime"
+          },
+          {
+            "key": "contact__name",
+            "label": "Contact Name"
+          },
+          {
+            "key": "contact__email",
+            "label": "Contact Email"
+          },
+          {
+            "key": "contact__phone",
+            "label": "Contact Phone"
+          },
+          {
+            "key": "answers",
+            "label": "Answers",
+            "type": "object"
+          }
+        ],
+        "sample": {
+          "response_id": "12345678-1234-1234-1234-123456789abc",
+          "form_id": "87654321-4321-4321-4321-cba987654321",
+          "form_name": "Contact Form",
+          "submitted_at": "2025-08-26T10:30:00Z",
+          "contact": {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "phone": "+1234567890"
+          },
+          "answers": [
+            {
+              "question": "What type of windows are you interested in?",
+              "answer_text": "Double Glazed Windows",
+              "selected_option": "option_123"
+            },
+            {
+              "question": "Rate our service",
+              "rating": 5
+            }
+          ]
+        }
+      }
+    }
+  },
+  "searches": {
+    "form_list": {
+      "key": "form_list",
+      "noun": "Form",
+      "display": {
+        "label": "Find Forms",
+        "description": "List all your forms",
+        "hidden": true
+      },
+      "operation": {
+        "perform": {
+          "url": "{{process.env.BASE_URL}}/api/forms",
+          "method": "GET",
+          "params": {
+            "api_key": "{{bundle.authData.api_key}}"
+          }
+        }
+      }
+    }
+  },
+  "environment": {
+    "BASE_URL": "https://noahung.github.io/online-designer-beta"
+  }
+}

@@ -24,6 +24,7 @@ export default function FormEmbed() {
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
+  const [formData, setFormData] = useState<any>(null)
   const [formColors, setFormColors] = useState({
     primaryButtonColor: '#3B82F6',
     primaryButtonTextColor: '#FFFFFF',
@@ -73,6 +74,7 @@ export default function FormEmbed() {
           id,
           name,
           description,
+          user_id,
           primary_button_color,
           primary_button_text_color,
           secondary_button_color,
@@ -102,6 +104,7 @@ export default function FormEmbed() {
       
       setFormName(form.name)
       setFormDescription(form.description)
+      setFormData(form)
       setFormColors({
         primaryButtonColor: form.primary_button_color || '#3B82F6',
         primaryButtonTextColor: form.primary_button_text_color || '#FFFFFF',
@@ -220,6 +223,76 @@ export default function FormEmbed() {
     }))
   }
 
+  const sendWebhook = async (responseId: string, answers: any[], contactData: any) => {
+    try {
+      if (!formData) {
+        console.log('No form data available for webhook')
+        return
+      }
+
+      // Get user's webhook settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('user_settings')
+        .select('webhook_url, zapier_enabled')
+        .eq('user_id', formData.user_id)
+        .maybeSingle()
+
+      if (settingsError || !settings || !settings.zapier_enabled || !settings.webhook_url) {
+        console.log('Webhook not configured or not enabled')
+        return
+      }
+
+      // Prepare webhook payload
+      const webhookData = {
+        response_id: responseId,
+        form_id: formData.id,
+        form_name: formData.name,
+        submitted_at: new Date().toISOString(),
+        contact: contactData,
+        answers: answers.map(answer => {
+          const step = steps.find(s => s.id === answer.step_id)
+          return {
+            question: step?.title || 'Unknown',
+            answer_text: answer.answer_text,
+            selected_option: answer.selected_option_id,
+            file_url: answer.file_url,
+            rating: answer.scale_rating,
+            dimensions: {
+              width: answer.width,
+              height: answer.height,
+              depth: answer.depth,
+              units: answer.units
+            }
+          }
+        })
+      }
+
+      // Send webhook
+      const response = await fetch(settings.webhook_url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData)
+      })
+
+      if (!response.ok) {
+        throw new Error(`Webhook failed with status: ${response.status}`)
+      }
+
+      // Update response to mark webhook as sent
+      await supabase
+        .from('responses')
+        .update({ webhook_sent: true })
+        .eq('id', responseId)
+
+      console.log('Webhook sent successfully')
+    } catch (error) {
+      console.error('Webhook error:', error)
+      throw error
+    }
+  }
+
   const goNext = async () => {
     const step = steps[currentStepIndex]
     if (!step) return
@@ -317,6 +390,14 @@ export default function FormEmbed() {
       if (answers.length > 0) {
         const { error: ansErr } = await supabase.from('response_answers').insert(answers)
         if (ansErr) console.error('Error inserting answers', ansErr)
+      }
+
+      // Send webhook to Zapier if configured
+      try {
+        await sendWebhook(responseId, answers, contactData)
+      } catch (error) {
+        console.error('Webhook failed:', error)
+        // Don't fail the form submission if webhook fails
       }
 
       setCurrentStepIndex(currentStepIndex + 1)

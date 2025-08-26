@@ -1,9 +1,115 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import { supabase } from '../lib/supabase'
 import { User, Globe, Webhook, Key } from 'lucide-react'
+
+interface UserSettings {
+  webhook_url: string
+  zapier_enabled: boolean
+  api_key: string
+}
 
 export default function Settings() {
   const { user } = useAuth()
+  const { push } = useToast()
+  const [settings, setSettings] = useState<UserSettings>({
+    webhook_url: '',
+    zapier_enabled: false,
+    api_key: ''
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      loadUserSettings()
+    }
+  }, [user])
+
+  const loadUserSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('webhook_url, zapier_enabled, api_key')
+        .eq('user_id', user?.id)
+        .maybeSingle()
+
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      if (data) {
+        setSettings({
+          webhook_url: data.webhook_url || '',
+          zapier_enabled: data.zapier_enabled || false,
+          api_key: data.api_key || ''
+        })
+      } else {
+        // Generate initial API key for new users
+        const newApiKey = generateApiKey()
+        setSettings(prev => ({ ...prev, api_key: newApiKey }))
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error)
+      push({ type: 'error', message: 'Failed to load settings' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const generateApiKey = () => {
+    return 'dk_live_' + Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+  }
+
+  const saveWebhookSettings = async () => {
+    if (!user) return
+    setSaving(true)
+
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          webhook_url: settings.webhook_url,
+          zapier_enabled: settings.zapier_enabled,
+          api_key: settings.api_key
+        })
+
+      if (error) throw error
+
+      push({ type: 'success', message: 'Webhook settings saved successfully!' })
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      push({ type: 'error', message: 'Failed to save webhook settings' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const regenerateApiKey = async () => {
+    const newApiKey = generateApiKey()
+    setSettings(prev => ({ ...prev, api_key: newApiKey }))
+    
+    try {
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user?.id,
+          webhook_url: settings.webhook_url,
+          zapier_enabled: settings.zapier_enabled,
+          api_key: newApiKey
+        })
+
+      if (error) throw error
+      push({ type: 'success', message: 'API key regenerated successfully!' })
+    } catch (error) {
+      console.error('Error regenerating API key:', error)
+      push({ type: 'error', message: 'Failed to regenerate API key' })
+    }
+  }
 
   return (
     <div className="p-8 animate-fade-in">
@@ -70,15 +176,22 @@ export default function Settings() {
               </label>
               <input
                 type="url"
+                value={settings.webhook_url}
+                onChange={(e) => setSettings(prev => ({ ...prev, webhook_url: e.target.value }))}
                 placeholder="https://hooks.zapier.com/hooks/catch/..."
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
               />
+              <p className="text-xs text-white/60 mt-2">
+                Copy this URL from your Zapier webhook trigger
+              </p>
             </div>
 
             <div className="flex items-center">
               <input
                 type="checkbox"
                 id="zapier-enabled"
+                checked={settings.zapier_enabled}
+                onChange={(e) => setSettings(prev => ({ ...prev, zapier_enabled: e.target.checked }))}
                 className="w-4 h-4 text-purple-600 bg-white/10 border-white/30 rounded focus:ring-purple-500 focus:ring-2"
               />
               <label htmlFor="zapier-enabled" className="ml-3 text-sm text-white/80">
@@ -86,8 +199,12 @@ export default function Settings() {
               </label>
             </div>
 
-            <button className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition-all duration-200 font-medium transform hover:scale-105 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40">
-              Save Webhook Settings
+            <button 
+              onClick={saveWebhookSettings}
+              disabled={saving}
+              className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-800 disabled:to-pink-800 text-white rounded-xl transition-all duration-200 font-medium transform hover:scale-105 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {saving ? 'Saving...' : 'Save Webhook Settings'}
             </button>
           </div>
         </div>
@@ -113,14 +230,20 @@ export default function Settings() {
               <div className="flex space-x-3">
                 <input
                   type="text"
-                  value="dk_live_••••••••••••••••"
+                  value={loading ? 'Loading...' : (settings.api_key ? `${settings.api_key.slice(0, 12)}••••••••••••••••` : '')}
                   disabled
                   className="flex-1 px-4 py-3 bg-white/5 backdrop-blur-sm border border-white/20 rounded-xl text-white/80 font-mono text-sm cursor-not-allowed"
                 />
-                <button className="px-4 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl transition-all duration-200 font-medium">
+                <button 
+                  onClick={regenerateApiKey}
+                  className="px-4 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl transition-all duration-200 font-medium"
+                >
                   Regenerate
                 </button>
               </div>
+              <p className="text-xs text-white/60 mt-2">
+                Use this key to access the API programmatically
+              </p>
             </div>
 
             <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30 rounded-xl p-4">
