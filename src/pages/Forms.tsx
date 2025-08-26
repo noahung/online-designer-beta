@@ -91,7 +91,9 @@ export default function Forms() {
   }
 
   const copyEmbedCode = (formId: string) => {
-    const embedCode = `<iframe src="${window.location.origin}/form/${formId}" width="100%" height="800" frameborder="0" style="border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`
+    const baseUrl = window.location.origin
+    const basename = import.meta.env.PROD ? '/online-designer-beta' : ''
+    const embedCode = `<iframe src="${baseUrl}${basename}/form/${formId}" width="100%" height="800" frameborder="0" style="border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`
     navigator.clipboard.writeText(embedCode)
   push({ type: 'success', message: 'Embed code copied to clipboard' })
   }

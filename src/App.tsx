@@ -46,6 +46,20 @@ function AppRoutes() {
   
   console.log('AppRoutes: Simple state check', { user: user?.email, userType, loading })
   
+  // Check if this is a public form embed route first
+  const currentPath = window.location.pathname
+  const basename = import.meta.env.PROD ? '/online-designer-beta' : ''
+  const pathWithoutBasename = basename ? currentPath.replace(basename, '') : currentPath
+  
+  if (pathWithoutBasename.startsWith('/form/')) {
+    console.log('AppRoutes: Public form embed route detected', { currentPath, pathWithoutBasename })
+    return (
+      <Routes>
+        <Route path="form/:id" element={<FormEmbed />} />
+      </Routes>
+    )
+  }
+  
   if (loading) {
     console.log('AppRoutes: Still loading')
     return (
@@ -105,8 +119,6 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
       </Route>
-      {/* Public form embed route */}
-      <Route path="form/:id" element={<FormEmbed />} />
     </Routes>
   )
 }
