@@ -1,25 +1,29 @@
 const performAuth = (z, bundle) => {
+  // Use Supabase function to validate API key
   const options = {
-    url: `${process.env.BASE_URL}/api/forms`,
-    method: 'GET',
+    url: 'https://bahloynyhjgmdndqabhu.supabase.co/rest/v1/rpc/validate_api_key',
+    method: 'POST',
     headers: {
       'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhaGxveW55aGpnbWRuZHFhYmh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjQyMzMwNzAsImV4cCI6MjAzOTgwOTA3MH0.9N2hBVXbPdxDPKXUYKHrpQ-ZXN6YYV6VU3_7LMsXfPg',
+      'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhaGxveW55aGpnbWRuZHFhYmh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjQyMzMwNzAsImV4cCI6MjAzOTgwOTA3MH0.9N2hBVXbPdxDPKXUYKHrpQ-ZXN6YYV6VU3_7LMsXfPg`,
     },
-    params: {
-      api_key: bundle.authData.api_key,
+    body: {
+      api_key_param: bundle.authData.api_key
     },
   };
 
   return z.request(options).then((response) => {
     response.throwForStatus();
-    const results = response.json;
+    const result = response.json;
 
-    // You can do any parsing you need for results here before returning
-    if (results && Array.isArray(results.forms)) {
-      return results;
+    // Check if the API key is valid
+    if (result && result.valid === true) {
+      return { success: true, user_id: result.user_id };
     }
     
-    throw new Error('Invalid API key or unable to access forms');
+    throw new Error('Invalid API key');
   });
 };
 
