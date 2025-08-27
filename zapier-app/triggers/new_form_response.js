@@ -41,55 +41,8 @@ const unsubscribeHook = (z, bundle) => {
 };
 
 const getList = (z, bundle) => {
-  // For testing, return mock data since we don't have real responses API yet
-  const mockResponses = [
-    {
-      id: 'mock-response-1',
-      response_id: 'mock-response-1',
-      form_id: bundle.inputData.form_id || 'test-form-123',
-      form_name: 'Test Form',
-      submitted_at: new Date().toISOString(),
-      contact: {
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '+1234567890'
-      },
-      contact__name: 'John Doe',
-      contact__email: 'john@example.com',
-      contact__phone: '+1234567890',
-      answers: [
-        {
-          question: 'What service are you interested in?',
-          answer_text: 'Web Design',
-          selected_option: 'web_design'
-        }
-      ]
-    },
-    {
-      id: 'mock-response-2',
-      response_id: 'mock-response-2',
-      form_id: bundle.inputData.form_id || 'test-form-123',
-      form_name: 'Test Form',
-      submitted_at: new Date(Date.now() - 3600000).toISOString(),
-      contact: {
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '+1987654321'
-      },
-      contact__name: 'Jane Smith',
-      contact__email: 'jane@example.com',
-      contact__phone: '+1987654321',
-      answers: [
-        {
-          question: 'What service are you interested in?',
-          answer_text: 'Digital Marketing',
-          selected_option: 'digital_marketing'
-        }
-      ]
-    }
-  ];
-
-  return Promise.resolve(mockResponses);
+  // Return empty array for now - we'll implement real API later
+  return [];
 };
 
 module.exports = {
@@ -108,11 +61,10 @@ module.exports = {
     inputFields: [
       {
         key: 'form_id',
-        label: 'Form',
+        label: 'Form ID',
         required: true,
         type: 'string',
-        dynamic: 'formList.id.name',
-        helpText: 'Select the form to monitor for new responses',
+        helpText: 'Enter the ID of the form to monitor for new responses',
       },
     ],
     outputFields: [
