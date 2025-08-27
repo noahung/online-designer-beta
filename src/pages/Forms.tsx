@@ -124,6 +124,7 @@ export default function Forms() {
           description: originalForm.description,
           form_data: originalForm.form_data,
           user_id: user?.id,
+          client_id: originalForm.client_id, // Include the required client_id
           is_active: false, // Start as inactive
           primary_color: originalForm.primary_color,
           secondary_color: originalForm.secondary_color,

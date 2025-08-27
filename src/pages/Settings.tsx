@@ -90,24 +90,26 @@ export default function Settings() {
   }
 
   const regenerateApiKey = async () => {
-    const newApiKey = generateApiKey()
-    setSettings(prev => ({ ...prev, api_key: newApiKey }))
-    
     try {
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: user?.id,
-          webhook_url: settings.webhook_url,
-          zapier_enabled: settings.zapier_enabled,
-          api_key: newApiKey
+      setSaving(true)
+      
+      // Use Supabase function to generate new API key
+      const { data: newApiKey, error } = await supabase
+        .rpc('generate_new_api_key', {
+          user_id_param: user?.id
         })
 
       if (error) throw error
+      
+      setSettings(prev => ({ ...prev, api_key: newApiKey }))
       push({ type: 'success', message: 'API key regenerated successfully!' })
     } catch (error) {
       console.error('Error regenerating API key:', error)
       push({ type: 'error', message: 'Failed to regenerate API key' })
+    } finally {
+      setSaving(false)
+    }
+  }
     }
   }
 

@@ -25,6 +25,31 @@ BEGIN
 END;
 $$;
 
+-- Create a function to generate new API key for a user
+CREATE OR REPLACE FUNCTION generate_new_api_key(user_id_param uuid)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_api_key text;
+BEGIN
+  -- Generate a new API key with proper format
+  new_api_key := 'dk_live_' || encode(gen_random_bytes(16), 'hex');
+  
+  -- Update or insert user settings with new API key
+  INSERT INTO user_settings (user_id, api_key)
+  VALUES (user_id_param, new_api_key)
+  ON CONFLICT (user_id) 
+  DO UPDATE SET 
+    api_key = EXCLUDED.api_key,
+    updated_at = now();
+  
+  RETURN new_api_key;
+END;
+$$;
+
 -- Create a function to get forms for API key authentication
 CREATE OR REPLACE FUNCTION get_forms_by_api_key(api_key_param text)
 RETURNS json
@@ -64,6 +89,7 @@ BEGIN
 END;
 $$;
 
--- Grant execute permissions to anon role
+-- Grant execute permissions to anon and authenticated roles
 GRANT EXECUTE ON FUNCTION validate_api_key(text) TO anon;
 GRANT EXECUTE ON FUNCTION get_forms_by_api_key(text) TO anon;
+GRANT EXECUTE ON FUNCTION generate_new_api_key(uuid) TO authenticated;
