@@ -35,7 +35,7 @@ const App = {
   hydrators: {},
 };
 
-// Set the base URL for all requests
-process.env.BASE_URL = process.env.BASE_URL || 'https://noahung.github.io/online-designer-beta';
+// Set the base URL for all requests - use custom domain
+process.env.BASE_URL = process.env.BASE_URL || 'https://designer.advertomedia.co.uk';
 
 module.exports = App;

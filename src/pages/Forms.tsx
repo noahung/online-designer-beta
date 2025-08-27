@@ -92,13 +92,13 @@ export default function Forms() {
 
   const copyEmbedCode = (formId: string) => {
     const baseUrl = window.location.origin
-    const basename = import.meta.env.PROD ? '/online-designer-beta' : ''
+    // Use custom domain detection - if on custom domain, no basename needed
+    const isCustomDomain = window.location.hostname !== 'noahung.github.io'
+    const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : ''
     const embedCode = `<iframe src="${baseUrl}${basename}/form/${formId}" width="100%" height="800" frameborder="0" style="border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`
     navigator.clipboard.writeText(embedCode)
-  push({ type: 'success', message: 'Embed code copied to clipboard' })
-  }
-
-  const openEditModal = async (formId: string) => {
+    push({ type: 'success', message: 'Embed code copied to clipboard' })
+  }  const openEditModal = async (formId: string) => {
     // Navigate to the FormBuilder in edit mode instead of opening a modal
     navigate(`/forms/edit/${formId}`)
   }

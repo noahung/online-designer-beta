@@ -49,7 +49,9 @@ function AppRoutes() {
   
   // Check if this is a public form embed route first
   const currentPath = window.location.pathname
-  const basename = import.meta.env.PROD ? '/online-designer-beta' : ''
+  // Use custom domain detection - if on custom domain, no basename needed
+  const isCustomDomain = window.location.hostname !== 'noahung.github.io'
+  const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : ''
   const pathWithoutBasename = basename ? currentPath.replace(basename, '') : currentPath
   
   // Check for API endpoint routes (public, no auth required)
@@ -135,8 +137,9 @@ function AppRoutes() {
 }
 
 function App() {
-  // Use basename only in production for GitHub Pages
-  const basename = import.meta.env.PROD ? '/online-designer-beta' : '';
+  // Use custom domain detection - if on custom domain, no basename needed
+  const isCustomDomain = window.location.hostname !== 'noahung.github.io'
+  const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
   
   return (
     <ErrorBoundary>
