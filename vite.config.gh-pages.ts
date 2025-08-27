@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// GitHub Pages production config
+// GitHub Pages production config - updated for custom domain
 export default defineConfig({
   plugins: [react()],
-  base: '/online-designer-beta/',
+  base: '/', // Use root path for custom domain
   build: {
     outDir: 'dist',
   },
