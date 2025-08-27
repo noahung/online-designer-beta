@@ -30,7 +30,7 @@ const perform = (z, bundle) => {
 };
 
 module.exports = {
-  key: 'form_list',
+  key: 'formList',
   noun: 'Form',
   display: {
     label: 'Find Forms',

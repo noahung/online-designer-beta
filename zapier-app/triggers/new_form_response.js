@@ -82,20 +82,20 @@ module.exports = {
   display: {
     label: 'New Form Response',
     description: 'Triggers when a new form response is submitted',
-    important: true,
   },
   operation: {
     type: 'hook',
+    perform: getList,
     performSubscribe: subscribeHook,
     performUnsubscribe: unsubscribeHook,
     performList: getList,
     inputFields: [
       {
         key: 'form_id',
-        label: 'Form',
+        label: 'Form ID',
         required: true,
-        dynamic: 'form_list.id.name',
-        helpText: 'Select which form to monitor for new responses',
+        type: 'string',
+        helpText: 'Enter the ID of the form to monitor for new responses',
       },
     ],
     outputFields: [
@@ -137,7 +137,7 @@ module.exports = {
       {
         key: 'answers',
         label: 'Form Answers',
-        type: 'object',
+        type: 'text',
       },
     ],
     sample: {

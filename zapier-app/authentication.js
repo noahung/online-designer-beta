@@ -24,7 +24,7 @@ const performAuth = (z, bundle) => {
 };
 
 const authentication = {
-  type: 'api_key',
+  type: 'custom',
   test: performAuth,
   fields: [
     {

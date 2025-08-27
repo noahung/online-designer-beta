@@ -12,7 +12,7 @@ const addApiKeyToHeader = (request, z, bundle) => {
 
 const App = {
   version: require('./package.json').version,
-  platformVersion: require('./package.json').platformVersion,
+  platformVersion: require('./package.json').zapier.platformVersion,
 
   authentication: authentication.authentication,
 
