@@ -242,29 +242,140 @@ export default function FormEmbed() {
         return
       }
 
-      // Prepare webhook payload
+      // Prepare comprehensive structured answers
+      const structuredAnswers = answers.map(answer => {
+        const step = steps.find(s => s.id === answer.step_id)
+        const baseAnswer = {
+          question: step?.title || 'Unknown',
+          question_type: step?.question_type || 'unknown',
+          step_order: step?.step_order || 0,
+          is_required: step?.is_required || false
+        }
+
+        // Add type-specific data
+        if (answer.answer_text) {
+          baseAnswer.answer_text = answer.answer_text
+        }
+        
+        if (answer.selected_option_id) {
+          baseAnswer.selected_option = answer.selected_option_id
+          // Try to get option label from step
+          const option = step?.options?.find(opt => opt.id === answer.selected_option_id)
+          if (option) {
+            baseAnswer.selected_option_label = option.label
+            if (option.image_url) {
+              baseAnswer.selected_option_image = option.image_url
+            }
+          }
+        }
+
+        if (answer.file_url) {
+          baseAnswer.file_url = answer.file_url
+          baseAnswer.file_name = answer.file_name
+          baseAnswer.file_size = answer.file_size
+        }
+
+        if (answer.scale_rating) {
+          baseAnswer.rating = answer.scale_rating
+          baseAnswer.scale_type = step?.scale_type || 'number'
+          baseAnswer.scale_min = step?.scale_min || 1
+          baseAnswer.scale_max = step?.scale_max || 10
+        }
+
+        if (answer.width || answer.height || answer.depth) {
+          baseAnswer.dimensions = {
+            width: answer.width,
+            height: answer.height,
+            depth: answer.depth,
+            units: answer.units,
+            dimension_type: step?.dimension_type || '2d'
+          }
+        }
+
+        return baseAnswer
+      })
+
+      // Categorize answers for easy access
+      const textResponses = structuredAnswers
+        .filter(a => a.question_type === 'text_input' && a.answer_text)
+        .map(a => a.answer_text)
+
+      const multipleChoiceResponses = structuredAnswers
+        .filter(a => a.question_type === 'multiple_choice' && a.selected_option_label)
+        .map(a => `${a.question} → ${a.selected_option_label}`)
+
+      const imageSelectionResponses = structuredAnswers
+        .filter(a => a.question_type === 'image_selection' && a.selected_option_label)
+        .map(a => ({
+          question: a.question,
+          selection: a.selected_option_label,
+          image_url: a.selected_option_image
+        }))
+
+      const fileUploads = structuredAnswers
+        .filter(a => a.question_type === 'file_upload' && a.file_url)
+        .map(a => `${a.file_name} (${(a.file_size / 1024 / 1024).toFixed(1)} MB) - ${a.file_url}`)
+
+      const dimensionMeasurements = structuredAnswers
+        .filter(a => a.question_type === 'dimensions' && a.dimensions)
+        .map(a => {
+          const d = a.dimensions
+          if (d.dimension_type === '3d') {
+            return `${a.question}: ${d.width}${d.units} × ${d.height}${d.units} × ${d.depth}${d.units}`
+          } else {
+            return `${a.question}: ${d.width}${d.units} × ${d.height}${d.units}`
+          }
+        })
+
+      const opinionRatings = structuredAnswers
+        .filter(a => a.question_type === 'opinion_scale' && a.rating)
+        .map(a => `${a.question}: ${a.rating}/${a.scale_max} ${a.scale_type}`)
+
+      // Get direct file URLs and names
+      const fileAttachments = structuredAnswers
+        .filter(a => a.file_url)
+        .map(a => a.file_url)
+
+      const fileNames = structuredAnswers
+        .filter(a => a.file_name)
+        .map(a => a.file_name)
+
+      // Calculate completion metrics
+      const totalQuestions = steps.length
+      const answeredQuestions = structuredAnswers.length
+      const completionPercentage = Math.round((answeredQuestions / totalQuestions) * 100)
+
+      // Prepare comprehensive webhook payload
       const webhookData = {
         response_id: responseId,
         form_id: formData.id,
         form_name: formData.name,
         submitted_at: new Date().toISOString(),
-        contact: contactData,
-        answers: answers.map(answer => {
-          const step = steps.find(s => s.id === answer.step_id)
-          return {
-            question: step?.title || 'Unknown',
-            answer_text: answer.answer_text,
-            selected_option: answer.selected_option_id,
-            file_url: answer.file_url,
-            rating: answer.scale_rating,
-            dimensions: {
-              width: answer.width,
-              height: answer.height,
-              depth: answer.depth,
-              units: answer.units
-            }
-          }
-        })
+        
+        // Contact information (flattened for easy access)
+        contact__name: contactData.contact_name || null,
+        contact__email: contactData.contact_email || null,
+        contact__phone: contactData.contact_phone || null,
+        contact__postcode: contactData.contact_postcode || null,
+        
+        // Complete structured data
+        answers: JSON.stringify(structuredAnswers),
+        
+        // Categorized responses for easy mapping
+        answers__text_responses: textResponses,
+        answers__multiple_choice: multipleChoiceResponses,
+        answers__image_selections: imageSelectionResponses.map(a => `${a.question} → ${a.selection}`),
+        answers__file_uploads: fileUploads,
+        answers__dimensions: dimensionMeasurements,
+        answers__opinion_ratings: opinionRatings,
+        
+        // Direct file access
+        file_attachments: fileAttachments,
+        file_names: fileNames,
+        
+        // Summary data
+        total_questions_answered: answeredQuestions,
+        completion_percentage: completionPercentage
       }
 
       // Send webhook
