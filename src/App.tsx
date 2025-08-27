@@ -12,6 +12,7 @@ import Responses from './pages/Responses'
 import Settings from './pages/Settings'
 import FormBuilder from './pages/FormBuilder'
 import FormEmbed from './pages/FormEmbed'
+import APIEndpoint from './pages/APIEndpoint'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, userType, loading } = useAuth()
@@ -50,6 +51,16 @@ function AppRoutes() {
   const currentPath = window.location.pathname
   const basename = import.meta.env.PROD ? '/online-designer-beta' : ''
   const pathWithoutBasename = basename ? currentPath.replace(basename, '') : currentPath
+  
+  // Check for API endpoint routes (public, no auth required)
+  if (pathWithoutBasename.startsWith('/api/')) {
+    console.log('AppRoutes: API endpoint route detected', { currentPath, pathWithoutBasename })
+    return (
+      <Routes>
+        <Route path="api/forms" element={<APIEndpoint />} />
+      </Routes>
+    )
+  }
   
   if (pathWithoutBasename.startsWith('/form/')) {
     console.log('AppRoutes: Public form embed route detected', { currentPath, pathWithoutBasename })

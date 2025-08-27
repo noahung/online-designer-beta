@@ -228,21 +228,39 @@ export default function Settings() {
                 API Key
               </label>
               <div className="flex space-x-3">
-                <input
-                  type="text"
-                  value={loading ? 'Loading...' : (settings.api_key ? `${settings.api_key.slice(0, 12)}••••••••••••••••` : '')}
-                  disabled
-                  className="flex-1 px-4 py-3 bg-white/5 backdrop-blur-sm border border-white/20 rounded-xl text-white/80 font-mono text-sm cursor-not-allowed"
-                />
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={loading ? 'Loading...' : (settings.api_key || 'No API key generated')}
+                    readOnly
+                    className="w-full px-4 py-3 bg-white/5 backdrop-blur-sm border border-white/20 rounded-xl text-white/80 font-mono text-sm pr-12 select-all"
+                    onClick={(e) => e.target.select()}
+                  />
+                  {settings.api_key && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(settings.api_key)
+                        push({ type: 'success', message: 'API key copied to clipboard!' })
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:bg-white/10 rounded-lg transition-colors"
+                      title="Copy API key"
+                    >
+                      <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
                 <button 
                   onClick={regenerateApiKey}
-                  className="px-4 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl transition-all duration-200 font-medium"
+                  disabled={loading}
+                  className="px-4 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 disabled:from-slate-800 disabled:to-slate-900 text-white rounded-xl transition-all duration-200 font-medium disabled:cursor-not-allowed"
                 >
-                  Regenerate
+                  {loading ? 'Loading...' : 'Regenerate'}
                 </button>
               </div>
               <p className="text-xs text-white/60 mt-2">
-                Use this key to access the API programmatically
+                Use this key to access the API programmatically. Click the key to select all or use the copy button.
               </p>
             </div>
 
