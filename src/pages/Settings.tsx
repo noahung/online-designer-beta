@@ -110,8 +110,6 @@ export default function Settings() {
       setSaving(false)
     }
   }
-    }
-  }
 
   return (
     <div className="p-8 animate-fade-in">
