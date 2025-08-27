@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -105,6 +105,43 @@ export default function Forms() {
     navigate(`/forms/edit/${formId}`)
   }
 
+  const duplicateForm = async (formId: string) => {
+    try {
+      // Get the original form
+      const { data: originalForm, error: fetchError } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('id', formId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Create a new form with the same data but new ID and name
+      const { data: newForm, error: createError } = await supabase
+        .from('forms')
+        .insert({
+          name: `${originalForm.name} (Copy)`,
+          description: originalForm.description,
+          form_data: originalForm.form_data,
+          user_id: user?.id,
+          is_active: false, // Start as inactive
+          primary_color: originalForm.primary_color,
+          secondary_color: originalForm.secondary_color,
+          background_color: originalForm.background_color
+        })
+        .select()
+        .single()
+
+      if (createError) throw createError
+
+      fetchForms() // Refresh the forms list
+      push({ type: 'success', message: 'Form duplicated successfully!' })
+    } catch (error) {
+      console.error('Error duplicating form:', error)
+      push({ type: 'error', message: 'Failed to duplicate form' })
+    }
+  }
+
   return (
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -196,7 +233,7 @@ export default function Forms() {
                     className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
                     title="Copy embed code"
                   >
-                    <Copy className="w-5 h-5" />
+                    <Code className="w-5 h-5" />
                   </button>
                   
                   <button
@@ -213,6 +250,14 @@ export default function Forms() {
                     onClick={() => openEditModal(form.id)}
                   >
                     <Edit className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => duplicateForm(form.id)}
+                    className="p-3 text-white/60 hover:text-orange-300 hover:bg-orange-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-orange-400/30"
+                    title="Duplicate form"
+                  >
+                    <Duplicate className="w-5 h-5" />
                   </button>
 
                   <button
