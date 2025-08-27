@@ -1,6 +1,6 @@
 {
   "name": "zapier-online-designer-forms",
-  "description": "Connect your Online Designer forms to automate workflows when new responses are submitted",
+  "description": "Adverto Online Designer is a form builder platform that helps you create professional forms and automate responses through Zapier integrations.",
   "version": "1.0.0",
   "main": "index.js",
   "zapier": {

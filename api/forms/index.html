@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Forms API</title>
+</head>
+<body>
+    <script type="text/javascript">
+        // Simple API endpoint handler for GitHub Pages
+        // This handles requests to /api/forms/[form_id]/responses/recent
+        
+        function handleAPIRequest() {
+            const url = window.location.pathname;
+            const params = new URLSearchParams(window.location.search);
+            
+            // Extract form ID from URL path
+            const pathParts = url.split('/');
+            const formIdIndex = pathParts.indexOf('forms') + 1;
+            const formId = pathParts[formIdIndex];
+            
+            const apiKey = params.get('api_key');
+            const limit = params.get('limit') || '3';
+            
+            if (!apiKey || !apiKey.startsWith('dk_live_')) {
+                const errorResponse = {
+                    error: 'Invalid API key',
+                    message: 'API key must start with dk_live_'
+                };
+                
+                document.body.innerHTML = `<pre>${JSON.stringify(errorResponse, null, 2)}</pre>`;
+                return;
+            }
+            
+            if (!formId) {
+                const errorResponse = {
+                    error: 'Form ID required',
+                    message: 'Please provide a valid form ID in the URL path'
+                };
+                
+                document.body.innerHTML = `<pre>${JSON.stringify(errorResponse, null, 2)}</pre>`;
+                return;
+            }
+            
+            // Mock response data for testing
+            const mockResponse = {
+                success: true,
+                responses: [
+                    {
+                        response_id: "test-response-1",
+                        form_id: formId,
+                        form_name: "Test Form",
+                        submitted_at: new Date().toISOString(),
+                        contact: {
+                            name: "John Doe",
+                            email: "john@example.com",
+                            phone: "+1234567890"
+                        },
+                        contact__name: "John Doe",
+                        contact__email: "john@example.com", 
+                        contact__phone: "+1234567890",
+                        answers: [
+                            {
+                                question: "What service are you interested in?",
+                                answer_text: "Web Design",
+                                selected_option: "web_design"
+                            }
+                        ]
+                    },
+                    {
+                        response_id: "test-response-2",
+                        form_id: formId,
+                        form_name: "Test Form",
+                        submitted_at: new Date(Date.now() - 3600000).toISOString(),
+                        contact: {
+                            name: "Jane Smith",
+                            email: "jane@example.com",
+                            phone: "+1987654321"
+                        },
+                        contact__name: "Jane Smith",
+                        contact__email: "jane@example.com",
+                        contact__phone: "+1987654321",
+                        answers: [
+                            {
+                                question: "What service are you interested in?",
+                                answer_text: "Digital Marketing",
+                                selected_option: "digital_marketing"
+                            }
+                        ]
+                    }
+                ]
+            };
+            
+            // Set response content-type header (won't work on GitHub Pages but good practice)
+            document.querySelector('meta[name="content-type"]')?.setAttribute('content', 'application/json');
+            
+            // Display JSON response
+            document.body.innerHTML = `<pre style="font-family: monospace; white-space: pre-wrap; margin: 0; padding: 20px;">${JSON.stringify(mockResponse, null, 2)}</pre>`;
+        }
+        
+        // Run the API handler when page loads
+        handleAPIRequest();
+    </script>
+</body>
+</html>

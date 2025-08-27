@@ -2,13 +2,8 @@ const authentication = require('./authentication');
 const newFormResponseTrigger = require('./triggers/new_form_response');
 const formListSearch = require('./searches/form_list');
 
-const addApiKeyToHeader = (request, z, bundle) => {
-  if (bundle.authData && bundle.authData.api_key) {
-    request.params = request.params || {};
-    request.params.api_key = bundle.authData.api_key;
-  }
-  return request;
-};
+// Remove the API key middleware as it was causing issues with RPC calls
+// We handle authentication directly in each method that needs it
 
 const App = {
   version: require('./package.json').version,
@@ -16,7 +11,7 @@ const App = {
 
   authentication: authentication.authentication,
 
-  beforeRequest: [addApiKeyToHeader],
+  beforeRequest: [],
 
   afterResponse: [],
 

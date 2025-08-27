@@ -35,8 +35,8 @@ AS $$
 DECLARE
   new_api_key text;
 BEGIN
-  -- Generate a new API key with proper format
-  new_api_key := 'dk_live_' || encode(gen_random_bytes(16), 'hex');
+  -- Generate a new API key with proper format using random() and md5
+  new_api_key := 'dk_live_' || substr(md5(random()::text || clock_timestamp()::text), 1, 32);
   
   -- Update or insert user settings with new API key
   INSERT INTO user_settings (user_id, api_key)
