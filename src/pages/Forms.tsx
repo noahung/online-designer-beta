@@ -98,7 +98,9 @@ export default function Forms() {
     const embedCode = `<iframe src="${baseUrl}${basename}/form/${formId}" width="100%" height="800" frameborder="0" style="border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`
     navigator.clipboard.writeText(embedCode)
     push({ type: 'success', message: 'Embed code copied to clipboard' })
-  }  const openEditModal = async (formId: string) => {
+  }
+
+  const openEditModal = async (formId: string) => {
     // Navigate to the FormBuilder in edit mode instead of opening a modal
     navigate(`/forms/edit/${formId}`)
   }
