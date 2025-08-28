@@ -876,7 +876,7 @@ export default function FormEmbed() {
                     className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label htmlFor="consent" className="text-sm text-gray-600 flex-1">
-                    <span className="text-orange-500">⚠️</span> I agree to be contacted by PremiumHome regarding my enquiry <span className="text-red-500">*</span>
+                    <span className="text-orange-500">⚠️</span> I agree to be contacted by {clientInfo?.name || 'the company'} regarding my enquiry <span className="text-red-500">*</span>
                   </label>
                 </div>
               </div>
@@ -1139,32 +1139,34 @@ export default function FormEmbed() {
                   </div>
                 ) : (
                   // Number Scale (configurable range)
-                  <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
-                    {Array.from(
-                      { length: (step.scale_max || 10) - (step.scale_min || 1) + 1 },
-                      (_, i) => (step.scale_min || 1) + i
-                    ).map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() => setResponses(prev => ({
-                          ...prev,
-                          [currentStepIndex]: { scale_rating: rating }
-                        }))}
-                        className={`w-12 h-12 rounded-lg border-2 font-semibold transition-all ${
-                          responses[currentStepIndex]?.scale_rating === rating
-                            ? 'border-2'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                        }`}
-                        style={responses[currentStepIndex]?.scale_rating === rating ? {
-                          backgroundColor: formColors.primaryButtonColor,
-                          color: formColors.primaryButtonTextColor,
-                          borderColor: formColors.primaryButtonColor
-                        } : {}}
-                      >
-                        {rating}
-                      </button>
-                    ))}
+                  <div className="w-full overflow-x-auto">
+                    <div className="flex justify-center gap-1 sm:gap-2 min-w-max px-4">
+                      {Array.from(
+                        { length: (step.scale_max || 10) - (step.scale_min || 1) + 1 },
+                        (_, i) => (step.scale_min || 1) + i
+                      ).map((rating) => (
+                        <button
+                          key={rating}
+                          type="button"
+                          onClick={() => setResponses(prev => ({
+                            ...prev,
+                            [currentStepIndex]: { scale_rating: rating }
+                          }))}
+                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg border-2 font-semibold text-sm sm:text-base transition-all flex-shrink-0 ${
+                            responses[currentStepIndex]?.scale_rating === rating
+                              ? 'border-2'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                          }`}
+                          style={responses[currentStepIndex]?.scale_rating === rating ? {
+                            backgroundColor: formColors.primaryButtonColor,
+                            color: formColors.primaryButtonTextColor,
+                            borderColor: formColors.primaryButtonColor
+                          } : {}}
+                        >
+                          {rating}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 

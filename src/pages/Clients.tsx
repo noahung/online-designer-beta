@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Plus, Edit, Trash2, Users, Upload, X, Palette } from 'lucide-react'
+import { Plus, Edit, Trash2, Users, Upload, X, Palette, Eye, EyeOff } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 
 interface Client {
@@ -32,6 +32,7 @@ export default function Clients() {
   })
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     fetchClients()
@@ -460,13 +461,22 @@ export default function Clients() {
                     <label className="block text-sm font-medium text-white/90 mb-2">
                       Client Password
                     </label>
-                    <input
-                      type="password"
-                      value={formData.client_password}
-                      onChange={(e) => setFormData({ ...formData, client_password: e.target.value })}
-                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                      placeholder="Enter secure password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={formData.client_password}
+                        onChange={(e) => setFormData({ ...formData, client_password: e.target.value })}
+                        className="w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        placeholder="Enter secure password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
