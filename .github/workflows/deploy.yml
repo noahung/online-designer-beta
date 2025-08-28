@@ -34,9 +34,8 @@ jobs:
         run: npm ci
       
       - name: Build
-        run: npm run build
+        run: npm run build:gh-pages
         env:
-          NODE_ENV: production
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       
