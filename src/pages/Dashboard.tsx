@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { Users, FileText, BarChart3, TrendingUp, Sparkles, Zap, Star, Activity } from 'lucide-react'
 
 interface Stats {
@@ -12,6 +13,7 @@ interface Stats {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const { theme } = useTheme()
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
     totalForms: 0,
@@ -101,24 +103,42 @@ export default function Dashboard() {
   return (
     <div className="p-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent animate-slide-up">
+        <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent animate-slide-up ${
+          theme === 'light' 
+            ? 'from-gray-800 via-blue-600 to-purple-600' 
+            : 'from-white via-blue-100 to-purple-200'
+        }`}>
           Dashboard
         </h1>
-        <p className="text-white/70 mt-2 text-lg animate-fade-in-delay">Welcome back! Here's an overview of your forms and responses.</p>
+        <p className={`mt-2 text-lg animate-fade-in-delay ${
+          theme === 'light' ? 'text-gray-600' : 'text-white/70'
+        }`}>Welcome back! Here's an overview of your forms and responses.</p>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-pulse">
+            <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
+              theme === 'light' 
+                ? 'bg-white/50 border-gray-200' 
+                : 'bg-white/10 border-white/20'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="h-4 bg-white/20 rounded w-24 mb-3"></div>
-                  <div className="h-8 bg-white/20 rounded w-16 mb-2"></div>
+                  <div className={`h-4 rounded w-24 mb-3 ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
+                  <div className={`h-8 rounded w-16 mb-2 ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
                 </div>
-                <div className="w-14 h-14 bg-white/20 rounded-xl"></div>
+                <div className={`w-14 h-14 rounded-xl ${
+                  theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                }`}></div>
               </div>
-              <div className="mt-4 h-1 bg-white/20 rounded-full"></div>
+              <div className={`mt-4 h-1 rounded-full ${
+                theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+              }`}></div>
             </div>
           ))}
         </div>
@@ -127,13 +147,21 @@ export default function Dashboard() {
           {statCards.map((stat, index) => (
             <div 
               key={stat.name} 
-              className={`bg-white/10 backdrop-blur-xl rounded-2xl border ${stat.borderColor} p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in hover:scale-105`}
+              className={`backdrop-blur-xl rounded-2xl border ${stat.borderColor} p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-white/60 hover:bg-white/80 hover:border-gray-300'
+                  : 'bg-white/10 hover:bg-white/15 hover:border-white/30'
+              }`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/70">{stat.name}</p>
-                  <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
+                  <p className={`text-sm font-medium ${
+                    theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                  }`}>{stat.name}</p>
+                  <p className={`text-3xl font-bold mt-2 ${
+                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>{stat.value}</p>
                 </div>
                 <div className={`w-14 h-14 rounded-xl bg-gradient-to-r ${stat.bgColor} backdrop-blur-sm border ${stat.borderColor} flex items-center justify-center shadow-lg`}>
                   <stat.icon className={`w-7 h-7 text-transparent bg-gradient-to-r ${stat.color} bg-clip-text`} fill="currentColor" />
@@ -151,8 +179,14 @@ export default function Dashboard() {
       )}
 
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.5s'}}>
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+        <div className={`backdrop-blur-xl rounded-2xl border p-6 animate-fade-in ${
+          theme === 'light'
+            ? 'bg-white/60 border-gray-200'
+            : 'bg-white/10 border-white/20'
+        }`} style={{animationDelay: '0.5s'}}>
+          <h3 className={`text-xl font-semibold mb-6 flex items-center ${
+            theme === 'light' ? 'text-gray-900' : 'text-white'
+          }`}>
             <Zap className="w-6 h-6 mr-2 text-yellow-400" />
             Quick Actions
           </h3>
@@ -172,38 +206,68 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.7s'}}>
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+        <div className={`backdrop-blur-xl rounded-2xl border p-6 animate-fade-in ${
+          theme === 'light'
+            ? 'bg-white/60 border-gray-200'
+            : 'bg-white/10 border-white/20'
+        }`} style={{animationDelay: '0.7s'}}>
+          <h3 className={`text-xl font-semibold mb-6 flex items-center ${
+            theme === 'light' ? 'text-gray-900' : 'text-white'
+          }`}>
             <Activity className="w-6 h-6 mr-2 text-green-400" />
             Recent Activity
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+            <div className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-200 ${
+              theme === 'light'
+                ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                : 'bg-white/5 border-white/10 hover:bg-white/10'
+            }`}>
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center border border-blue-400/30">
                 <FileText className="w-5 h-5 text-blue-300" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-white">New form responses received</p>
-                <p className="text-xs text-white/60">2 minutes ago</p>
+                <p className={`text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>New form responses received</p>
+                <p className={`text-xs ${
+                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                }`}>2 minutes ago</p>
               </div>
               <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
             </div>
-            <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+            <div className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-200 ${
+              theme === 'light'
+                ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                : 'bg-white/5 border-white/10 hover:bg-white/10'
+            }`}>
               <div className="w-10 h-10 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full flex items-center justify-center border border-green-400/30">
                 <Users className="w-5 h-5 text-green-300" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-white">Client "Premium Windows" added</p>
-                <p className="text-xs text-white/60">1 hour ago</p>
+                <p className={`text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>Client "Premium Windows" added</p>
+                <p className={`text-xs ${
+                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                }`}>1 hour ago</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200">
+            <div className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-200 ${
+              theme === 'light'
+                ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                : 'bg-white/5 border-white/10 hover:bg-white/10'
+            }`}>
               <div className="w-10 h-10 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center border border-purple-400/30">
                 <Sparkles className="w-5 h-5 text-purple-300" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-white">Form "Contact Us" updated</p>
-                <p className="text-xs text-white/60">3 hours ago</p>
+                <p className={`text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>Form "Contact Us" updated</p>
+                <p className={`text-xs ${
+                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                }`}>3 hours ago</p>
               </div>
             </div>
           </div>

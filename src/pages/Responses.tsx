@@ -362,10 +362,10 @@ export default function Responses() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-orange-600 to-red-600 dark:from-white dark:via-orange-100 dark:to-red-200 bg-clip-text text-transparent">
             {userType === 'client' ? `${clientData?.name} - Form Responses` : 'Responses'}
           </h1>
-          <p className="text-white/70 mt-2 text-lg">
+          <p className="text-gray-600 dark:text-white/70 mt-2 text-lg">
             {userType === 'client' 
               ? 'View and export your form submissions' 
               : 'View and export form submissions'
@@ -383,36 +383,36 @@ export default function Responses() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 mb-8 animate-fade-in" style={{animationDelay: '0.3s'}}>
+      <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-6 mb-8 shadow-lg animate-fade-in" style={{animationDelay: '0.3s'}}>
         <div className={`grid grid-cols-1 gap-4 ${userType === 'admin' ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
           <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
               Search
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-white/40 w-5 h-5" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                className="w-full pl-10 pr-4 py-3 bg-white/90 dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15"
                 placeholder="Search by name or email..."
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white/90 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
               Form
             </label>
             <select
               value={selectedForm}
               onChange={(e) => setSelectedForm(e.target.value)}
-              className="w-full px-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+              className="w-full px-3 py-3 bg-white/90 dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15"
             >
-              <option value="" className="bg-slate-800 text-white">All Forms</option>
+              <option value="" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">All Forms</option>
               {forms.map((form) => (
-                <option key={form.id} value={form.name} className="bg-slate-800 text-white">
+                <option key={form.id} value={form.name} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">
                   {form.name}
                 </option>
               ))}
@@ -421,17 +421,17 @@ export default function Responses() {
 
           {userType === 'admin' && (
             <div>
-              <label className="block text-sm font-medium text-white/90 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
                 Client
               </label>
               <select
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
-                className="w-full px-3 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                className="w-full px-3 py-3 bg-white/90 dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15"
               >
-                <option value="" className="bg-slate-800 text-white">All Clients</option>
+                <option value="" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">All Clients</option>
                 {clients.map((client) => (
-                  <option key={client.name} value={client.name} className="bg-slate-800 text-white">
+                  <option key={client.name} value={client.name} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">
                     {client.name}
                   </option>
                 ))}
@@ -440,7 +440,7 @@ export default function Responses() {
           )}
 
           <div className="flex items-end">
-            <span className="text-sm text-white/60 px-3 py-3 bg-white/5 rounded-xl border border-white/10">
+            <span className="text-sm text-gray-600 dark:text-white/60 px-3 py-3 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
               {filteredResponses.length} of {responses.length} responses
             </span>
           </div>
@@ -448,29 +448,29 @@ export default function Responses() {
       </div>
 
       {loading ? (
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 overflow-hidden animate-fade-in" style={{animationDelay: '0.4s'}}>
+        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden shadow-lg animate-fade-in" style={{animationDelay: '0.4s'}}>
           <div className="p-8">
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="flex items-center space-x-4 animate-pulse">
-                  <div className="w-12 h-12 bg-white/20 rounded-full"></div>
+                  <div className="w-12 h-12 bg-gray-200 dark:bg-white/20 rounded-full"></div>
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-white/20 rounded w-48"></div>
-                    <div className="h-3 bg-white/20 rounded w-32"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-white/20 rounded w-48"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-white/20 rounded w-32"></div>
                   </div>
-                  <div className="h-3 bg-white/20 rounded w-24"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-white/20 rounded w-24"></div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       ) : filteredResponses.length === 0 ? (
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-12 text-center animate-fade-in" style={{animationDelay: '0.4s'}}>
-          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white/60" />
+        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-12 text-center shadow-lg animate-fade-in" style={{animationDelay: '0.4s'}}>
+          <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-gray-500 dark:text-white/60" />
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">No responses yet</h3>
-          <p className="text-white/70">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No responses yet</h3>
+          <p className="text-gray-600 dark:text-white/70">
             {searchTerm || selectedForm 
               ? 'No responses match your current filters'
               : 'Responses will appear here when users submit your forms'
@@ -478,21 +478,21 @@ export default function Responses() {
           </p>
         </div>
       ) : (
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 overflow-hidden animate-fade-in" style={{animationDelay: '0.4s'}}>
+        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 overflow-hidden shadow-lg animate-fade-in" style={{animationDelay: '0.4s'}}>
           <div className="overflow-x-auto">
             <table className="min-w-full">
-              <thead className="bg-white/5 border-b border-white/10">
+              <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white/90">
                     Contact
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white/90">
                     Form
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white/90">
                     Client
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/90">
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white/90">
                     Submitted
                   </th>
                   <th className="relative px-6 py-4">
@@ -500,35 +500,35 @@ export default function Responses() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-gray-200 dark:divide-white/10">
                 {filteredResponses.map((response, index) => (
-                  <tr key={response.id} className="hover:bg-white/5 transition-all duration-200 group animate-slide-up" style={{animationDelay: `${0.1 * index}s`}}>
+                  <tr key={response.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 group animate-slide-up" style={{animationDelay: `${0.1 * index}s`}}>
                     <td className="px-6 py-4">
                       <div>
-                        <div className="text-sm font-medium text-white">
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {response.contact_name || 'Anonymous'}
                         </div>
-                        <div className="text-sm text-white/70">
+                        <div className="text-sm text-gray-600 dark:text-white/70">
                           {response.contact_email}
                         </div>
                         {response.contact_phone && (
-                          <div className="text-sm text-white/60">
+                          <div className="text-sm text-gray-500 dark:text-white/60">
                             {response.contact_phone}
                           </div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-200 border border-blue-400/30">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-400/30">
                         {response.forms?.[0]?.name}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-white/80">
+                    <td className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
                       {response.forms?.[0]?.clients?.name}
                     </td>
-                    <td className="px-6 py-4 text-sm text-white/70">
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-white/70">
                       <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2 text-white/50" />
+                        <Calendar className="w-4 h-4 mr-2 text-gray-400 dark:text-white/50" />
                         {new Date(response.submitted_at).toLocaleDateString()}
                       </div>
                     </td>
@@ -552,19 +552,19 @@ export default function Responses() {
       {/* Response Details Modal */}
       {selectedResponse && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-scale-in shadow-2xl">
+          <div className="bg-white/95 dark:bg-white/10 backdrop-blur-xl border border-gray-200 dark:border-white/20 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-scale-in shadow-2xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/20 flex-shrink-0">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/20 flex-shrink-0">
               <div>
-                <h2 className="text-2xl font-semibold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">Response Details</h2>
-                <p className="text-sm text-white/70 mt-1">
+                <h2 className="text-2xl font-semibold bg-gradient-to-r from-gray-900 to-blue-600 dark:from-white dark:to-blue-200 bg-clip-text text-transparent">Response Details</h2>
+                <p className="text-sm text-gray-600 dark:text-white/70 mt-1">
                   Submitted {new Date(selectedResponse.submitted_at).toLocaleDateString()} at{' '}
                   {new Date(selectedResponse.submitted_at).toLocaleTimeString()}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedResponse(null)}
-                className="text-white/60 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-xl"
+                className="text-gray-500 dark:text-white/60 hover:text-gray-700 dark:hover:text-white transition-colors p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -572,90 +572,90 @@ export default function Responses() {
 
             <div className="flex-1 overflow-y-auto">
               {/* Contact Information */}
-              <div className="p-6 border-b border-white/10">
-                <h3 className="text-lg font-semibold text-white mb-4">Contact Information</h3>
+              <div className="p-6 border-b border-gray-200 dark:border-white/10">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Contact Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <label className="block text-sm font-medium text-white/70 mb-1">Name</label>
-                    <p className="text-white">{selectedResponse.contact_name || 'Not provided'}</p>
+                  <div className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Name</label>
+                    <p className="text-gray-900 dark:text-white">{selectedResponse.contact_name || 'Not provided'}</p>
                   </div>
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <label className="block text-sm font-medium text-white/70 mb-1">Email</label>
-                    <p className="text-white">{selectedResponse.contact_email || 'Not provided'}</p>
+                  <div className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Email</label>
+                    <p className="text-gray-900 dark:text-white">{selectedResponse.contact_email || 'Not provided'}</p>
                   </div>
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <label className="block text-sm font-medium text-white/70 mb-1">Phone</label>
-                    <p className="text-white">{selectedResponse.contact_phone || 'Not provided'}</p>
+                  <div className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Phone</label>
+                    <p className="text-gray-900 dark:text-white">{selectedResponse.contact_phone || 'Not provided'}</p>
                   </div>
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                    <label className="block text-sm font-medium text-white/70 mb-1">Postcode</label>
-                    <p className="text-white">{selectedResponse.contact_postcode || 'Not provided'}</p>
+                  <div className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Postcode</label>
+                    <p className="text-gray-900 dark:text-white">{selectedResponse.contact_postcode || 'Not provided'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Form Information */}
-              <div className="p-6 border-b border-white/10">
-                <h3 className="text-lg font-semibold text-white mb-4">Form Details</h3>
+              <div className="p-6 border-b border-gray-200 dark:border-white/10">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Form Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl p-4 border border-blue-400/30">
-                    <label className="block text-sm font-medium text-blue-200 mb-1">Form Name</label>
-                    <p className="text-white font-medium">{selectedResponse.forms?.[0]?.name}</p>
+                  <div className="bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 rounded-xl p-4 border border-blue-200 dark:border-blue-400/30">
+                    <label className="block text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">Form Name</label>
+                    <p className="text-gray-900 dark:text-white font-medium">{selectedResponse.forms?.[0]?.name}</p>
                   </div>
-                  <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl p-4 border border-green-400/30">
-                    <label className="block text-sm font-medium text-green-200 mb-1">Client</label>
-                    <p className="text-white font-medium">{selectedResponse.forms?.[0]?.clients?.name || 'No client assigned'}</p>
+                  <div className="bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-500/20 dark:to-emerald-500/20 rounded-xl p-4 border border-green-200 dark:border-green-400/30">
+                    <label className="block text-sm font-medium text-green-800 dark:text-green-200 mb-1">Client</label>
+                    <p className="text-gray-900 dark:text-white font-medium">{selectedResponse.forms?.[0]?.clients?.name || 'No client assigned'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Response Answers */}
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-white mb-6">Response Answers</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Response Answers</h3>
                 {selectedResponse.response_answers && selectedResponse.response_answers.length > 0 ? (
                   <div className="space-y-6">
                     {selectedResponse.response_answers.map((answer, index) => (
-                      <div key={answer.id} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-200">
+                      <div key={answer.id} className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-xl p-6 hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-200">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h4 className="font-medium text-white mb-2">
+                            <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                               {answer.form_steps?.title || `Question ${index + 1}`}
                             </h4>
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-200 border border-purple-400/30">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-400/30">
                               {answer.form_steps?.question_type || 'Unknown'}
                             </span>
                           </div>
-                          <span className="text-sm text-white/50 bg-white/10 px-2 py-1 rounded-lg">#{index + 1}</span>
+                          <span className="text-sm text-gray-500 dark:text-white/50 bg-gray-100 dark:bg-white/10 px-2 py-1 rounded-lg">#{index + 1}</span>
                         </div>
                         
                         <div className="mt-4">
-                          <label className="block text-sm font-medium text-white/70 mb-2">Answer</label>
-                          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                          <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-2">Answer</label>
+                          <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
                             {/* Handle different question types */}
                             {answer.form_steps?.question_type === 'dimensions' ? (
                               /* Dimensions Display */
                               <div className="space-y-3">
                                 <div className="flex items-center space-x-2 mb-3">
-                                  <Ruler className="w-4 h-4 text-blue-400" />
-                                  <span className="text-white font-medium">Dimensions</span>
+                                  <Ruler className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                  <span className="text-gray-900 dark:text-white font-medium">Dimensions</span>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                    <label className="text-xs text-white/60 uppercase tracking-wider">Width</label>
-                                    <p className="text-white font-medium">{answer.width || 0} {answer.units || 'mm'}</p>
+                                  <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3 border border-gray-200 dark:border-white/10">
+                                    <label className="text-xs text-gray-500 dark:text-white/60 uppercase tracking-wider">Width</label>
+                                    <p className="text-gray-900 dark:text-white font-medium">{answer.width || 0} {answer.units || 'mm'}</p>
                                   </div>
-                                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                    <label className="text-xs text-white/60 uppercase tracking-wider">Height</label>
-                                    <p className="text-white font-medium">{answer.height || 0} {answer.units || 'mm'}</p>
+                                  <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3 border border-gray-200 dark:border-white/10">
+                                    <label className="text-xs text-gray-500 dark:text-white/60 uppercase tracking-wider">Height</label>
+                                    <p className="text-gray-900 dark:text-white font-medium">{answer.height || 0} {answer.units || 'mm'}</p>
                                   </div>
                                   {answer.depth && (
-                                    <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                      <label className="text-xs text-white/60 uppercase tracking-wider">Depth</label>
-                                      <p className="text-white font-medium">{answer.depth} {answer.units || 'mm'}</p>
+                                    <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3 border border-gray-200 dark:border-white/10">
+                                      <label className="text-xs text-gray-500 dark:text-white/60 uppercase tracking-wider">Depth</label>
+                                      <p className="text-gray-900 dark:text-white font-medium">{answer.depth} {answer.units || 'mm'}</p>
                                     </div>
                                   )}
                                 </div>
-                                <div className="text-xs text-white/50 mt-2">
+                                <div className="text-xs text-gray-500 dark:text-white/50 mt-2">
                                   Type: {answer.depth ? '3D' : '2D'} • Units: {answer.units || 'mm'}
                                 </div>
                               </div>
@@ -663,12 +663,12 @@ export default function Responses() {
                               /* Opinion Scale Display */
                               <div className="space-y-3">
                                 <div className="flex items-center space-x-2 mb-3">
-                                  <Star className="w-4 h-4 text-yellow-400" />
-                                  <span className="text-white font-medium">Opinion Scale</span>
+                                  <Star className="w-4 h-4 text-yellow-500" />
+                                  <span className="text-gray-900 dark:text-white font-medium">Opinion Scale</span>
                                 </div>
-                                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                                <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-4 border border-gray-200 dark:border-white/10">
                                   <div className="text-center">
-                                    <div className="text-2xl font-bold text-white mb-2">
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                                       {answer.scale_rating || 'Not rated'}
                                     </div>
                                     {answer.scale_rating && (
@@ -680,7 +680,7 @@ export default function Responses() {
                                               <span
                                                 key={star}
                                                 className={`text-xl ${
-                                                  star <= answer.scale_rating! ? 'text-yellow-400' : 'text-gray-600'
+                                                  star <= answer.scale_rating! ? 'text-yellow-400' : 'text-gray-400 dark:text-gray-600'
                                                 }`}
                                               >
                                                 ⭐
@@ -688,7 +688,7 @@ export default function Responses() {
                                             ))}
                                           </div>
                                         ) : (
-                                          <div className="text-white/70">
+                                          <div className="text-gray-600 dark:text-white/70">
                                             Number scale rating: {answer.scale_rating}
                                           </div>
                                         )}
@@ -771,33 +771,33 @@ export default function Responses() {
                               )
                             ) : answer.form_steps?.question_type === 'text_input' && answer.answer_text ? (
                               /* Text Input Answer */
-                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                                <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
+                              <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3 border border-gray-200 dark:border-white/10">
+                                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{answer.answer_text}</p>
                               </div>
                             ) : answer.form_steps?.question_type === 'multiple_choice' && answer.form_options?.label ? (
                               /* Multiple Choice Answer */
-                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                              <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3 border border-gray-200 dark:border-white/10">
                                 <div className="flex items-center space-x-2">
-                                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                  <p className="text-white font-medium">{answer.form_options?.label}</p>
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                  <p className="text-gray-900 dark:text-white font-medium">{answer.form_options?.label}</p>
                                 </div>
                               </div>
                             ) : answer.form_steps?.question_type === 'image_selection' && answer.form_options?.label ? (
                               /* Image Selection Answer */
-                              <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                              <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3 border border-gray-200 dark:border-white/10">
                                 <div className="space-y-3">
                                   {answer.form_options?.image_url && (
                                     <div className="flex justify-center">
                                       <img 
                                         src={answer.form_options.image_url} 
                                         alt={answer.form_options.label}
-                                        className="max-w-32 max-h-32 rounded-lg object-cover border border-white/20"
+                                        className="max-w-32 max-h-32 rounded-lg object-cover border border-gray-200 dark:border-white/20"
                                       />
                                     </div>
                                   )}
                                   <div className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                                    <p className="text-white font-medium">{answer.form_options?.label}</p>
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <p className="text-gray-900 dark:text-white font-medium">{answer.form_options?.label}</p>
                                   </div>
                                 </div>
                               </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { Plus, Edit, Trash2, Users, Upload, X, Palette, Eye, EyeOff } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 
@@ -17,6 +18,7 @@ interface Client {
 
 export default function Clients() {
   const { user } = useAuth()
+  const { theme } = useTheme()
   const { push } = useToast()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
@@ -250,8 +252,14 @@ export default function Clients() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">Clients</h1>
-          <p className="text-white/70 mt-2 text-lg">Manage your client branding and settings</p>
+          <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+            theme === 'light' 
+              ? 'from-gray-800 via-orange-600 to-red-600' 
+              : 'from-white via-orange-100 to-red-200'
+          }`}>Clients</h1>
+          <p className={`mt-2 text-lg ${
+            theme === 'light' ? 'text-gray-600' : 'text-white/70'
+          }`}>Manage your client branding and settings</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -266,23 +274,45 @@ export default function Clients() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-pulse">
-              <div className="h-4 bg-white/20 rounded w-32 mb-4"></div>
-              <div className="h-3 bg-white/20 rounded w-24 mb-2"></div>
+            <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
+              theme === 'light' 
+                ? 'bg-white/50 border-gray-200' 
+                : 'bg-white/10 border-white/20'
+            }`}>
+              <div className={`h-4 rounded w-32 mb-4 ${
+                theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+              }`}></div>
+              <div className={`h-3 rounded w-24 mb-2 ${
+                theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+              }`}></div>
               <div className="flex space-x-2 mt-4">
-                <div className="h-8 w-8 bg-white/20 rounded-xl"></div>
-                <div className="h-8 w-8 bg-white/20 rounded-xl"></div>
+                <div className={`h-8 w-8 rounded-xl ${
+                  theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                }`}></div>
+                <div className={`h-8 w-8 rounded-xl ${
+                  theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                }`}></div>
               </div>
             </div>
           ))}
         </div>
       ) : clients.length === 0 ? (
         <div className="text-center py-12 animate-fade-in" style={{animationDelay: '0.3s'}}>
-          <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-            <Users className="w-8 h-8 text-white/60" />
+          <div className={`w-16 h-16 backdrop-blur-xl rounded-full flex items-center justify-center mx-auto mb-4 border ${
+            theme === 'light' 
+              ? 'bg-gray-100 border-gray-200' 
+              : 'bg-white/10 border-white/20'
+          }`}>
+            <Users className={`w-8 h-8 ${
+              theme === 'light' ? 'text-gray-400' : 'text-white/60'
+            }`} />
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">No clients yet</h3>
-          <p className="text-white/70 mb-6 text-lg">Get started by adding your first client</p>
+          <h3 className={`text-xl font-semibold mb-2 ${
+            theme === 'light' ? 'text-gray-900' : 'text-white'
+          }`}>No clients yet</h3>
+          <p className={`mb-6 text-lg ${
+            theme === 'light' ? 'text-gray-600' : 'text-white/70'
+          }`}>Get started by adding your first client</p>
           <button
             onClick={() => setShowModal(true)}
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
@@ -294,12 +324,20 @@ export default function Clients() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clients.map((client, index) => (
-            <div key={client.id} className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-200 hover:-translate-y-1 animate-slide-up" style={{animationDelay: `${0.1 * index}s`}}>
+            <div key={client.id} className={`backdrop-blur-xl rounded-2xl border p-6 hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-200 hover:-translate-y-1 animate-slide-up ${
+              theme === 'light'
+                ? 'bg-white/60 border-gray-200 hover:bg-white/80'
+                : 'bg-white/10 border-white/20 hover:bg-white/15'
+            }`} style={{animationDelay: `${0.1 * index}s`}}>
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="font-semibold text-white mb-1 text-lg">{client.name}</h3>
+                  <h3 className={`font-semibold mb-1 text-lg ${
+                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>{client.name}</h3>
                   <div className="flex items-center space-x-2">
-                    <p className="text-sm text-white/60">
+                    <p className={`text-sm ${
+                      theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                    }`}>
                       Created {new Date(client.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -307,13 +345,21 @@ export default function Clients() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleEdit(client)}
-                    className="p-2 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 hover:scale-110"
+                    className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                      theme === 'light'
+                        ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
+                        : 'text-white/60 hover:text-blue-300 hover:bg-blue-500/20'
+                    }`}
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(client.id)}
-                    className="p-2 text-white/60 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 hover:scale-110"
+                    className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                      theme === 'light'
+                        ? 'text-gray-500 hover:text-red-600 hover:bg-red-50'
+                        : 'text-white/60 hover:text-red-300 hover:bg-red-500/20'
+                    }`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -322,15 +368,25 @@ export default function Clients() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide mb-2 block">Brand Colors</label>
+                  <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
+                    theme === 'light' ? 'text-gray-500' : 'text-white/70'
+                  }`}>Brand Colors</label>
                   <div className="flex items-center space-x-3">
                     <div 
-                      className="w-10 h-10 rounded-xl border-2 border-white/30 shadow-lg ring-2 ring-white/10 transition-transform hover:scale-110"
+                      className={`w-10 h-10 rounded-xl border-2 shadow-lg ring-2 transition-transform hover:scale-110 ${
+                        theme === 'light'
+                          ? 'border-gray-200 ring-gray-100'
+                          : 'border-white/30 ring-white/10'
+                      }`}
                       style={{ backgroundColor: client.primary_color }}
                       title={`Primary: ${client.primary_color}`}
                     />
                     <div 
-                      className="w-10 h-10 rounded-xl border-2 border-white/30 shadow-lg ring-2 ring-white/10 transition-transform hover:scale-110"
+                      className={`w-10 h-10 rounded-xl border-2 shadow-lg ring-2 transition-transform hover:scale-110 ${
+                        theme === 'light'
+                          ? 'border-gray-200 ring-gray-100'
+                          : 'border-white/30 ring-white/10'
+                      }`}
                       style={{ backgroundColor: client.secondary_color }}
                       title={`Secondary: ${client.secondary_color}`}
                     />
@@ -339,8 +395,14 @@ export default function Clients() {
 
                 {client.logo_url && (
                   <div>
-                    <label className="text-xs font-medium text-white/70 uppercase tracking-wide mb-2 block">Logo</label>
-                    <div className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/20">
+                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
+                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
+                    }`}>Logo</label>
+                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
+                      theme === 'light'
+                        ? 'bg-gray-50 border-gray-100'
+                        : 'bg-white/10 border-white/20'
+                    }`}>
                       <img 
                         src={client.logo_url} 
                         alt={`${client.name} logo`}
@@ -357,23 +419,39 @@ export default function Clients() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-8 w-full max-w-2xl animate-scale-in shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-semibold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent mb-6">
+        <div className={`fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4 ${
+          theme === 'light' ? 'bg-black/30' : 'bg-black/75'
+        }`}>
+          <div className={`backdrop-blur-xl border rounded-2xl p-8 w-full max-w-2xl animate-scale-in shadow-2xl max-h-[90vh] overflow-y-auto ${
+            theme === 'light'
+              ? 'bg-white/90 border-gray-200'
+              : 'bg-white/10 border-white/20'
+          }`}>
+            <h2 className={`text-2xl font-semibold mb-6 bg-gradient-to-r bg-clip-text text-transparent ${
+              theme === 'light'
+                ? 'from-gray-800 to-blue-600'
+                : 'from-white to-blue-200'
+            }`}>
               {editingClient ? 'Edit Client' : 'Add New Client'}
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Client Name */}
               <div>
-                <label className="block text-sm font-medium text-white/90 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>
                   Client Name
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 ${
+                    theme === 'light'
+                      ? 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-white/90'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent hover:bg-white/15'
+                  }`}
                   placeholder="e.g., Premium Windows & Doors"
                   required
                 />
@@ -381,7 +459,9 @@ export default function Clients() {
 
               {/* Logo Upload */}
               <div>
-                <label className="block text-sm font-medium text-white/90 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>
                   Company Logo
                 </label>
                 {logoPreview ? (

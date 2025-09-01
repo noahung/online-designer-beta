@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { useTheme } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import LoginForm from './components/LoginForm'
@@ -16,15 +17,22 @@ import APIEndpoint from './pages/APIEndpoint'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, userType, loading } = useAuth()
+  const { theme } = useTheme()
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-gray-50 via-orange-50 to-gray-50' 
+          : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
+      }`}>
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
+              theme === 'light' ? 'border-gray-600' : 'border-white'
+            }`}></div>
           </div>
-          <p className="text-white/70">Loading...</p>
+          <p className={theme === 'light' ? 'text-gray-600' : 'text-white/70'}>Loading...</p>
         </div>
       </div>
     )
@@ -44,6 +52,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
 
 function AppRoutes() {
   const { user, userType, loading } = useAuth()
+  const { theme } = useTheme()
   
   console.log('AppRoutes: Simple state check', { user: user?.email, userType, loading })
   
@@ -76,12 +85,18 @@ function AppRoutes() {
   if (loading) {
     console.log('AppRoutes: Still loading')
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-gray-50 via-orange-50 to-gray-50' 
+          : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
+      }`}>
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
+              theme === 'light' ? 'border-gray-600' : 'border-white'
+            }`}></div>
           </div>
-          <p className="text-white/70">Loading...</p>
+          <p className={theme === 'light' ? 'text-gray-600' : 'text-white/70'}>Loading...</p>
         </div>
       </div>
     )
@@ -136,24 +151,38 @@ function AppRoutes() {
   )
 }
 
-function App() {
+function AppContent() {
+  const { theme } = useTheme()
+  
   // Use custom domain detection - if on custom domain, no basename needed
   const isCustomDomain = window.location.hostname !== 'noahung.github.io'
   const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
   
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900">
-        <div className="min-h-screen backdrop-blur-sm bg-black/20">
-          <AuthProvider>
-            <ToastProvider>
-              <Router basename={basename}>
-                <AppRoutes />
-              </Router>
-            </ToastProvider>
-          </AuthProvider>
-        </div>
+    <div className={`min-h-screen ${
+      theme === 'light' 
+        ? 'bg-gradient-to-br from-gray-50 via-orange-50 to-gray-50' 
+        : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
+    }`}>
+      <div className={`min-h-screen backdrop-blur-sm ${
+        theme === 'light' ? 'bg-white/30' : 'bg-black/20'
+      }`}>
+        <AuthProvider>
+          <ToastProvider>
+            <Router basename={basename}>
+              <AppRoutes />
+            </Router>
+          </ToastProvider>
+        </AuthProvider>
       </div>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
     </ErrorBoundary>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
@@ -20,6 +21,9 @@ interface Form {
 
 export default function Forms() {
   const { user } = useAuth()
+  const { theme } = useTheme()
+  const { push } = useToast()
+  const navigate = useNavigate()
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -52,9 +56,6 @@ export default function Forms() {
       setLoading(false)
     }
   }
-
-  const { push } = useToast()
-  const navigate = useNavigate()
 
   const toggleFormStatus = async (formId: string, currentStatus: boolean) => {
     try {
@@ -147,10 +148,16 @@ export default function Forms() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">
+          <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+            theme === 'light' 
+              ? 'from-gray-800 via-orange-600 to-red-600' 
+              : 'from-white via-orange-100 to-red-200'
+          }`}>
             Forms
           </h1>
-          <p className="text-white/70 mt-2 text-lg">Create and manage your client forms</p>
+          <p className={`mt-2 text-lg ${
+            theme === 'light' ? 'text-gray-600' : 'text-white/70'
+          }`}>Create and manage your client forms</p>
         </div>
         <button 
           onClick={() => navigate('/forms/new')} 
@@ -165,16 +172,30 @@ export default function Forms() {
       {loading ? (
         <div className="space-y-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-pulse">
+            <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
+              theme === 'light' 
+                ? 'bg-white/50 border-gray-200' 
+                : 'bg-white/10 border-white/20'
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="space-y-3">
-                  <div className="h-6 bg-white/20 rounded-lg w-48"></div>
-                  <div className="h-4 bg-white/20 rounded-lg w-32"></div>
-                  <div className="h-3 bg-white/20 rounded-lg w-24"></div>
+                  <div className={`h-6 rounded-lg w-48 ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
+                  <div className={`h-4 rounded-lg w-32 ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
+                  <div className={`h-3 rounded-lg w-24 ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
                 </div>
                 <div className="flex space-x-3">
-                  <div className="h-10 w-24 bg-white/20 rounded-lg"></div>
-                  <div className="h-10 w-10 bg-white/20 rounded-lg"></div>
+                  <div className={`h-10 w-24 rounded-lg ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
+                  <div className={`h-10 w-10 rounded-lg ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
+                  }`}></div>
                 </div>
               </div>
             </div>

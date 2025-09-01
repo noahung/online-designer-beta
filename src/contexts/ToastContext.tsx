@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
+import { useTheme } from './ThemeContext'
 
 type Toast = { id: string; type?: 'success' | 'error' | 'info'; message: string }
 
@@ -12,6 +13,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const { theme } = useTheme()
 
   const push = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = Date.now().toString()
@@ -31,12 +33,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`max-w-sm w-full px-4 py-3 rounded-xl shadow-2xl text-sm text-white backdrop-blur-xl border animate-slide-in-right transform transition-all duration-300 hover:scale-105 ${
-              t.type === 'error' 
-                ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-400/30' 
-                : t.type === 'info' 
-                ? 'bg-gradient-to-r from-slate-500/20 to-slate-600/20 border-slate-400/30' 
-                : 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/30'
+            className={`max-w-sm w-full px-4 py-3 rounded-xl shadow-2xl text-sm backdrop-blur-xl border animate-slide-in-right transform transition-all duration-300 hover:scale-105 ${
+              theme === 'light'
+                ? t.type === 'error' 
+                  ? 'bg-red-50 border-red-200 text-red-800' 
+                  : t.type === 'info' 
+                  ? 'bg-blue-50 border-blue-200 text-blue-800' 
+                  : 'bg-green-50 border-green-200 text-green-800'
+                : t.type === 'error' 
+                  ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-400/30 text-white' 
+                  : t.type === 'info' 
+                  ? 'bg-gradient-to-r from-slate-500/20 to-slate-600/20 border-slate-400/30 text-white' 
+                  : 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/30 text-white'
             }`}
             role="status"
             aria-live="polite"

@@ -28,6 +28,262 @@
   }
 }
 
+/* Auto-apply theme-aware styles to common elements */
+.light .text-white {
+  color: #111827 !important; /* gray-900 */
+}
+
+.light .text-white\/70 {
+  color: #4b5563 !important; /* gray-600 */
+}
+
+.light .text-white\/60 {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+.light .text-white\/50 {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+.light .text-white\/40 {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+.light .border-white\/20 {
+  border-color: #e5e7eb !important; /* gray-200 */
+}
+
+.light .border-white\/30 {
+  border-color: #d1d5db !important; /* gray-300 */
+}
+
+.light .border-white\/10 {
+  border-color: #f3f4f6 !important; /* gray-100 */
+}
+
+.light .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.light .bg-white\/15 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.light .bg-white\/5 {
+  background-color: #f9fafb !important; /* gray-50 */
+}
+
+.light .placeholder-white\/50::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+.light .placeholder-white\/40::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Button fixes for light mode */
+.light button {
+  color: #111827 !important;
+}
+
+/* Fix transparent button backgrounds to be solid in light mode */
+.light button.bg-blue-500\/20,
+.light button.bg-blue-600\/20,
+.light .bg-blue-500\/20,
+.light .bg-blue-600\/20 {
+  background-color: #3b82f6 !important; /* solid blue-500 */
+  color: white !important;
+  border-color: #2563eb !important;
+}
+
+.light button.bg-green-500\/20,
+.light button.bg-green-600\/20,
+.light .bg-green-500\/20,
+.light .bg-green-600\/20 {
+  background-color: #10b981 !important; /* solid emerald-500 */
+  color: white !important;
+  border-color: #059669 !important;
+}
+
+.light button.bg-purple-500\/20,
+.light button.bg-purple-600\/20,
+.light .bg-purple-500\/20,
+.light .bg-purple-600\/20 {
+  background-color: #8b5cf6 !important; /* solid purple-500 */
+  color: white !important;
+  border-color: #7c3aed !important;
+}
+
+.light button.bg-gray-500\/20,
+.light button.bg-gray-600\/20,
+.light .bg-gray-500\/20,
+.light .bg-gray-600\/20 {
+  background-color: #6b7280 !important; /* solid gray-500 */
+  color: white !important;
+  border-color: #4b5563 !important;
+}
+
+.light button.bg-red-500\/20,
+.light button.bg-red-600\/20,
+.light .bg-red-500\/20,
+.light .bg-red-600\/20 {
+  background-color: #ef4444 !important; /* solid red-500 */
+  color: white !important;
+  border-color: #dc2626 !important;
+}
+
+.light button.bg-cyan-500\/20,
+.light button.bg-cyan-600\/20,
+.light .bg-cyan-500\/20,
+.light .bg-cyan-600\/20 {
+  background-color: #06b6d4 !important; /* solid cyan-500 */
+  color: white !important;
+  border-color: #0891b2 !important;
+}
+
+.light button.bg-orange-500\/20,
+.light button.bg-orange-600\/20,
+.light .bg-orange-500\/20,
+.light .bg-orange-600\/20 {
+  background-color: #f97316 !important; /* solid orange-500 */
+  color: white !important;
+  border-color: #ea580c !important;
+}
+
+.light button.bg-pink-500\/20,
+.light button.bg-pink-600\/20,
+.light .bg-pink-500\/20,
+.light .bg-pink-600\/20 {
+  background-color: #ec4899 !important; /* solid pink-500 */
+  color: white !important;
+  border-color: #db2777 !important;
+}
+
+.light button.bg-yellow-500\/20,
+.light button.bg-yellow-600\/20,
+.light .bg-yellow-500\/20,
+.light .bg-yellow-600\/20 {
+  background-color: #eab308 !important; /* solid yellow-500 */
+  color: white !important;
+  border-color: #ca8a04 !important;
+}
+
+.light button.bg-indigo-500\/20,
+.light button.bg-indigo-600\/20,
+.light .bg-indigo-500\/20,
+.light .bg-indigo-600\/20 {
+  background-color: #6366f1 !important; /* solid indigo-500 */
+  color: white !important;
+  border-color: #4f46e5 !important;
+}
+
+/* Fix for gradient buttons that might be too faded */
+.light button[class*="bg-gradient"] {
+  opacity: 1 !important;
+}
+
+/* Ensure button text is visible */
+.light button .text-blue-200,
+.light .text-blue-200 {
+  color: white !important;
+}
+
+.light button .text-green-200,
+.light .text-green-200 {
+  color: white !important;
+}
+
+.light button .text-purple-200,
+.light .text-purple-200 {
+  color: white !important;
+}
+
+.light button .text-gray-200,
+.light .text-gray-200 {
+  color: white !important;
+}
+
+.light button .text-cyan-200,
+.light .text-cyan-200 {
+  color: white !important;
+}
+
+.light button .text-orange-200,
+.light .text-orange-200 {
+  color: white !important;
+}
+
+.light button .text-pink-200,
+.light .text-pink-200 {
+  color: white !important;
+}
+
+.light button .text-yellow-200,
+.light .text-yellow-200 {
+  color: white !important;
+}
+
+/* Fix for any buttons with background color and transparency */
+.light button[class*="bg-"][class*="\/"] {
+  background-color: var(--fallback-button-bg, #3b82f6) !important;
+  color: white !important;
+}
+
+/* Special fix for form embed buttons */
+.light .form-embed button,
+.light [id*="form-embed"] button,
+.light iframe button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+}
+
+/* File upload button visibility fixes */
+.light input[type="file"] + label,
+.light .file-upload-button,
+.light [class*="upload"] button,
+.light .upload-area button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+}
+
+/* Form step navigation buttons */
+.light .step-navigation button,
+.light [class*="step"] button,
+.light .form-step button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+}
+
+/* Ensure all form buttons are visible */
+.light form button:not([class*="ghost"]):not([class*="link"]) {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+}
+
+/* Secondary button styles */
+.light form button.secondary,
+.light button[class*="secondary"] {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Hover states for light mode buttons */
+.light button:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
