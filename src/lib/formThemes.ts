@@ -68,24 +68,24 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       accentColor: 'bg-purple-500'
     },
     styles: {
-      background: 'min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-x-hidden',
+      background: 'min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative',
       container: 'max-w-2xl mx-auto px-4 py-8',
-      card: 'glass-card rounded-3xl shadow-2xl p-10 border border-white/20',
-      input: 'custom-input w-full px-6 py-4 rounded-2xl text-lg border-2 border-slate-200 transition-all duration-300 bg-slate-50 focus:border-indigo-500 focus:bg-white focus:shadow-lg',
+      card: 'glass-card rounded-2xl shadow-xl p-8 border border-white/20',
+      input: 'custom-input w-full px-4 py-3 rounded-xl border border-slate-200 transition-all duration-200 bg-white/80 focus:border-indigo-400 focus:bg-white',
       button: {
-        primary: 'custom-button text-white px-8 py-4 rounded-2xl font-semibold inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5',
-        secondary: 'bg-slate-500 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-slate-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2'
+        primary: 'custom-button text-white px-6 py-3 rounded-xl font-medium inline-flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-200 shadow-md hover:shadow-lg',
+        secondary: 'bg-slate-400 text-white px-6 py-3 rounded-xl font-medium hover:bg-slate-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2'
       },
       text: {
-        heading: 'text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-3',
-        body: 'text-slate-600 mb-8 text-lg',
-        label: 'block text-slate-700 font-semibold mb-3'
+        heading: 'text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-3',
+        body: 'text-slate-600 mb-6',
+        label: 'block text-slate-700 font-medium mb-2'
       },
-      progress: 'w-full bg-slate-200 rounded-full h-3 overflow-hidden progress-glow',
+      progress: 'w-full bg-slate-200 rounded-full h-2 overflow-hidden progress-glow',
       decorations: `
         <div class="absolute inset-0 overflow-hidden pointer-events-none">
-          <div class="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
-          <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-pink-600/20 rounded-full blur-3xl"></div>
+          <div class="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-2xl"></div>
+          <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-gradient-to-tr from-indigo-400/20 to-pink-600/20 rounded-full blur-2xl"></div>
         </div>
       `
     },

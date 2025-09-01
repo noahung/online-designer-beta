@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`max-w-sm w-full px-4 py-3 rounded-xl shadow-2xl text-sm backdrop-blur-xl border animate-slide-in-right transform transition-all duration-300 hover:scale-105 ${
+            className={`max-w-sm w-full px-4 py-3 rounded-lg shadow-md text-sm border animate-slide-in-right transition-all duration-200 micro-bounce ${
               theme === 'light'
                 ? t.type === 'error' 
                   ? 'bg-red-50 border-red-200 text-red-800' 

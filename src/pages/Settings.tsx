@@ -120,7 +120,7 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Account Settings */}
-        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-6 shadow-lg hover:shadow-xl dark:hover:bg-white/15 transition-all duration-200 animate-fade-in" style={{animationDelay: '0.2s'}}>
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.05s'}}>
           <div className="flex items-center mb-6">
             <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 rounded-xl border border-blue-200 dark:border-blue-400/30 mr-3">
               <User className="w-5 h-5 text-blue-600 dark:text-blue-200" />
@@ -150,14 +150,14 @@ export default function Settings() {
               </div>
             </div>
 
-            <button className="w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 dark:from-slate-600 dark:to-slate-700 hover:from-gray-700 hover:to-gray-800 dark:hover:from-slate-700 dark:hover:to-slate-800 text-white rounded-xl transition-all duration-200 font-medium transform hover:scale-105 shadow-lg">
+            <button className="w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 dark:from-slate-600 dark:to-slate-700 hover:from-gray-700 hover:to-gray-800 dark:hover:from-slate-700 dark:hover:to-slate-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm">
               Change Password
             </button>
           </div>
         </div>
 
         {/* Zapier Integration */}
-        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-6 shadow-lg hover:shadow-xl dark:hover:bg-white/15 transition-all duration-200 animate-fade-in" style={{animationDelay: '0.3s'}}>
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.1s'}}>
           <div className="flex items-center mb-6">
             <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 rounded-xl border border-purple-200 dark:border-purple-400/30 mr-3">
               <Webhook className="w-5 h-5 text-purple-600 dark:text-purple-200" />
@@ -202,7 +202,7 @@ export default function Settings() {
             <button 
               onClick={saveWebhookSettings}
               disabled={saving}
-              className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-800 disabled:to-pink-800 text-white rounded-xl transition-all duration-200 font-medium transform hover:scale-105 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-800 disabled:to-pink-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : 'Save Webhook Settings'}
             </button>
@@ -210,7 +210,7 @@ export default function Settings() {
         </div>
 
         {/* API Settings */}
-        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-6 shadow-lg hover:shadow-xl dark:hover:bg-white/15 transition-all duration-200 animate-fade-in" style={{animationDelay: '0.4s'}}>
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.15s'}}>
           <div className="flex items-center mb-6">
             <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-500/20 dark:to-emerald-500/20 rounded-xl border border-green-200 dark:border-green-400/30 mr-3">
               <Key className="w-5 h-5 text-green-600 dark:text-green-200" />
@@ -273,7 +273,7 @@ export default function Settings() {
         </div>
 
         {/* Embed Settings */}
-        <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-6 shadow-lg hover:shadow-xl dark:hover:bg-white/15 transition-all duration-200 animate-fade-in" style={{animationDelay: '0.5s'}}>
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.2s'}}>
           <div className="flex items-center mb-6">
             <div className="p-2 bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-500/20 dark:to-blue-500/20 rounded-xl border border-cyan-200 dark:border-cyan-400/30 mr-3">
               <Globe className="w-5 h-5 text-cyan-600 dark:text-cyan-200" />
@@ -310,7 +310,7 @@ export default function Settings() {
               </label>
             </div>
 
-            <button className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 font-medium transform hover:scale-105 shadow-lg shadow-green-500/25 hover:shadow-green-500/40">
+            <button className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm">
               Update Embed Settings
             </button>
           </div>

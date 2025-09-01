@@ -18,22 +18,23 @@ const perform = (z, bundle) => {
     const forms = response.json;
 
     if (Array.isArray(forms) && forms.length > 0) {
-      let filteredForms = forms;
-      
-      // Filter by name if search term provided
-      if (bundle.inputData.name) {
-        const searchTerm = bundle.inputData.name.toLowerCase();
-        filteredForms = forms.filter(form => 
-          form.name && form.name.toLowerCase().includes(searchTerm)
-        );
-      }
-      
-      return filteredForms.map(form => ({
+      let processedForms = forms.map(form => ({
         id: form.id.toString(),
         name: form.name || `Form ${form.id}`,
         description: form.description || `Form created on ${form.created_at ? new Date(form.created_at).toLocaleDateString() : 'Unknown date'}`,
         created_at: form.created_at
       }));
+
+      // If there's a search term, filter the results
+      if (bundle.inputData && bundle.inputData.name) {
+        const searchTerm = bundle.inputData.name.toLowerCase();
+        processedForms = processedForms.filter(form => 
+          form.name.toLowerCase().includes(searchTerm) ||
+          form.description.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      return processedForms;
     }
 
     // If no forms or invalid response, return empty array
@@ -46,11 +47,11 @@ const perform = (z, bundle) => {
 };
 
 module.exports = {
-  key: 'formList',
+  key: 'formListSearch',
   noun: 'Form',
   display: {
-    label: 'Find Forms',
-    description: 'Finds forms in your account',
+    label: 'Find a Form',
+    description: 'Search for forms in your account',
     hidden: false
   },
   operation: {
@@ -59,8 +60,9 @@ module.exports = {
       {
         key: 'name',
         label: 'Form Name',
-        helpText: 'Search for forms by name (optional)',
-        required: false
+        type: 'string',
+        required: false,
+        helpText: 'Search for forms by name'
       }
     ],
     sample: {

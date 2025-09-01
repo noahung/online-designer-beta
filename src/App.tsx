@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { useTheme } from './contexts/ThemeContext'
+import { initPerformanceOptimizations } from './lib/performance'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import LoginForm from './components/LoginForm'
@@ -180,6 +181,11 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    // Initialize performance optimizations
+    initPerformanceOptimizations();
+  }, []);
+
   return (
     <ErrorBoundary>
       <AppContent />
