@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import FormPreview from '../components/FormPreview'
+import { formThemes } from '../lib/formThemes'
 import { 
   ArrowLeft, 
   Save, 
@@ -19,7 +20,8 @@ import {
   GripVertical,
   Ruler,
   Star,
-  ChevronDown
+  ChevronDown,
+  Palette
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -202,6 +204,8 @@ export default function FormBuilder() {
   const [welcomeMessage, setWelcomeMessage] = useState('Welcome to our design tool! Let\'s create the perfect windows and doors for your home.')
   const [clientId, setClientId] = useState<string | null>(null)
   const [clients, setClients] = useState<{ id: string; name: string }[]>([])
+  // Theme selection
+  const [formTheme, setFormTheme] = useState<'generic' | 'soft-ui'>('generic')
   // Color customization states
   const [primaryButtonColor, setPrimaryButtonColor] = useState('#3B82F6')
   const [primaryButtonTextColor, setPrimaryButtonTextColor] = useState('#FFFFFF')
@@ -326,6 +330,7 @@ export default function FormBuilder() {
       setDescription(formData.description)
       setWelcomeMessage(formData.welcome_message || '')
       setClientId(formData.client_id)
+      setFormTheme(formData.form_theme || 'generic')
       setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
       setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
       setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
@@ -513,6 +518,7 @@ export default function FormBuilder() {
             description, 
             client_id: clientId,
             welcome_message: welcomeMessage,
+            form_theme: formTheme,
             primary_button_color: primaryButtonColor,
             primary_button_text_color: primaryButtonTextColor,
             secondary_button_color: secondaryButtonColor,
@@ -538,6 +544,7 @@ export default function FormBuilder() {
           client_id: clientId, 
           user_id: user.id,
           welcome_message: welcomeMessage,
+          form_theme: formTheme,
           primary_button_color: primaryButtonColor,
           primary_button_text_color: primaryButtonTextColor,
           secondary_button_color: secondaryButtonColor,
@@ -934,6 +941,65 @@ export default function FormBuilder() {
                     <option value="" className="bg-slate-800 text-white">Select client</option>
                     {clients.map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Theme Selection */}
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.125s'}}>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <Palette className="w-5 h-5 mr-2 text-purple-400" />
+                Form Theme
+              </h3>
+              <div className="space-y-4">
+                <p className="text-sm text-white/70 mb-4">Choose how your form appears to users</p>
+                <div className="grid grid-cols-1 gap-3">
+                  {Object.entries(formThemes).map(([themeKey, theme]) => (
+                    <button
+                      key={themeKey}
+                      onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
+                      className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${
+                        formTheme === themeKey
+                          ? 'border-purple-400 bg-purple-400/20'
+                          : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-semibold text-white mb-1">{theme.name}</h4>
+                          <p className="text-sm text-white/70 mb-3">{theme.description}</p>
+                          
+                          {/* Theme Preview */}
+                          <div className="space-y-2">
+                            <div 
+                              className={`h-3 rounded-md ${theme.preview.primaryColor} opacity-80`}
+                              style={{width: '60%'}}
+                            />
+                            <div className="flex space-x-2">
+                              <div 
+                                className={`h-2 rounded ${theme.preview.secondaryColor} opacity-60`}
+                                style={{width: '40%'}}
+                              />
+                              <div 
+                                className={`h-2 rounded ${theme.preview.accentColor} opacity-80`}
+                                style={{width: '30%'}}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {formTheme === themeKey && (
+                          <div className="flex-shrink-0">
+                            <div className="w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

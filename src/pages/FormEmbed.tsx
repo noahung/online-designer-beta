@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { formThemes } from '../lib/formThemes'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
 type Step = { 
@@ -57,6 +58,7 @@ export default function FormEmbed() {
   }>>({})
 
   const [clientInfo, setClientInfo] = useState<{name: string; logo_url?: string; primary_color?: string} | null>(null)
+  const [formTheme, setFormTheme] = useState<string>('generic')
 
   useEffect(() => { if (id) loadForm(id) }, [id])
 
@@ -75,6 +77,7 @@ export default function FormEmbed() {
           name,
           description,
           user_id,
+          form_theme,
           primary_button_color,
           primary_button_text_color,
           secondary_button_color,
@@ -111,6 +114,7 @@ export default function FormEmbed() {
         secondaryButtonColor: form.secondary_button_color || '#E5E7EB',
         secondaryButtonTextColor: form.secondary_button_text_color || '#374151'
       })
+      setFormTheme(form.form_theme || 'generic')
       setClientInfo(form.clients)
 
       const { data: s, error: stepsError } = await supabase
@@ -593,9 +597,21 @@ export default function FormEmbed() {
   const step = steps[currentStepIndex]
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
+  // Get the current theme configuration
+  const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="bg-white rounded-xl shadow p-6 w-full max-w-3xl">
+    <div className={currentTheme.styles.background} style={{ position: 'relative' }}>
+      {/* Soft UI decorations for soft-ui theme */}
+      {formTheme === 'soft-ui' && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-pink-600/20 rounded-full blur-3xl"></div>
+        </div>
+      )}
+      
+      <div className={currentTheme.styles.container}>
+        <div className={currentTheme.styles.card}>
         {/* Client Header */}
         {clientInfo && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
@@ -628,15 +644,17 @@ export default function FormEmbed() {
           </div>
         )}
         
-        <h1 className="text-2xl font-bold">{formName}</h1>
-        <p className="text-slate-600">{step.title}</p>
+        <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
+        <p className={currentTheme.styles.text.body}>{step.title}</p>
 
-        <div className="w-full bg-slate-100 rounded-full h-2 mt-4">
+        <div className={currentTheme.styles.progress}>
           <div 
-            className="h-2 rounded-full transition-all duration-300" 
+            className="progress-bar h-full rounded-full transition-all duration-500" 
             style={{ 
               width: `${percent}%`,
-              backgroundColor: formColors.primaryButtonColor
+              background: formTheme === 'soft-ui' 
+                ? 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)'
+                : formColors.primaryButtonColor
             }}
           />
         </div>
@@ -654,7 +672,7 @@ export default function FormEmbed() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="firstName" className={currentTheme.styles.text.label}>
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -674,7 +692,7 @@ export default function FormEmbed() {
                         }))
                       }}
                       placeholder="Enter your first name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      className={currentTheme.styles.input}
                       required
                     />
                   </div>
@@ -1213,28 +1231,21 @@ export default function FormEmbed() {
           <button 
             onClick={goPrev} 
             disabled={currentStepIndex === 0} 
-            style={{
-              backgroundColor: currentStepIndex === 0 ? '#9CA3AF' : formColors.secondaryButtonColor,
-              color: currentStepIndex === 0 ? '#FFFFFF' : formColors.secondaryButtonTextColor
-            }}
-            className="px-4 py-2 rounded font-medium transition-all duration-200 disabled:opacity-50"
+            className={`${currentTheme.styles.button.secondary} ${currentStepIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Previous
           </button>
           <div className="flex items-center gap-2">
             <button 
               onClick={goNext} 
-              style={{
-                backgroundColor: formColors.primaryButtonColor,
-                color: formColors.primaryButtonTextColor
-              }}
-              className="px-6 py-3 rounded font-medium transition-all duration-200 hover:opacity-90"
+              className={currentTheme.styles.button.primary}
             >
               {currentStepIndex === steps.length - 1 
                 ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit') 
                 : 'Next'}
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>

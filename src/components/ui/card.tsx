@@ -1,19 +1,25 @@
 import * as React from "react"
-import { cn } from "../../lib/utils"
+import { useTheme } from "../../contexts/ThemeContext"
+import { backgrounds, cn } from "../../lib/theme"
 
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-lg border border-slate-200 bg-white text-slate-950 shadow-sm",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const { theme } = useTheme()
+  
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-xl shadow-sm transition-all duration-200",
+        backgrounds.card(theme),
+        className
+      )}
+      {...props}
+    />
+  )
+})
 Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<

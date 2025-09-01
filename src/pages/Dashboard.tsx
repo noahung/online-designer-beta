@@ -3,6 +3,15 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Users, FileText, BarChart3, TrendingUp, Sparkles, Zap, Star, Activity } from 'lucide-react'
+import { 
+  backgrounds, 
+  textColors, 
+  gradients, 
+  layout, 
+  loadingSkeleton, 
+  animations, 
+  cn 
+} from '../lib/theme'
 
 interface Stats {
   totalClients: number
@@ -101,44 +110,37 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="p-8 animate-fade-in">
+    <div className={cn(layout.container, 'animate-fade-in')}>
       <div className="mb-8">
-        <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent animate-slide-up ${
-          theme === 'light' 
-            ? 'from-gray-800 via-blue-600 to-purple-600' 
-            : 'from-white via-blue-100 to-purple-200'
-        }`}>
+        <h1 className={cn(
+          'text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent animate-slide-up',
+          gradients.heading(theme)
+        )}>
           Dashboard
         </h1>
-        <p className={`mt-2 text-lg animate-fade-in-delay ${
-          theme === 'light' ? 'text-gray-600' : 'text-white/70'
-        }`}>Welcome back! Here's an overview of your forms and responses.</p>
+        <p className={cn(
+          'mt-2 text-lg animate-fade-in-delay',
+          textColors.secondary(theme)
+        )}>
+          Welcome back! Here's an overview of your forms and responses.
+        </p>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
-              theme === 'light' 
-                ? 'bg-white/50 border-gray-200' 
-                : 'bg-white/10 border-white/20'
-            }`}>
+            <div key={i} className={cn(
+              'backdrop-blur-xl rounded-2xl border p-6 animate-pulse',
+              backgrounds.card(theme)
+            )}>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className={`h-4 rounded w-24 mb-3 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-8 rounded w-16 mb-2 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
+                  <div className={loadingSkeleton(theme, 'h-4 rounded w-24 mb-3')}></div>
+                  <div className={loadingSkeleton(theme, 'h-8 rounded w-16 mb-2')}></div>
                 </div>
-                <div className={`w-14 h-14 rounded-xl ${
-                  theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                }`}></div>
+                <div className={loadingSkeleton(theme, 'w-14 h-14 rounded-xl')}></div>
               </div>
-              <div className={`mt-4 h-1 rounded-full ${
-                theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-              }`}></div>
+              <div className={loadingSkeleton(theme, 'mt-4 h-1 rounded-full')}></div>
             </div>
           ))}
         </div>
@@ -147,30 +149,46 @@ export default function Dashboard() {
           {statCards.map((stat, index) => (
             <div 
               key={stat.name} 
-              className={`backdrop-blur-xl rounded-2xl border ${stat.borderColor} p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in hover:scale-105 ${
-                theme === 'light'
-                  ? 'bg-white/60 hover:bg-white/80 hover:border-gray-300'
-                  : 'bg-white/10 hover:bg-white/15 hover:border-white/30'
-              }`}
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className={cn(
+                'backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in hover:scale-105',
+                stat.borderColor,
+                backgrounds.card(theme),
+                theme === 'light' 
+                  ? 'hover:bg-white/80 hover:border-gray-300'
+                  : 'hover:bg-white/15 hover:border-white/30'
+              )}
+              style={{ animationDelay: animations.stagger(index) }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                  }`}>{stat.name}</p>
-                  <p className={`text-3xl font-bold mt-2 ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
-                  }`}>{stat.value}</p>
+                  <p className={cn('text-sm font-medium', textColors.secondary(theme))}>
+                    {stat.name}
+                  </p>
+                  <p className={cn('text-3xl font-bold mt-2', textColors.primary(theme))}>
+                    {stat.value}
+                  </p>
                 </div>
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-r ${stat.bgColor} backdrop-blur-sm border ${stat.borderColor} flex items-center justify-center shadow-lg`}>
-                  <stat.icon className={`w-7 h-7 text-transparent bg-gradient-to-r ${stat.color} bg-clip-text`} fill="currentColor" />
+                <div className={cn(
+                  'w-14 h-14 rounded-xl backdrop-blur-sm border flex items-center justify-center shadow-lg',
+                  `bg-gradient-to-r ${stat.bgColor}`,
+                  stat.borderColor
+                )}>
+                  <stat.icon className={cn(
+                    'w-7 h-7 text-transparent bg-gradient-to-r bg-clip-text',
+                    stat.color
+                  )} fill="currentColor" />
                 </div>
               </div>
               
               <div className="mt-4 flex items-center">
-                <div className={`w-full h-1 rounded-full bg-gradient-to-r ${stat.bgColor} overflow-hidden`}>
-                  <div className={`h-full bg-gradient-to-r ${stat.color} rounded-full animate-pulse`} style={{ width: '70%' }}></div>
+                <div className={cn(
+                  'w-full h-1 rounded-full overflow-hidden',
+                  `bg-gradient-to-r ${stat.bgColor}`
+                )}>
+                  <div className={cn(
+                    'h-full rounded-full animate-pulse',
+                    `bg-gradient-to-r ${stat.color}`
+                  )} style={{ width: '70%' }}></div>
                 </div>
               </div>
             </div>
@@ -179,14 +197,14 @@ export default function Dashboard() {
       )}
 
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className={`backdrop-blur-xl rounded-2xl border p-6 animate-fade-in ${
-          theme === 'light'
-            ? 'bg-white/60 border-gray-200'
-            : 'bg-white/10 border-white/20'
-        }`} style={{animationDelay: '0.5s'}}>
-          <h3 className={`text-xl font-semibold mb-6 flex items-center ${
-            theme === 'light' ? 'text-gray-900' : 'text-white'
-          }`}>
+        <div className={cn(
+          'backdrop-blur-xl rounded-2xl border p-6 animate-fade-in',
+          backgrounds.card(theme)
+        )} style={{animationDelay: '0.5s'}}>
+          <h3 className={cn(
+            'text-xl font-semibold mb-6 flex items-center',
+            textColors.primary(theme)
+          )}>
             <Zap className="w-6 h-6 mr-2 text-yellow-400" />
             Quick Actions
           </h3>
