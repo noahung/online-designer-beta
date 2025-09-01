@@ -958,38 +958,70 @@ export default function FormBuilder() {
                     <button
                       key={themeKey}
                       onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
-                      className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${
+                      className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${
                         formTheme === themeKey
                           ? 'border-purple-400 bg-purple-400/20'
                           : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
+                      {/* Theme Background Effect */}
+                      {themeKey === 'soft-ui' && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/10 to-purple-100/10 pointer-events-none" />
+                      )}
+                      
+                      <div className="relative flex items-start justify-between">
+                        <div className="flex-1">
                           <h4 className="font-semibold text-white mb-1">{theme.name}</h4>
-                          <p className="text-sm text-white/70 mb-3">{theme.description}</p>
+                          <p className="text-sm text-white/70 mb-4">{theme.description}</p>
                           
-                          {/* Theme Preview */}
-                          <div className="space-y-2">
-                            <div 
-                              className={`h-3 rounded-md ${theme.preview.primaryColor} opacity-80`}
-                              style={{width: '60%'}}
-                            />
-                            <div className="flex space-x-2">
-                              <div 
-                                className={`h-2 rounded ${theme.preview.secondaryColor} opacity-60`}
-                                style={{width: '40%'}}
-                              />
-                              <div 
-                                className={`h-2 rounded ${theme.preview.accentColor} opacity-80`}
-                                style={{width: '30%'}}
-                              />
+                          {/* Enhanced Theme Preview */}
+                          <div className="space-y-3">
+                            {/* Form Card Preview */}
+                            <div className={`p-3 ${
+                              themeKey === 'soft-ui' 
+                                ? 'bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20' 
+                                : 'bg-white/90 rounded-lg border border-gray-200'
+                            }`}>
+                              {/* Input Field Preview */}
+                              <div className={`h-3 mb-2 ${
+                                themeKey === 'soft-ui' 
+                                  ? 'bg-white/60 backdrop-blur-sm rounded-xl border border-white/30' 
+                                  : 'bg-gray-100 border border-gray-300 rounded-md'
+                              }`} />
+                              
+                              {/* Button Preview */}
+                              <div className="flex gap-2 mt-3">
+                                <div className={`h-2.5 w-16 ${
+                                  themeKey === 'soft-ui' 
+                                    ? 'bg-white/70 backdrop-blur-sm rounded-full border border-white/40' 
+                                    : 'bg-gray-300 rounded-md'
+                                }`} />
+                                <div className={`h-2.5 w-12 ${
+                                  themeKey === 'soft-ui' 
+                                    ? 'bg-gradient-to-r from-blue-400/80 to-purple-500/80 rounded-full shadow-sm' 
+                                    : theme.preview.primaryColor + ' rounded-md'
+                                }`} />
+                              </div>
+                            </div>
+                            
+                            {/* Typography Preview */}
+                            <div className="space-y-1">
+                              <div className={`h-2 rounded ${
+                                themeKey === 'soft-ui' 
+                                  ? 'bg-gradient-to-r from-slate-700/40 to-slate-500/40' 
+                                  : 'bg-gray-700/60'
+                              }`} style={{width: '70%'}} />
+                              <div className={`h-1.5 rounded ${
+                                themeKey === 'soft-ui' 
+                                  ? 'bg-slate-400/40' 
+                                  : 'bg-gray-500/60'
+                              }`} style={{width: '50%'}} />
                             </div>
                           </div>
                         </div>
                         
                         {formTheme === themeKey && (
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 ml-4">
                             <div className="w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center">
                               <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1112,7 +1144,9 @@ export default function FormBuilder() {
                         backgroundColor: secondaryButtonColor,
                         color: secondaryButtonTextColor
                       }}
-                      className="px-3 py-2 rounded text-xs font-medium transition-colors duration-200"
+                      className={`px-3 py-2 text-xs font-medium transition-colors duration-200 ${
+                        formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
+                      }`}
                     >
                       Previous
                     </button>
@@ -1122,7 +1156,9 @@ export default function FormBuilder() {
                         backgroundColor: primaryButtonColor,
                         color: primaryButtonTextColor
                       }}
-                      className="px-3 py-2 rounded text-xs font-medium transition-colors duration-200"
+                      className={`px-3 py-2 text-xs font-medium transition-colors duration-200 ${
+                        formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
+                      }`}
                     >
                       Next
                     </button>

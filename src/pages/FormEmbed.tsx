@@ -1232,6 +1232,10 @@ export default function FormEmbed() {
             onClick={goPrev} 
             disabled={currentStepIndex === 0} 
             className={`${currentTheme.styles.button.secondary} ${currentStepIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            style={{
+              backgroundColor: formColors.secondaryButtonColor,
+              color: formColors.secondaryButtonTextColor
+            }}
           >
             Previous
           </button>
@@ -1239,6 +1243,11 @@ export default function FormEmbed() {
             <button 
               onClick={goNext} 
               className={currentTheme.styles.button.primary}
+              style={{
+                backgroundColor: formColors.primaryButtonColor,
+                color: formColors.primaryButtonTextColor,
+                backgroundImage: 'none'
+              }}
             >
               {currentStepIndex === steps.length - 1 
                 ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit') 
