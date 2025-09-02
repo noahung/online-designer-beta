@@ -600,3 +600,35 @@ img, video {
   0%, 100% { background-position: 0% 0%; }
   50% { background-position: 100% 0%; }
 }
+
+/* Custom scrollbar for step type dropdown */
+.step-type-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.step-type-dropdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  margin: 8px 0; /* Add some margin from top/bottom */
+}
+
+.step-type-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.step-type-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox scrollbar styling */
+.step-type-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* Ensure dropdown is scrollable and positioned correctly */
+.step-type-dropdown {
+  scrollbar-gutter: stable;
+}

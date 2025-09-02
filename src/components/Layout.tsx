@@ -9,7 +9,9 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
@@ -42,6 +44,7 @@ export default function Layout() {
   const { theme } = useTheme()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   const navigation = userType === 'client' ? clientNavigation : adminNavigation
 
@@ -59,8 +62,9 @@ export default function Layout() {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${sidebarCollapsed ? 'w-20' : 'w-72'}
       `}>
         <div className={cn(
           'flex h-full flex-col backdrop-blur-xl border-r animate-slide-in-left',
@@ -68,37 +72,66 @@ export default function Layout() {
         )}>
           {/* Logo */}
           <div className={cn(
-            'flex h-16 items-center justify-between px-6 border-b',
-            borders.default(theme)
+            'flex h-16 items-center border-b',
+            borders.default(theme),
+            sidebarCollapsed ? 'justify-center px-4' : 'justify-between px-4'
           )}>
-            <div className="flex items-center space-x-3 animate-fade-in">
-              <div className="w-10 h-10 flex items-center justify-center">
-                <img src={logoPlaceholder} alt="Advertomedia Logo" className="w-10 h-10 object-contain" />
-              </div>
-              <span className={cn(
-                'text-xl font-bold bg-gradient-to-r bg-clip-text text-transparent',
-                gradients.logo(theme)
-              )}>
-                Online Designer
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <ThemeToggle />
+            {!sidebarCollapsed ? (
+              <>
+                <div className="flex items-center space-x-3 animate-fade-in">
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <img src={logoPlaceholder} alt="Advertomedia Logo" className="w-10 h-10 object-contain" />
+                  </div>
+                  <span className={cn(
+                    'text-lg font-bold bg-gradient-to-r bg-clip-text text-transparent whitespace-nowrap',
+                    gradients.logo(theme)
+                  )}>
+                    Online Designer
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setSidebarCollapsed(true)}
+                    className={cn(
+                      'hidden lg:block p-1.5 rounded-md transition-colors hover:scale-105',
+                      textColors.secondary(theme)
+                    )}
+                    title="Collapse sidebar"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <ThemeToggle />
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className={cn(
+                      'lg:hidden p-2 rounded-md transition-colors',
+                      textColors.secondary(theme),
+                      'hover:scale-105'
+                    )}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </>
+            ) : (
               <button
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => setSidebarCollapsed(false)}
                 className={cn(
-                  'lg:hidden p-2 rounded-md transition-colors',
-                  textColors.secondary(theme),
-                  'hover:scale-105'
+                  'p-2 rounded-md transition-colors hover:scale-105',
+                  textColors.secondary(theme)
                 )}
+                title="Expand sidebar"
               >
-                <X className="w-5 h-5" />
+                <ChevronRight className="w-5 h-5" />
               </button>
-            </div>
+            )}
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className={cn(
+            'flex-1 py-6 space-y-2',
+            sidebarCollapsed ? 'px-2' : 'px-4'
+          )}>
             {navigation.map((item, index) => {
               const isActive = location.pathname === item.href || 
                 (item.href === '/forms' && location.pathname.startsWith('/forms'));
@@ -107,19 +140,27 @@ export default function Layout() {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={navigationItem(theme, isActive)}
+                  className={cn(
+                    navigationItem(theme, isActive),
+                    sidebarCollapsed ? 'justify-center px-3' : 'px-4'
+                  )}
                   style={{ animationDelay: animations.stagger(index) }}
+                  title={sidebarCollapsed ? item.name : undefined}
                 >
-                  <item.icon className={`mr-3 h-5 w-5 transition-colors ${
+                  <item.icon className={`h-5 w-5 transition-colors ${
                     isActive 
                       ? theme === 'light' ? 'text-blue-600' : 'text-blue-300'
                       : theme === 'light' 
                         ? 'text-gray-400 group-hover:text-gray-600' 
                         : 'text-white/50 group-hover:text-white/70'
-                  }`} />
-                  {item.name}
-                  {isActive && (
-                    <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                  } ${sidebarCollapsed ? '' : 'mr-3'}`} />
+                  {!sidebarCollapsed && (
+                    <>
+                      {item.name}
+                      {isActive && (
+                        <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                      )}
+                    </>
                   )}
                 </Link>
               );
@@ -127,37 +168,59 @@ export default function Layout() {
           </nav>
 
           {/* User section */}
-          <div className={cn('px-4 py-4 border-t', borders.default(theme))}>
-            <div className={cn(
-              'flex items-center space-x-3 px-4 py-3 rounded-xl backdrop-blur-sm border transition-all duration-200 animate-fade-in-delay',
-              backgrounds.card(theme)
-            )}>
-              <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-sm font-bold text-white">
-                  {user?.email?.[0]?.toUpperCase()}
-                </span>
+          <div className={cn('py-4 border-t', borders.default(theme), sidebarCollapsed ? 'px-2' : 'px-4')}>
+            {!sidebarCollapsed ? (
+              <div className={cn(
+                'flex items-center space-x-3 px-4 py-3 rounded-xl backdrop-blur-sm border transition-all duration-200 animate-fade-in-delay',
+                backgrounds.card(theme)
+              )}>
+                <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-sm font-bold text-white">
+                    {user?.email?.[0]?.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm font-medium truncate', textColors.primary(theme))}>
+                    {userType === 'client' && clientData ? clientData.name : user?.email}
+                  </p>
+                  <p className={cn('text-xs', textColors.secondary(theme))}>
+                    {userType === 'client' ? 'Client Portal' : 'Agency Admin'}
+                  </p>
+                </div>
+                <button
+                  onClick={signOut}
+                  className={cn(
+                    'p-2 rounded-lg transition-all duration-200 hover:scale-110',
+                    textColors.secondary(theme),
+                    'hover:text-red-600',
+                    theme === 'light' ? 'hover:bg-red-50' : 'hover:bg-red-500/20'
+                  )}
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className={cn('text-sm font-medium truncate', textColors.primary(theme))}>
-                  {userType === 'client' && clientData ? clientData.name : user?.email}
-                </p>
-                <p className={cn('text-xs', textColors.secondary(theme))}>
-                  {userType === 'client' ? 'Client Portal' : 'Agency Admin'}
-                </p>
+            ) : (
+              <div className="flex flex-col items-center space-y-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-sm font-bold text-white">
+                    {user?.email?.[0]?.toUpperCase()}
+                  </span>
+                </div>
+                <button
+                  onClick={signOut}
+                  className={cn(
+                    'p-2 rounded-lg transition-all duration-200 hover:scale-110',
+                    textColors.secondary(theme),
+                    'hover:text-red-600',
+                    theme === 'light' ? 'hover:bg-red-50' : 'hover:bg-red-500/20'
+                  )}
+                  title="Sign out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={signOut}
-                className={cn(
-                  'p-2 rounded-lg transition-all duration-200 hover:scale-110',
-                  textColors.secondary(theme),
-                  'hover:text-red-600',
-                  theme === 'light' ? 'hover:bg-red-50' : 'hover:bg-red-500/20'
-                )}
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+            )}
           </div>
         </div>
       </div>

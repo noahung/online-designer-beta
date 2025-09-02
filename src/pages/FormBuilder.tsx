@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -218,6 +219,8 @@ export default function FormBuilder() {
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
+  const addStepButtonRef = useRef<HTMLButtonElement>(null)
+  const [buttonPosition, setButtonPosition] = useState<{ top: number; right: number } | null>(null)
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -254,6 +257,21 @@ export default function FormBuilder() {
     }
   }
 
+  const handleAddStepClick = () => {
+    setShowStepTypeDropdown(!showStepTypeDropdown)
+    updateButtonPosition()
+  }
+
+  const updateButtonPosition = () => {
+    if (addStepButtonRef.current) {
+      const rect = addStepButtonRef.current.getBoundingClientRect()
+      setButtonPosition({
+        top: rect.top,
+        right: window.innerWidth - rect.right
+      })
+    }
+  }
+
   useEffect(() => { 
     if (user) {
       fetchClients()
@@ -263,20 +281,39 @@ export default function FormBuilder() {
     }
   }, [user, formId])
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside and handle scroll updates
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showStepTypeDropdown && event.target instanceof Element) {
         const dropdown = document.querySelector('.step-type-dropdown')
-        if (dropdown && !dropdown.contains(event.target)) {
+        const button = addStepButtonRef.current
+        if (dropdown && !dropdown.contains(event.target) && button && !button.contains(event.target)) {
           setShowStepTypeDropdown(false)
+          setButtonPosition(null)
         }
       }
     }
 
+    const handleScroll = () => {
+      if (showStepTypeDropdown) {
+        updateButtonPosition()
+      }
+    }
+
+    const handleResize = () => {
+      if (showStepTypeDropdown) {
+        updateButtonPosition()
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
+    window.addEventListener('scroll', handleScroll, true) // Use capture to catch all scroll events
+    window.addEventListener('resize', handleResize)
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
     }
   }, [showStepTypeDropdown])
 
@@ -1168,15 +1205,16 @@ export default function FormBuilder() {
             </div>
 
             {/* Form Steps */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.2s'}}>
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in overflow-visible" style={{animationDelay: '0.2s'}}>
+              <div className="flex items-center justify-between mb-4 overflow-visible">
                 <h3 className="text-lg font-semibold text-white flex items-center">
                   <MessageSquare className="w-5 h-5 mr-2 text-purple-400" />
                   Form Steps
                 </h3>
-                <div className="relative">
+                <div className="relative overflow-visible">
                   <button
-                    onClick={() => setShowStepTypeDropdown(!showStepTypeDropdown)}
+                    ref={addStepButtonRef}
+                    onClick={handleAddStepClick}
                     className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -1184,28 +1222,7 @@ export default function FormBuilder() {
                     <ChevronDown className={`w-4 h-4 ml-2 transition-transform duration-200 ${showStepTypeDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
-                  {showStepTypeDropdown && (
-                    <div className="step-type-dropdown absolute right-0 top-full mt-2 w-64 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-xl z-50 overflow-hidden">
-                      {stepTypes.map((stepType) => (
-                        <button
-                          key={stepType.type}
-                          onClick={() => {
-                            addStep(stepType.type)
-                            setShowStepTypeDropdown(false)
-                          }}
-                          className="w-full flex items-center px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/10 last:border-b-0"
-                        >
-                          <div className="flex items-center justify-center w-8 h-8 bg-white/10 rounded-lg mr-3 flex-shrink-0">
-                            {stepType.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-medium text-sm">{stepType.title}</p>
-                            <p className="text-white/60 text-xs truncate">{stepType.description}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {/* Dropdown is now rendered via portal at the end of component */}
                 </div>
               </div>
               <DndContext 
@@ -1695,6 +1712,38 @@ export default function FormBuilder() {
           </div>
         </div>
       </div>
+
+      {/* Portal-based dropdown to avoid container clipping */}
+      {showStepTypeDropdown && buttonPosition && createPortal(
+        <div 
+          className="step-type-dropdown fixed w-64 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-xl z-[100] max-h-80 overflow-y-auto"
+          style={{
+            top: buttonPosition.top - 320, // Position above button (adjust based on dropdown height)
+            right: buttonPosition.right,
+          }}
+        >
+          {stepTypes.map((stepType) => (
+            <button
+              key={stepType.type}
+              onClick={() => {
+                addStep(stepType.type)
+                setShowStepTypeDropdown(false)
+                setButtonPosition(null)
+              }}
+              className="w-full flex items-center px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/10 last:border-b-0"
+            >
+              <div className="flex items-center justify-center w-8 h-8 bg-white/10 rounded-lg mr-3 flex-shrink-0">
+                {stepType.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium text-sm">{stepType.title}</p>
+                <p className="text-white/60 text-xs truncate">{stepType.description}</p>
+              </div>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
 
       {/* Form Preview Modal */}
       <FormPreview
