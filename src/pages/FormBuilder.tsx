@@ -22,6 +22,7 @@ import {
   Ruler,
   Star,
   ChevronDown,
+  ChevronUp,
   Palette
 } from 'lucide-react'
 import { 
@@ -195,6 +196,59 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, canDelet
   )
 }
 
+// Collapsible Section Component
+interface CollapsibleSectionProps {
+  title: string
+  icon: React.ReactNode
+  isCollapsed: boolean
+  onToggle: () => void
+  animationDelay?: string
+  children: React.ReactNode
+}
+
+function CollapsibleSection({ 
+  title, 
+  icon, 
+  isCollapsed, 
+  onToggle, 
+  animationDelay = '0s', 
+  children 
+}: CollapsibleSectionProps) {
+  return (
+    <div 
+      className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 animate-fade-in overflow-hidden" 
+      style={{animationDelay}}
+    >
+      <button
+        onClick={onToggle}
+        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-white/5 transition-colors duration-200"
+      >
+        <h3 className="text-lg font-semibold text-white flex items-center">
+          {icon}
+          {title}
+        </h3>
+        <div className="flex items-center">
+          {isCollapsed ? (
+            <ChevronDown className="w-5 h-5 text-white/60 transition-transform duration-200" />
+          ) : (
+            <ChevronUp className="w-5 h-5 text-white/60 transition-transform duration-200" />
+          )}
+        </div>
+      </button>
+      
+      <div className={`transition-all duration-300 ease-in-out ${
+        isCollapsed 
+          ? 'max-h-0 opacity-0' 
+          : 'max-h-[2000px] opacity-100'
+      }`}>
+        <div className="px-6 pb-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function FormBuilder() {
   const { user } = useAuth()
   const { push } = useToast()
@@ -221,6 +275,21 @@ export default function FormBuilder() {
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
   const addStepButtonRef = useRef<HTMLButtonElement>(null)
   const [buttonPosition, setButtonPosition] = useState<{ top: number; right: number } | null>(null)
+
+  // Collapsible sections state
+  const [collapsedSections, setCollapsedSections] = useState({
+    formSettings: false,
+    formTheme: false,
+    buttonColors: false,
+    formSteps: false,
+  })
+
+  const toggleSection = (sectionKey: keyof typeof collapsedSections) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }))
+  }
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -932,11 +1001,13 @@ export default function FormBuilder() {
         <div className="w-[400px] border-r border-white/10 bg-white/5 backdrop-blur-sm overflow-y-auto animate-slide-in-left">
           <div className="p-6 space-y-6">
             {/* Form Settings */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.1s'}}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <FileText className="w-5 h-5 mr-2 text-blue-400" />
-                Form Settings
-              </h3>
+            <CollapsibleSection
+              title="Form Settings"
+              icon={<FileText className="w-5 h-5 mr-2 text-blue-400" />}
+              isCollapsed={collapsedSections.formSettings}
+              onToggle={() => toggleSection('formSettings')}
+              animationDelay="0.1s"
+            >
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-white/90">Form Title</label>
@@ -980,14 +1051,16 @@ export default function FormBuilder() {
                   </select>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Theme Selection */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.125s'}}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <Palette className="w-5 h-5 mr-2 text-purple-400" />
-                Form Theme
-              </h3>
+            <CollapsibleSection
+              title="Form Theme"
+              icon={<Palette className="w-5 h-5 mr-2 text-purple-400" />}
+              isCollapsed={collapsedSections.formTheme}
+              onToggle={() => toggleSection('formTheme')}
+              animationDelay="0.125s"
+            >
               <div className="space-y-4">
                 <p className="text-sm text-white/70 mb-4">Choose how your form appears to users</p>
                 <div className="grid grid-cols-1 gap-3">
@@ -1071,17 +1144,19 @@ export default function FormBuilder() {
                   ))}
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Color Customization */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in" style={{animationDelay: '0.15s'}}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                <svg className="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
-                  <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                Button Colors
-              </h3>
+            <CollapsibleSection
+              title="Button Colors"
+              icon={<svg className="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>}
+              isCollapsed={collapsedSections.buttonColors}
+              onToggle={() => toggleSection('buttonColors')}
+              animationDelay="0.15s"
+            >
               <div className="space-y-6">
                 {/* Primary Button Colors */}
                 <div className="space-y-3">
@@ -1202,29 +1277,32 @@ export default function FormBuilder() {
                   </div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* Form Steps */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in overflow-visible" style={{animationDelay: '0.2s'}}>
-              <div className="flex items-center justify-between mb-4 overflow-visible">
-                <h3 className="text-lg font-semibold text-white flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2 text-purple-400" />
-                  Form Steps
-                </h3>
-                <div className="relative overflow-visible">
-                  <button
-                    ref={addStepButtonRef}
-                    onClick={handleAddStepClick}
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Step
-                    <ChevronDown className={`w-4 h-4 ml-2 transition-transform duration-200 ${showStepTypeDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {/* Dropdown is now rendered via portal at the end of component */}
+            <CollapsibleSection
+              title="Form Steps"
+              icon={<MessageSquare className="w-5 h-5 mr-2 text-purple-400" />}
+              isCollapsed={collapsedSections.formSteps}
+              onToggle={() => toggleSection('formSteps')}
+              animationDelay="0.2s"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between overflow-visible">
+                  <div className="relative overflow-visible">
+                    <button
+                      ref={addStepButtonRef}
+                      onClick={handleAddStepClick}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Step
+                      <ChevronDown className={`w-4 h-4 ml-2 transition-transform duration-200 ${showStepTypeDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {/* Dropdown is now rendered via portal at the end of component */}
+                  </div>
                 </div>
-              </div>
               <DndContext 
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -1270,7 +1348,8 @@ export default function FormBuilder() {
                   )}
                 </div>
               </DndContext>
-            </div>
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
 
