@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
+import { useTheme } from '../contexts/ThemeContext'
 import FormPreview from '../components/FormPreview'
 import { formThemes } from '../lib/formThemes'
 import { 
@@ -214,24 +215,40 @@ function CollapsibleSection({
   animationDelay = '0s', 
   children 
 }: CollapsibleSectionProps) {
+  const { theme } = useTheme()
+  
   return (
     <div 
-      className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 animate-fade-in overflow-hidden" 
+      className={`backdrop-blur-xl rounded-2xl animate-fade-in overflow-hidden transition-all duration-200 ${
+        theme === 'light' 
+          ? 'bg-white/80 border border-gray-200 shadow-lg' 
+          : 'bg-white/10 border border-white/20'
+      }`}
       style={{animationDelay}}
     >
       <button
         onClick={onToggle}
-        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-white/5 transition-colors duration-200"
+        className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors duration-200 ${
+          theme === 'light'
+            ? 'hover:bg-gray-50 text-gray-800'
+            : 'hover:bg-white/5 text-white'
+        }`}
       >
-        <h3 className="text-lg font-semibold text-white flex items-center">
+        <h3 className={`text-lg font-semibold flex items-center ${
+          theme === 'light' ? 'text-gray-800' : 'text-white'
+        }`}>
           {icon}
           {title}
         </h3>
         <div className="flex items-center">
           {isCollapsed ? (
-            <ChevronDown className="w-5 h-5 text-white/60 transition-transform duration-200" />
+            <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${
+              theme === 'light' ? 'text-gray-500' : 'text-white/60'
+            }`} />
           ) : (
-            <ChevronUp className="w-5 h-5 text-white/60 transition-transform duration-200" />
+            <ChevronUp className={`w-5 h-5 transition-transform duration-200 ${
+              theme === 'light' ? 'text-gray-500' : 'text-white/60'
+            }`} />
           )}
         </div>
       </button>
@@ -252,6 +269,7 @@ function CollapsibleSection({
 export default function FormBuilder() {
   const { user } = useAuth()
   const { push } = useToast()
+  const { theme } = useTheme()
   const navigate = useNavigate()
   const { id: formId } = useParams() // Get form ID from URL params for editing
   const [name, setName] = useState('Window & Door Designer Tool')
@@ -938,33 +956,65 @@ export default function FormBuilder() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-8 text-center animate-pulse">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-white/30 border-t-white mx-auto mb-4"></div>
-          <p className="text-white/80 font-medium">Loading form builder...</p>
+      <div className={`min-h-screen flex items-center justify-center ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-gray-50 via-blue-50 to-gray-50' 
+          : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
+      }`}>
+        <div className={`backdrop-blur-xl rounded-2xl p-8 text-center animate-pulse ${
+          theme === 'light'
+            ? 'bg-white/80 border border-gray-200 shadow-lg'
+            : 'bg-white/10 border border-white/20'
+        }`}>
+          <div className={`animate-spin rounded-full h-12 w-12 border-2 mx-auto mb-4 ${
+            theme === 'light'
+              ? 'border-gray-300 border-t-blue-600'
+              : 'border-white/30 border-t-white'
+          }`}></div>
+          <p className={`font-medium ${
+            theme === 'light' ? 'text-gray-700' : 'text-white/80'
+          }`}>Loading form builder...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900">
+    <div className={`min-h-screen ${
+      theme === 'light' 
+        ? 'bg-gradient-to-br from-gray-50 via-blue-50 to-gray-50' 
+        : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
+    }`}>
       {/* Header */}
-      <div className="border-b border-white/10 bg-white/10 backdrop-blur-xl px-6 py-4 animate-fade-in">
+      <div className={`border-b backdrop-blur-xl px-6 py-4 animate-fade-in ${
+        theme === 'light'
+          ? 'border-gray-200 bg-white/80'
+          : 'border-white/10 bg-white/10'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigate('/forms')}
-              className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 hover:scale-110"
+              className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                theme === 'light'
+                  ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">
+              <h1 className={`text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+                theme === 'light'
+                  ? 'from-gray-800 via-blue-600 to-purple-600'
+                  : 'from-white via-orange-100 to-red-200'
+              }`}>
                 {isEditing ? 'Edit Form: ' : 'Create Form: '}{name || 'Untitled Form'}
               </h1>
               {clientId && (
-                <p className="text-white/70 mt-1">
+                <p className={`mt-1 ${
+                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                }`}>
                   {clients.find(c => c.id === clientId)?.name}
                 </p>
               )}
@@ -973,13 +1023,21 @@ export default function FormBuilder() {
           <div className="flex space-x-3">
             <button
               onClick={debugStorageConnection}
-              className="px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-200 rounded-xl border border-cyan-400/30 text-sm transition-all duration-200 hover:scale-105 shadow-lg"
+              className={`px-4 py-2 rounded-xl text-sm transition-all duration-200 hover:scale-105 shadow-lg ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 text-cyan-700 border border-cyan-200'
+                  : 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-200 border border-cyan-400/30'
+              }`}
             >
               🔍 Test Storage
             </button>
             <button
               onClick={() => setShowPreview(true)}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 rounded-xl border border-purple-400/30 transition-all duration-200 hover:scale-105 shadow-lg"
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 text-purple-700 border border-purple-200'
+                  : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
+              }`}
             >
               <Eye className="mr-2 h-4 w-4" />
               Preview
@@ -987,7 +1045,11 @@ export default function FormBuilder() {
             <button
               onClick={save}
               disabled={saving}
-              className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`inline-flex items-center px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
+                  : 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
+              }`}
             >
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Form'}
@@ -998,56 +1060,84 @@ export default function FormBuilder() {
 
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar */}
-        <div className="w-[400px] border-r border-white/10 bg-white/5 backdrop-blur-sm overflow-y-auto animate-slide-in-left">
+        <div className={`w-[400px] border-r overflow-y-auto animate-slide-in-left ${
+          theme === 'light'
+            ? 'border-gray-200 bg-white/60 backdrop-blur-sm'
+            : 'border-white/10 bg-white/5 backdrop-blur-sm'
+        }`}>
           <div className="p-6 space-y-6">
             {/* Form Settings */}
             <CollapsibleSection
               title="Form Settings"
-              icon={<FileText className="w-5 h-5 mr-2 text-blue-400" />}
+              icon={<FileText className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />}
               isCollapsed={collapsedSections.formSettings}
               onToggle={() => toggleSection('formSettings')}
               animationDelay="0.1s"
             >
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-white/90">Form Title</label>
+                  <label className={`block text-sm font-medium ${
+                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Form Title</label>
                   <input
                     type="text"
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Enter form title"
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                      theme === 'light'
+                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-white/90">Description</label>
+                  <label className={`block text-sm font-medium ${
+                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Description</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Brief description of your form"
                     rows={3}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 resize-none"
+                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
+                      theme === 'light'
+                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-white/90">Welcome Message</label>
+                  <label className={`block text-sm font-medium ${
+                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Welcome Message</label>
                   <textarea
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
                     placeholder="Welcome message for form users"
                     rows={3}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 resize-none"
+                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
+                      theme === 'light'
+                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-white/90">Client</label>
+                  <label className={`block text-sm font-medium ${
+                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Client</label>
                   <select 
                     value={clientId ?? ''} 
                     onChange={e => setClientId(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                      theme === 'light'
+                        ? 'bg-white/80 border-gray-200 text-gray-900 hover:bg-white focus:ring-blue-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                   >
-                    <option value="" className="bg-slate-800 text-white">Select client</option>
-                    {clients.map(c => <option key={c.id} value={c.id} className="bg-slate-800 text-white">{c.name}</option>)}
+                    <option value="" className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>Select client</option>
+                    {clients.map(c => <option key={c.id} value={c.id} className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -1056,7 +1146,7 @@ export default function FormBuilder() {
             {/* Theme Selection */}
             <CollapsibleSection
               title="Form Theme"
-              icon={<Palette className="w-5 h-5 mr-2 text-purple-400" />}
+              icon={<Palette className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />}
               isCollapsed={collapsedSections.formTheme}
               onToggle={() => toggleSection('formTheme')}
               animationDelay="0.125s"
@@ -1357,21 +1447,35 @@ export default function FormBuilder() {
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             {currentStep ? (
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 animate-fade-in">
+              <div className={`backdrop-blur-xl rounded-2xl p-6 animate-fade-in ${
+                theme === 'light'
+                  ? 'bg-white/90 border border-gray-200 shadow-lg'
+                  : 'bg-white/10 border border-white/20'
+              }`}>
                 <div className="mb-6">
-                  <h2 className="text-xl font-semibold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                  <h2 className={`text-xl font-semibold bg-gradient-to-r bg-clip-text text-transparent ${
+                    theme === 'light'
+                      ? 'from-gray-800 to-blue-600'
+                      : 'from-white to-blue-200'
+                  }`}>
                     Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}
                   </h2>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-white/90">Step Title</label>
+                    <label className={`block text-sm font-medium ${
+                      theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                    }`}>Step Title</label>
                     <input
                       type="text"
                       value={currentStep.title} 
                       onChange={(e) => updateStep(selectedStepIndex!, { ...currentStep, title: e.target.value })}
                       placeholder="What are you looking for?"
-                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                        theme === 'light'
+                          ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
+                          : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                      }`}
                     />
                   </div>
 
@@ -1768,12 +1872,26 @@ export default function FormBuilder() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-12 text-center animate-fade-in">
-                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/20">
-                  <MessageSquare className="w-8 h-8 text-white/60" />
+              <div className={`backdrop-blur-xl rounded-2xl p-12 text-center animate-fade-in ${
+                theme === 'light'
+                  ? 'bg-white/90 border border-gray-200 shadow-lg'
+                  : 'bg-white/10 border border-white/20'
+              }`}>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border ${
+                  theme === 'light'
+                    ? 'bg-gray-50 border-gray-200'
+                    : 'bg-white/10 border-white/20'
+                }`}>
+                  <MessageSquare className={`w-8 h-8 ${
+                    theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                  }`} />
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-3">No step selected</h3>
-                <p className="text-white/70 mb-8 text-lg">Create a step to start building your form</p>
+                <h3 className={`text-xl font-semibold mb-3 ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>No step selected</h3>
+                <p className={`mb-8 text-lg ${
+                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                }`}>Create a step to start building your form</p>
                 <div className="flex flex-wrap justify-center gap-4">
                   {stepTypes.map((stepType) => (
                     <button
@@ -1795,7 +1913,11 @@ export default function FormBuilder() {
       {/* Portal-based dropdown to avoid container clipping */}
       {showStepTypeDropdown && buttonPosition && createPortal(
         <div 
-          className="step-type-dropdown fixed w-64 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-xl z-[100] max-h-80 overflow-y-auto"
+          className={`step-type-dropdown fixed w-64 backdrop-blur-xl border rounded-xl shadow-xl z-[100] max-h-80 overflow-y-auto ${
+            theme === 'light'
+              ? 'bg-white/95 border-gray-200 text-gray-900'
+              : 'bg-slate-800/95 border-white/20 text-white'
+          }`}
           style={{
             top: buttonPosition.top - 320, // Position above button (adjust based on dropdown height)
             right: buttonPosition.right,
@@ -1809,14 +1931,24 @@ export default function FormBuilder() {
                 setShowStepTypeDropdown(false)
                 setButtonPosition(null)
               }}
-              className="w-full flex items-center px-4 py-3 hover:bg-white/10 transition-colors text-left border-b border-white/10 last:border-b-0"
+              className={`w-full flex items-center px-4 py-3 transition-colors text-left border-b last:border-b-0 ${
+                theme === 'light'
+                  ? 'hover:bg-gray-50 border-gray-200'
+                  : 'hover:bg-white/10 border-white/10'
+              }`}
             >
-              <div className="flex items-center justify-center w-8 h-8 bg-white/10 rounded-lg mr-3 flex-shrink-0">
+              <div className={`flex items-center justify-center w-8 h-8 rounded-lg mr-3 flex-shrink-0 ${
+                theme === 'light' ? 'bg-gray-100' : 'bg-white/10'
+              }`}>
                 {stepType.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-medium text-sm">{stepType.title}</p>
-                <p className="text-white/60 text-xs truncate">{stepType.description}</p>
+                <p className={`font-medium text-sm ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>{stepType.title}</p>
+                <p className={`text-xs truncate ${
+                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                }`}>{stepType.description}</p>
               </div>
             </button>
           ))}

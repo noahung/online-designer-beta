@@ -632,3 +632,119 @@ img, video {
 .step-type-dropdown {
   scrollbar-gutter: stable;
 }
+
+/* Light Theme Form Builder Support */
+.light .form-builder-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #f8fafc 100%);
+}
+
+/* Theme-aware form inputs */
+.light .theme-input {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #d1d5db;
+  color: #111827;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.light .theme-input:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.light .theme-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f6;
+  border-color: #3b82f6;
+}
+
+.light .theme-input::placeholder {
+  color: #6b7280;
+}
+
+.dark .theme-input {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.dark .theme-input:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark .theme-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #60a5fa;
+  border-color: transparent;
+}
+
+.dark .theme-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Theme-aware labels */
+.light .theme-label {
+  color: #374151;
+}
+
+.dark .theme-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Theme-aware text */
+.light .theme-text {
+  color: #4b5563;
+}
+
+.dark .theme-text {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Theme-aware section backgrounds */
+.light .theme-section {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .theme-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Theme-aware dropdown */
+.light .step-type-dropdown {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #e5e7eb;
+  color: #111827;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.light .step-type-dropdown button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .step-type-dropdown {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.dark .step-type-dropdown button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Light theme scrollbar */
+.light .step-type-dropdown::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.light .step-type-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.light .step-type-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.light .step-type-dropdown {
+  scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05);
+}
