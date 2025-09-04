@@ -905,53 +905,6 @@ export default function FormBuilder() {
     }
   }
 
-  const debugStorageConnection = async () => {
-    push({ type: 'info', message: 'Testing Supabase connection...' })
-    
-    try {
-      // Test 1: Basic auth
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (userError) {
-        console.error('Auth error:', userError)
-        push({ type: 'error', message: `❌ Auth issue: ${userError.message}` })
-        return
-      }
-      
-      if (user) {
-        push({ type: 'success', message: `✅ Authenticated as: ${user.email}` })
-      } else {
-        push({ type: 'error', message: '❌ Not authenticated' })
-        return
-      }
-
-      // Test 2: Try direct upload test
-      push({ type: 'info', message: 'Testing direct file upload...' })
-      
-      // Create a tiny test file
-      const testFile = new File(['test'], 'test.txt', { type: 'text/plain' })
-      const testFilename = `test-${Date.now()}.txt`
-      
-      const { error: uploadError } = await supabase.storage
-        .from('form-assets')
-        .upload(testFilename, testFile)
-      
-      if (uploadError) {
-        console.error('Upload test failed:', uploadError)
-        push({ type: 'error', message: `❌ Upload test failed: ${uploadError.message}` })
-      } else {
-        push({ type: 'success', message: '✅ Upload test successful! Storage is working!' })
-        
-        // Clean up test file
-        await supabase.storage.from('form-assets').remove([testFilename])
-        push({ type: 'success', message: '✅ Storage fully functional - image uploads should work' })
-      }
-      
-    } catch (error) {
-      console.error('Debug error:', error)
-      push({ type: 'error', message: `❌ Connection test failed: ${error}` })
-    }
-  }
-
   const currentStep = selectedStepIndex !== null ? steps[selectedStepIndex] : null
 
   if (loading) {
@@ -1021,16 +974,6 @@ export default function FormBuilder() {
             </div>
           </div>
           <div className="flex space-x-3">
-            <button
-              onClick={debugStorageConnection}
-              className={`px-4 py-2 rounded-xl text-sm transition-all duration-200 hover:scale-105 shadow-lg ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-cyan-50 to-blue-50 hover:from-cyan-100 hover:to-blue-100 text-cyan-700 border border-cyan-200'
-                  : 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-200 border border-cyan-400/30'
-              }`}
-            >
-              🔍 Test Storage
-            </button>
             <button
               onClick={() => setShowPreview(true)}
               className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
@@ -1960,8 +1903,8 @@ export default function FormBuilder() {
       <FormPreview
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
+        formId={formId}
         formName={name}
-        steps={steps}
       />
     </div>
   )

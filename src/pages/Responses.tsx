@@ -232,7 +232,8 @@ export default function Responses() {
 
   const fetchResponseDetails = async (responseId: string) => {
     try {
-      const { data, error } = await supabase
+      // First, get the response with form_id
+      const { data: responseData, error: responseError } = await supabase
         .from('responses')
         .select(`
           id,
@@ -241,13 +242,7 @@ export default function Responses() {
           contact_phone,
           contact_postcode,
           submitted_at,
-          forms (
-            id,
-            name,
-            clients (
-              name
-            )
-          ),
+          form_id,
           response_answers (
             id,
             answer_text,
@@ -272,11 +267,37 @@ export default function Responses() {
         .eq('id', responseId)
         .single()
 
-      if (error) throw error
+      if (responseError) throw responseError
+
+      // Then get the form with client data
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select(`
+          id,
+          name,
+          clients (
+            name
+          )
+        `)
+        .eq('id', responseData.form_id)
+        .single()
+
+      if (formError) throw formError
+
+      // Combine the data
+      const combinedData = {
+        ...responseData,
+        forms: [formData]
+      }
+
+      console.log('Response details data:', combinedData)
+      console.log('Forms array:', combinedData.forms)
+      console.log('First form:', combinedData.forms?.[0])
+      console.log('Clients:', combinedData.forms?.[0]?.clients)
 
       // Fetch form options for answers that have selected_option_id
-      if (data.response_answers) {
-        const optionIds = data.response_answers
+      if (combinedData.response_answers) {
+        const optionIds = combinedData.response_answers
           .map((answer: any) => answer.selected_option_id)
           .filter(Boolean)
 
@@ -296,22 +317,22 @@ export default function Responses() {
         }
 
         // Attach form_options to response_answers
-        data.response_answers = data.response_answers.map((answer: any) => ({
+        combinedData.response_answers = combinedData.response_answers.map((answer: any) => ({
           ...answer,
           form_options: answer.selected_option_id ? optionsMap.get(answer.selected_option_id) : null
         }))
       }
 
       // Sort answers by step order
-      if (data.response_answers) {
-        data.response_answers.sort((a: any, b: any) => {
+      if (combinedData.response_answers) {
+        combinedData.response_answers.sort((a: any, b: any) => {
           const aOrder = a.form_steps?.step_order || 0
           const bOrder = b.form_steps?.step_order || 0
           return aOrder - bOrder
         })
       }
 
-      setSelectedResponse(data as unknown as Response)
+      setSelectedResponse(combinedData as unknown as Response)
     } catch (error) {
       console.error('Error fetching response details:', error)
       push({ type: 'error', message: 'Error loading response details' })

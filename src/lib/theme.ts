@@ -113,7 +113,7 @@ export const gradients = {
  * Button variants for consistent styling
  */
 export const buttons = {
-  primary: () =>
+  primary: (theme: ThemeMode) =>
     'px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105',
   
   secondary: (theme: ThemeMode) =>
@@ -121,7 +121,7 @@ export const buttons = {
       ? 'px-6 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200'
       : 'px-6 py-3 bg-white/10 text-white/90 hover:bg-white/20 rounded-xl font-medium transition-all duration-200',
   
-  danger: () =>
+  danger: (theme: ThemeMode) =>
     'px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105',
   
   ghost: (theme: ThemeMode) =>
