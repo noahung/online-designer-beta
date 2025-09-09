@@ -31,7 +31,7 @@
 
 4. **Enter the Secret:**
    - **Name:** `VITE_BREVO_API_KEY`
-   - **Secret:** `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`
+   - **Secret:** `[Your Brevo API Key from your Brevo Dashboard]`
    - Click **"Add secret"**
 
 5. **Verify Setup:**
