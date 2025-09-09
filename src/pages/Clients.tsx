@@ -13,6 +13,7 @@ interface Client {
   secondary_color: string
   client_email: string | null
   client_password_hash: string | null
+  email_notifications_enabled: boolean
   created_at: string
 }
 
@@ -30,7 +31,8 @@ export default function Clients() {
     secondary_color: '#475569',
     logo_file: null as File | null,
     client_email: '',
-    client_password: ''
+    client_password: '',
+    email_notifications_enabled: true
   })
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -101,7 +103,8 @@ export default function Clients() {
           primary_color: formData.primary_color,
           secondary_color: formData.secondary_color,
           client_email: formData.client_email || null,
-          client_password_hash: formData.client_password || null
+          client_password_hash: formData.client_password || null,
+          email_notifications_enabled: formData.email_notifications_enabled
         }
 
         if (logoUrl) {
@@ -134,6 +137,7 @@ export default function Clients() {
             secondary_color: formData.secondary_color,
             client_email: formData.client_email || null,
             client_password_hash: formData.client_password || null,
+            email_notifications_enabled: formData.email_notifications_enabled,
             user_id: user.id
           })
           .select()
@@ -167,7 +171,8 @@ export default function Clients() {
         secondary_color: '#475569',
         logo_file: null,
         client_email: '',
-        client_password: ''
+        client_password: '',
+        email_notifications_enabled: true
       })
       setLogoPreview(null)
       fetchClients()
@@ -187,7 +192,8 @@ export default function Clients() {
       secondary_color: client.secondary_color,
       logo_file: null,
       client_email: client.client_email || '',
-      client_password: client.client_password_hash || ''
+      client_password: client.client_password_hash || '',
+      email_notifications_enabled: client.email_notifications_enabled ?? true
     })
     setLogoPreview(client.logo_url)
     setShowModal(true)
@@ -419,13 +425,13 @@ export default function Clients() {
 
       {/* Modal */}
       {showModal && (
-        <div className={`fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4 ${
-          theme === 'light' ? 'bg-black/30' : 'bg-black/75'
-        }`}>
-          <div className={`backdrop-blur-xl border rounded-2xl p-8 w-full max-w-2xl animate-scale-in shadow-2xl max-h-[90vh] overflow-y-auto ${
+        <div className={`fixed inset-0 flex items-center justify-center z-50 animate-fade-in p-4 ${
+          theme === 'light' ? 'bg-black/50' : 'bg-black/70'
+        }`} style={{ paddingTop: '2rem', paddingBottom: '2rem' }}>
+          <div className={`border rounded-2xl p-8 w-full max-w-2xl animate-scale-in shadow-2xl max-h-[85vh] overflow-y-auto my-auto ${
             theme === 'light'
-              ? 'bg-white/90 border-gray-200'
-              : 'bg-white/10 border-white/20'
+              ? 'bg-white/95 border-gray-200 backdrop-blur-sm'
+              : 'bg-gray-900/95 border-white/10 backdrop-blur-sm'
           }`}>
             <h2 className={`text-2xl font-semibold mb-6 bg-gradient-to-r bg-clip-text text-transparent ${
               theme === 'light'
@@ -567,6 +573,37 @@ export default function Clients() {
                 </div>
               </div>
 
+              {/* Email Notifications */}
+              <div>
+                <label className={`block text-sm font-medium mb-3 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>
+                  📧 Email Notifications
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="email_notifications"
+                    checked={formData.email_notifications_enabled}
+                    onChange={(e) => setFormData({ ...formData, email_notifications_enabled: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-2 border-white/20 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <label 
+                    htmlFor="email_notifications" 
+                    className={`text-sm ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}
+                  >
+                    Send email notifications for new form responses
+                  </label>
+                </div>
+                <div className={`bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30 rounded-xl p-3 mt-3 ${
+                  formData.email_notifications_enabled ? 'block' : 'hidden'
+                }`}>
+                  <p className="text-sm text-yellow-200">
+                    <strong>📬 Email Alert:</strong> When enabled, your client will automatically receive an email notification at <strong>{formData.client_email || '[client email]'}</strong> whenever someone submits a response to their forms.
+                  </p>
+                </div>
+              </div>
+
               {/* Primary Color */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-3">
@@ -666,7 +703,8 @@ export default function Clients() {
                       secondary_color: '#475569',
                       logo_file: null,
                       client_email: '',
-                      client_password: ''
+                      client_password: '',
+                      email_notifications_enabled: true
                     })
                     setLogoPreview(null)
                   }}

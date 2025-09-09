@@ -9,3 +9,5 @@
 -- second argument to false and use signed URLs at runtime instead.
 SELECT storage.create_bucket('client-logos', true);
 SELECT storage.create_bucket('form-assets', true);
+-- Optional: bucket for temporary/uploads during form filling
+SELECT storage.create_bucket('form-uploads', true);

@@ -1,0 +1,66 @@
+// Temporary diagnostic CSS to identify layout issues
+// Add this to browser developer tools to debug
+
+/* 
+// Run this in browser console to identify overlapping elements:
+document.querySelectorAll('*').forEach(el => {
+  const styles = window.getComputedStyle(el);
+  if (styles.position === 'fixed' || styles.position === 'absolute') {
+    el.style.outline = '2px solid red';
+    console.log('Positioned element found:', el, {
+      position: styles.position,
+      zIndex: styles.zIndex,
+      top: styles.top,
+      left: styles.left,
+      width: styles.width,
+      height: styles.height
+    });
+  }
+});
+
+// Check for backdrop elements:
+document.querySelectorAll('[class*="backdrop"], [class*="overlay"]').forEach(el => {
+  el.style.outline = '3px solid orange';
+  console.log('Backdrop/overlay element:', el);
+});
+
+// Check for elements with high z-index:
+document.querySelectorAll('*').forEach(el => {
+  const zIndex = parseInt(window.getComputedStyle(el).zIndex);
+  if (zIndex > 10) {
+    el.style.outline = '2px solid purple';
+    console.log('High z-index element:', el, 'z-index:', zIndex);
+  }
+});
+*/
+
+/* Quick CSS fix to apply temporarily */
+/* Remove if this doesn't help */
+
+/* Reset any problematic z-index stacking */
+.fixed, .absolute {
+  z-index: auto !important;
+}
+
+/* Ensure main content area is properly positioned */
+main {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Reset any problematic backdrop effects */
+[class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Temporarily disable animations that might cause positioning issues */
+.animate-fade-in,
+.animate-slide-in-left,
+.animate-slide-up {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+export default {}

@@ -24,7 +24,8 @@ import {
   Star,
   ChevronDown,
   ChevronUp,
-  Palette
+  Palette,
+  Frame
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -58,7 +59,7 @@ type Option = {
 type Step = { 
   id?: string
   title: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan'
   is_required?: boolean
   step_order: number
   options: Option[]
@@ -69,6 +70,11 @@ type Step = {
   scale_min?: number // minimum scale value (default 1)
   scale_max?: number // maximum scale value (default 10 for number, 5 for star)
   images_per_row?: number // for image_selection step layout (default 2)
+  // Frames plan specific fields
+  frames_max_count?: number // maximum number of frames allowed (default 10)
+  frames_require_image?: boolean // whether image upload is required for each frame
+  frames_require_location?: boolean // whether location text is required for each frame  
+  frames_require_measurements?: boolean // whether measurements are required for each frame
 }
 
 interface StepTypeOption {
@@ -120,6 +126,12 @@ const stepTypes: StepTypeOption[] = [
     title: 'Contact Information',
     description: 'Collect contact details from users',
     icon: <User className="h-4 w-4" />
+  },
+  {
+    type: 'frames_plan',
+    title: 'Frames Plan',
+    description: 'Multiple frame upload with locations and measurements',
+    icon: <Frame className="h-4 w-4" />
   }
 ]
 
@@ -475,6 +487,10 @@ export default function FormBuilder() {
         scale_min: step.scale_min,
         scale_max: step.scale_max,
         images_per_row: step.images_per_row,
+        frames_max_count: step.frames_max_count,
+        frames_require_image: step.frames_require_image,
+        frames_require_location: step.frames_require_location,
+        frames_require_measurements: step.frames_require_measurements,
         options: (step.form_options || []).map((option: any) => ({
           id: option.id,
           label: option.label,
@@ -558,7 +574,12 @@ export default function FormBuilder() {
       scale_type: type === 'opinion_scale' ? 'number' : undefined, // Default to number scale
       scale_min: type === 'opinion_scale' ? 1 : undefined,
       scale_max: type === 'opinion_scale' ? 10 : undefined,
-      images_per_row: type === 'image_selection' ? 2 : undefined // Default 2 images per row
+      images_per_row: type === 'image_selection' ? 2 : undefined, // Default 2 images per row
+      // Frames plan defaults
+      frames_max_count: type === 'frames_plan' ? 10 : undefined,
+      frames_require_image: type === 'frames_plan' ? true : undefined,
+      frames_require_location: type === 'frames_plan' ? true : undefined,
+      frames_require_measurements: type === 'frames_plan' ? true : undefined
     }
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
@@ -693,7 +714,11 @@ export default function FormBuilder() {
           scale_type: step.scale_type,
           scale_min: step.scale_min,
           scale_max: step.scale_max,
-          images_per_row: step.images_per_row
+          images_per_row: step.images_per_row,
+          frames_max_count: step.frames_max_count,
+          frames_require_image: step.frames_require_image,
+          frames_require_location: step.frames_require_location,
+          frames_require_measurements: step.frames_require_measurements
         }]).select().single()
         if (stepErr) throw stepErr
         const stepId = stepData.id
@@ -799,7 +824,13 @@ export default function FormBuilder() {
             allowed_file_types: step.allowed_file_types,
             scale_type: step.scale_type,
             scale_min: step.scale_min,
-            scale_max: step.scale_max
+            scale_max: step.scale_max,
+            dimension_type: step.dimension_type,
+            images_per_row: step.images_per_row,
+            frames_max_count: step.frames_max_count,
+            frames_require_image: step.frames_require_image,
+            frames_require_location: step.frames_require_location,
+            frames_require_measurements: step.frames_require_measurements
           })
           .eq('id', stepId)
           .eq('form_id', formId)
@@ -826,7 +857,13 @@ export default function FormBuilder() {
             allowed_file_types: step.allowed_file_types,
             scale_type: step.scale_type,
             scale_min: step.scale_min,
-            scale_max: step.scale_max
+            scale_max: step.scale_max,
+            dimension_type: step.dimension_type,
+            images_per_row: step.images_per_row,
+            frames_max_count: step.frames_max_count,
+            frames_require_image: step.frames_require_image,
+            frames_require_location: step.frames_require_location,
+            frames_require_measurements: step.frames_require_measurements
           }])
           .select()
           .single()
@@ -1779,6 +1816,84 @@ export default function FormBuilder() {
                           </div>
                         </div>
                       )}
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Required</label>
+                        <select
+                          value={currentStep.is_required ? 'true' : 'false'}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            is_required: e.target.value === 'true' 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="true" className="bg-slate-800">Required</option>
+                          <option value="false" className="bg-slate-800">Optional</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {currentStep.question_type === 'frames_plan' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Maximum Number of Frames</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={currentStep.frames_max_count || 10}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            frames_max_count: Number(e.target.value) || 10 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Users can select up to this many frames</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium text-white/90">Required Fields for Each Frame</p>
+                        
+                        <label className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={currentStep.frames_require_image !== false}
+                            onChange={(e) => updateStep(selectedStepIndex!, { 
+                              ...currentStep, 
+                              frames_require_image: e.target.checked 
+                            })}
+                            className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
+                          />
+                          <span className="text-white/90">Image Upload</span>
+                        </label>
+                        
+                        <label className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={currentStep.frames_require_location !== false}
+                            onChange={(e) => updateStep(selectedStepIndex!, { 
+                              ...currentStep, 
+                              frames_require_location: e.target.checked 
+                            })}
+                            className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
+                          />
+                          <span className="text-white/90">Location (e.g., bedroom)</span>
+                        </label>
+                        
+                        <label className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={currentStep.frames_require_measurements !== false}
+                            onChange={(e) => updateStep(selectedStepIndex!, { 
+                              ...currentStep, 
+                              frames_require_measurements: e.target.checked 
+                            })}
+                            className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
+                          />
+                          <span className="text-white/90">Measurements</span>
+                        </label>
+                      </div>
                       
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Required</label>

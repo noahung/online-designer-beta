@@ -33,6 +33,22 @@ interface ResponseAnswer {
   } | null
 }
 
+interface ResponseFrame {
+  id: string
+  response_id: string
+  step_id: string
+  frame_number: number
+  image_url: string | null
+  location_text: string | null
+  measurements_text: string | null
+  form_steps: {
+    id: string
+    title: string
+    question_type: string
+    step_order: number
+  } | null
+}
+
 interface Response {
   id: string
   contact_name: string | null
@@ -49,6 +65,7 @@ interface Response {
     } | null
   }[] | null
   response_answers?: ResponseAnswer[]
+  response_frames?: ResponseFrame[]
 }
 
 interface Client {
@@ -284,8 +301,8 @@ export default function Responses() {
 
       if (formError) throw formError
 
-      // Combine the data
-      const combinedData = {
+  // Combine the base response + form
+  const combinedData: any = {
         ...responseData,
         forms: [formData]
       }
@@ -330,6 +347,34 @@ export default function Responses() {
           const bOrder = b.form_steps?.step_order || 0
           return aOrder - bOrder
         })
+      }
+
+      // Fetch frames for frames_plan steps
+      const { data: framesData, error: framesError } = await supabase
+        .from('response_frames')
+        .select(`
+          id,
+          response_id,
+          step_id,
+          frame_number,
+          image_url,
+          location_text,
+          measurements_text,
+          form_steps!step_id (
+            id,
+            title,
+            question_type,
+            step_order
+          )
+        `)
+        .eq('response_id', responseId)
+        .order('step_id')
+        .order('frame_number', { ascending: true })
+
+      if (framesError) {
+        console.error('Error fetching response_frames:', framesError)
+      } else {
+        combinedData.response_frames = framesData || []
       }
 
       setSelectedResponse(combinedData as unknown as Response)
@@ -827,6 +872,35 @@ export default function Responses() {
                               <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                                 <p className="text-white whitespace-pre-wrap">{answer.answer_text}</p>
                               </div>
+                            ) : answer.form_steps?.question_type === 'frames_plan' ? (
+                              (() => {
+                                const framesForStep = (selectedResponse.response_frames || []).filter(fr => fr.step_id === (answer.step_id || answer.form_steps?.id))
+                                if (framesForStep.length === 0) {
+                                  return (
+                                    <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-400/20 text-blue-200 text-sm">No frames captured</div>
+                                  )
+                                }
+                                return (
+                                  <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-400/20">
+                                    <div className="text-blue-100 text-sm mb-2">{framesForStep.length} frame{framesForStep.length>1?'s':''}</div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                      {framesForStep.map(fr => (
+                                        <div key={fr.id} className="bg-white/5 rounded border border-white/10 p-2">
+                                          {fr.image_url ? (
+                                            <img src={fr.image_url} alt={`Frame ${fr.frame_number}`} className="w-full h-24 object-cover rounded" />
+                                          ) : (
+                                            <div className="w-full h-24 flex items-center justify-center text-xs text-white/60 bg-white/5 rounded">No image</div>
+                                          )}
+                                          <div className="mt-2 text-xs text-white/80">
+                                            <div><span className="font-medium">#{fr.frame_number}</span> {fr.location_text || ''}</div>
+                                            {fr.measurements_text && <div className="text-white/60">{fr.measurements_text}</div>}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )
+                              })()
                             ) : (
                               <p className="text-white/50 italic">No answer provided</p>
                             )}
@@ -845,6 +919,55 @@ export default function Responses() {
                   </div>
                 )}
               </div>
+
+              {/* Frames Plan Details */}
+              {selectedResponse.response_frames && selectedResponse.response_frames.length > 0 && (
+                <div className="px-6 pb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Frames Plan</h3>
+                  {(() => {
+                    const frames = selectedResponse.response_frames as ResponseFrame[]
+                    const grouped = frames.reduce((acc: Record<string, ResponseFrame[]>, fr) => {
+                      const key = fr.step_id
+                      if (!acc[key]) acc[key] = []
+                      acc[key].push(fr)
+                      return acc
+                    }, {})
+                    const stepIds = Object.keys(grouped)
+                    return (
+                      <div className="space-y-6">
+                        {stepIds.map((stepId) => {
+                          const stepFrames = grouped[stepId].sort((a, b) => (a.frame_number || 0) - (b.frame_number || 0))
+                          const stepTitle = stepFrames[0]?.form_steps?.title || 'Frames'
+                          return (
+                            <div key={stepId} className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-gray-900 dark:text-white">{stepTitle}</h4>
+                                <span className="text-xs text-gray-500 dark:text-white/60">{stepFrames.length} frame{stepFrames.length > 1 ? 's' : ''}</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {stepFrames.map((fr) => (
+                                  <div key={fr.id} className="bg-white dark:bg-white/10 rounded-lg p-3 border border-gray-200 dark:border-white/10">
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">Frame {fr.frame_number}</div>
+                                    {fr.image_url && (
+                                      <div className="mb-3">
+                                        <img src={fr.image_url} alt={`Frame ${fr.frame_number}`} className="max-h-40 rounded border border-gray-200 dark:border-white/10 object-cover" />
+                                      </div>
+                                    )}
+                                    <div className="text-sm text-gray-700 dark:text-white/70">
+                                      <div className="mb-1"><span className="font-medium">Location:</span> {fr.location_text || '—'}</div>
+                                      <div><span className="font-medium">Measurements:</span> {fr.measurements_text || '—'}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}

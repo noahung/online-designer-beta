@@ -50,13 +50,13 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen">
-      {/* Mobile sidebar backdrop */}
+      {/* Mobile sidebar backdrop - Fixed z-index and display logic */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         >
-          <div className={cn('absolute inset-0 backdrop-blur-sm', layout.backdrop(theme))} />
+          <div className={cn('absolute inset-0', layout.backdrop(theme))} />
         </div>
       )}
 
@@ -67,7 +67,7 @@ export default function Layout() {
         ${sidebarCollapsed ? 'w-20' : 'w-72'}
       `}>
         <div className={cn(
-          'flex h-full flex-col backdrop-blur-xl border-r animate-slide-in-left',
+          'flex h-full flex-col border-r animate-slide-in-left',
           backgrounds.card(theme)
         )}>
           {/* Logo */}
@@ -229,7 +229,7 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar for mobile */}
         <div className={cn(
-          'lg:hidden flex items-center justify-between h-16 px-4 backdrop-blur-xl border-b',
+          'lg:hidden flex items-center justify-between h-16 px-4 border-b',
           backgrounds.card(theme)
         )}>
           <button

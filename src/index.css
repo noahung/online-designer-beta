@@ -53,7 +53,7 @@ img, video {
 .custom-input {
   transform: translateZ(0);
   will-change: transform;
-  isolation: isolate;
+  /* isolation: isolate; */
 }
 
 /* Advanced animation utilities */
@@ -126,18 +126,18 @@ img, video {
 .backdrop-blur-xl,
 .backdrop-blur-lg,
 .backdrop-blur-2xl {
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  contain: layout style paint !important;
-  transform: translateZ(0) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  /* contain: layout style paint !important; */
+  /* transform: translateZ(0) !important; */
 }
 
 .backdrop-blur-sm,
 .backdrop-blur {
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  contain: layout style paint !important;
-  transform: translateZ(0) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  /* contain: layout style paint !important; */
+  /* transform: translateZ(0) !important; */
 }
 
 /* Optimize rendering for transform elements */
@@ -183,22 +183,24 @@ img, video {
   }
 }
 
-/* Auto-apply theme-aware styles to common elements */
+/* Auto-apply theme-aware styles to common elements - Temporarily disabled */
+/* 
 .light .text-white {
-  color: #111827 !important; /* gray-900 */
+  color: #111827 !important;
 }
 
 .light .text-white\/70 {
-  color: #4b5563 !important; /* gray-600 */
+  color: #4b5563 !important;
 }
 
 .light .text-white\/60 {
-  color: #6b7280 !important; /* gray-500 */
+  color: #6b7280 !important;
 }
 
 .light .text-white\/50 {
-  color: #9ca3af !important; /* gray-400 */
+  color: #9ca3af !important;
 }
+*/
 
 .light .text-white\/40 {
   color: #9ca3af !important; /* gray-400 */

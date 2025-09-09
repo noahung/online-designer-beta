@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formThemes } from '../lib/formThemes'
+import { Upload } from 'lucide-react'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
 type Step = { 
@@ -18,6 +19,13 @@ type Step = {
   scale_min?: number;
   scale_max?: number;
   images_per_row?: number;
+  frames_count?: number;
+  frames_max_count?: number;
+  frames_require_image?: boolean;
+  frames_require_location?: boolean;
+  frames_require_measurements?: boolean;
+  enable_room_location?: boolean;
+  enable_measurements?: boolean;
 }
 
 export default function FormEmbed() {
@@ -55,6 +63,15 @@ export default function FormEmbed() {
     units?: string;
     // Opinion scale response
     scale_rating?: number;
+    // Frames plan responses
+    frames_count?: number;
+    frames?: Array<{
+      frame_number: number;
+      image?: File;
+      image_url?: string;
+      location_text?: string;
+      measurements_text?: string;
+    }>;
   }>>({})
 
   const [clientInfo, setClientInfo] = useState<{name: string; logo_url?: string; primary_color?: string} | null>(null)
@@ -85,7 +102,8 @@ export default function FormEmbed() {
           clients (
             name,
             logo_url,
-            primary_color
+            primary_color,
+            client_email
           )
         `)
         .eq('id', formId)
@@ -119,11 +137,30 @@ export default function FormEmbed() {
 
       const { data: s, error: stepsError } = await supabase
         .from('form_steps')
-        .select('*, form_options(*)')
+        .select(`
+          *,
+          frames_max_count,
+          frames_require_image,
+          frames_require_location,
+          frames_require_measurements,
+          form_options(*)
+        `)
         .eq('form_id', formId)
         .order('step_order', { ascending: true })
         
       console.log('Steps query result:', { s, stepsError })
+      
+      // Debug: Log the frames_plan step data
+      const framesPlanStep = s?.find(step => step.question_type === 'frames_plan')
+      if (framesPlanStep) {
+        console.log('Frames plan step data:', framesPlanStep)
+        console.log('Frames config:', {
+          frames_max_count: framesPlanStep.frames_max_count,
+          frames_require_image: framesPlanStep.frames_require_image,
+          frames_require_location: framesPlanStep.frames_require_location,
+          frames_require_measurements: framesPlanStep.frames_require_measurements
+        })
+      }
       
       if (stepsError) {
         console.error('Steps query error:', stepsError)
@@ -163,6 +200,11 @@ export default function FormEmbed() {
           scale_type: row.scale_type,
           scale_min: row.scale_min,
           scale_max: row.scale_max,
+          // Frames plan configuration (default when null/undefined)
+          frames_max_count: row.frames_max_count ?? 10,
+          frames_require_image: row.frames_require_image ?? true,
+          frames_require_location: row.frames_require_location ?? true,
+          frames_require_measurements: row.frames_require_measurements ?? false,
           options: opts 
         }
       })
@@ -408,15 +450,455 @@ export default function FormEmbed() {
     }
   }
 
+  const sendClientEmailNotification = async (responseId: string) => {
+    try {
+      if (!formData || !formData.clients) {
+        console.log('No form data or client info available for email notification')
+        return
+      }
+
+      // Check if the client has email notifications enabled
+      if (!formData.clients.email_notifications_enabled) {
+        console.log('Client has email notifications disabled, skipping notification')
+        return
+      }
+
+      // Check if the client has an email configured
+      if (!formData.clients.client_email) {
+        console.log('Client does not have email configured, skipping notification')
+        return
+      }
+
+      const BREVO_API_KEY = process.env.VITE_BREVO_API_KEY || import.meta.env.VITE_BREVO_API_KEY
+      
+      if (!BREVO_API_KEY) {
+        console.warn('Brevo API key not configured, skipping email notification')
+        return
+      }
+
+      console.log('Sending email notification to:', formData.clients.client_email)
+
+      // Get the full response data for email template
+      const responseData = await getResponseDataForEmail(responseId)
+      if (!responseData) {
+        console.error('Could not fetch response data for email')
+        return
+      }
+
+      const emailHtml = generateEmailTemplate(responseData)
+      const emailText = generateEmailText(responseData)
+
+      const emailPayload = {
+        sender: {
+          name: "Online Designer - Advertomedia",
+          email: "designer@advertomedia.co.uk"
+        },
+        to: [{
+          email: formData.clients.client_email,
+          name: formData.clients.name || 'Client'
+        }],
+        subject: `New Response Received - ${formName}`,
+        htmlContent: emailHtml,
+        textContent: emailText
+      }
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': BREVO_API_KEY
+        },
+        body: JSON.stringify(emailPayload)
+      })
+
+      if (response.ok) {
+        console.log('Client email notification sent successfully')
+      } else {
+        const errorData = await response.text()
+        console.error('Brevo API error:', response.status, errorData)
+      }
+
+    } catch (error) {
+      console.error('Email notification error:', error)
+      throw error
+    }
+  }
+
+  const getResponseDataForEmail = async (responseId: string) => {
+    try {
+      // Get the response with contact data
+      const { data: responseData, error: responseError } = await supabase
+        .from('responses')
+        .select('id, contact_name, contact_email, contact_phone, contact_postcode, submitted_at')
+        .eq('id', responseId)
+        .single()
+
+      if (responseError || !responseData) {
+        console.error('Error fetching response for email:', responseError)
+        return null
+      }
+
+      // Get the response answers with step details
+      const { data: answers, error: answersError } = await supabase
+        .from('response_answers')
+        .select(`
+          id,
+          answer_text,
+          selected_option_id,
+          file_url,
+          file_name,
+          file_size,
+          width,
+          height,
+          depth,
+          units,
+          scale_rating,
+          step_id
+        `)
+        .eq('response_id', responseId)
+
+      if (answersError) {
+        console.error('Error fetching answers for email:', answersError)
+      }
+
+      // Get frames data if exists
+      const { data: framesData, error: framesError } = await supabase
+        .from('response_frames')
+        .select('*')
+        .eq('response_id', responseId)
+        .order('frame_number', { ascending: true })
+
+      if (framesError) {
+        console.error('Error fetching frames for email:', framesError)
+      }
+
+      // Match answers with step information from current form data
+      const enrichedAnswers = (answers || []).map(answer => {
+        const step = steps.find(s => s.id === answer.step_id)
+        return {
+          ...answer,
+          question_title: step?.title || 'Question',
+          question_type: step?.question_type || 'unknown',
+          step_order: step?.step_order || 0,
+          options: step?.options || []
+        }
+      }).sort((a, b) => a.step_order - b.step_order)
+
+      return {
+        response_id: responseData.id,
+        form_name: formName,
+        client_name: clientInfo?.name || 'Client',
+        contact_name: responseData.contact_name,
+        contact_email: responseData.contact_email,
+        contact_phone: responseData.contact_phone,
+        contact_postcode: responseData.contact_postcode,
+        submitted_at: responseData.submitted_at,
+        answers: enrichedAnswers,
+        frames_data: framesData || []
+      }
+
+    } catch (error) {
+      console.error('Error in getResponseDataForEmail:', error)
+      return null
+    }
+  }
+
+  const generateEmailTemplate = (data: any): string => {
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+
+    const formatAnswer = (answer: any): string => {
+      let answerContent = ''
+      
+      switch (answer.question_type) {
+        case 'text_input':
+        case 'text_area':
+          answerContent = answer.answer_text || 'No response'
+          break
+        
+        case 'multiple_choice':
+          const selectedOption = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
+          answerContent = selectedOption?.label || answer.answer_text || 'No selection'
+          break
+        
+        case 'image_selection':
+          const selectedImage = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
+          if (selectedImage) {
+            answerContent = `
+              <div style="margin: 10px 0;">
+                <img src="${selectedImage.image_url}" alt="${selectedImage.label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">
+                <p style="margin: 5px 0; font-weight: 600;">${selectedImage.label}</p>
+              </div>
+            `
+          } else {
+            answerContent = 'No image selected'
+          }
+          break
+        
+        case 'file_upload':
+          if (answer.file_url && answer.file_name) {
+            const fileSizeKB = answer.file_size ? Math.round(answer.file_size / 1024) : 'Unknown size'
+            answerContent = `
+              <div style="display: inline-block; padding: 10px 15px; background-color: #f3f4f6; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                <a href="${answer.file_url}" style="color: #3b82f6; text-decoration: none; font-weight: 600;">
+                  📎 ${answer.file_name}
+                </a>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">${fileSizeKB} KB</p>
+              </div>
+            `
+          } else {
+            answerContent = 'No file uploaded'
+          }
+          break
+        
+        case 'dimensions':
+          const dimensions = []
+          if (answer.width) dimensions.push(`Width: ${answer.width}${answer.units || ''}`)
+          if (answer.height) dimensions.push(`Height: ${answer.height}${answer.units || ''}`)
+          if (answer.depth) dimensions.push(`Depth: ${answer.depth}${answer.units || ''}`)
+          answerContent = dimensions.length > 0 ? dimensions.join(' × ') : 'No dimensions provided'
+          break
+        
+        case 'opinion_scale':
+          if (answer.scale_rating !== null) {
+            const stars = '★'.repeat(answer.scale_rating) + '☆'.repeat(5 - answer.scale_rating)
+            answerContent = `${stars} (${answer.scale_rating}/5)`
+          } else {
+            answerContent = 'No rating provided'
+          }
+          break
+        
+        default:
+          answerContent = answer.answer_text || 'No response'
+      }
+      
+      return answerContent
+    }
+
+    const answersHtml = data.answers.map((answer: any, index: number) => `
+      <div style="margin-bottom: 25px; padding: 20px; background-color: #f9fafb; border-radius: 10px; border-left: 4px solid #3b82f6;">
+        <h3 style="margin: 0 0 15px 0; color: #1f2937; font-size: 16px; font-weight: 600;">
+          ${index + 1}. ${answer.question_title}
+        </h3>
+        <div style="color: #374151;">
+          ${formatAnswer(answer)}
+        </div>
+      </div>
+    `).join('')
+
+    // Contact information section
+    const contactInfo = []
+    if (data.contact_name) contactInfo.push(`<strong>Name:</strong> ${data.contact_name}`)
+    if (data.contact_email) contactInfo.push(`<strong>Email:</strong> <a href="mailto:${data.contact_email}" style="color: #3b82f6;">${data.contact_email}</a>`)
+    if (data.contact_phone) contactInfo.push(`<strong>Phone:</strong> <a href="tel:${data.contact_phone}" style="color: #3b82f6;">${data.contact_phone}</a>`)
+    if (data.contact_postcode) contactInfo.push(`<strong>Postcode:</strong> ${data.contact_postcode}`)
+
+    const contactHtml = contactInfo.length > 0 ? `
+      <div style="margin: 30px 0; padding: 20px; background-color: #ecfdf5; border-radius: 10px; border-left: 4px solid #10b981;">
+        <h2 style="margin: 0 0 15px 0; color: #065f46; font-size: 18px;">👤 Contact Information</h2>
+        <div style="color: #047857; line-height: 1.6;">
+          ${contactInfo.join('<br>')}
+        </div>
+      </div>
+    ` : ''
+
+    // Frames data section (if exists)
+    const framesHtml = data.frames_data && data.frames_data.length > 0 ? `
+      <div style="margin: 30px 0; padding: 20px; background-color: #fef3c7; border-radius: 10px; border-left: 4px solid #f59e0b;">
+        <h2 style="margin: 0 0 15px 0; color: #92400e; font-size: 18px;">🖼️ Frame Data</h2>
+        ${data.frames_data.map((frame: any) => `
+          <div style="margin-bottom: 15px; padding: 15px; background-color: white; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #92400e;">Frame ${frame.frame_number}</h4>
+            ${frame.image_url ? `<img src="${frame.image_url}" alt="Frame ${frame.frame_number}" style="max-width: 200px; max-height: 150px; border-radius: 6px; margin-bottom: 10px;">` : ''}
+            ${frame.location_text ? `<p><strong>Location:</strong> ${frame.location_text}</p>` : ''}
+            ${frame.measurements_text ? `<p><strong>Measurements:</strong> ${frame.measurements_text}</p>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    ` : ''
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Form Response - ${data.form_name}</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+          
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; color: white;">
+            <h1 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 700;">🎉 New Form Response!</h1>
+            <p style="margin: 0; font-size: 16px; opacity: 0.9;">You've received a new submission</p>
+          </div>
+
+          <!-- Form Details -->
+          <div style="margin-bottom: 30px; padding: 20px; background-color: #f8fafc; border-radius: 10px; border-left: 4px solid #6366f1;">
+            <h2 style="margin: 0 0 15px 0; color: #4338ca; font-size: 18px;">📋 Form Details</h2>
+            <p style="margin: 5px 0; color: #1f2937;"><strong>Form Name:</strong> ${data.form_name}</p>
+            <p style="margin: 5px 0; color: #1f2937;"><strong>Client:</strong> ${data.client_name}</p>
+            <p style="margin: 5px 0; color: #1f2937;"><strong>Submitted:</strong> ${formatDate(data.submitted_at)}</p>
+          </div>
+
+          <!-- Contact Information -->
+          ${contactHtml}
+
+          <!-- Responses -->
+          <div style="margin-bottom: 30px;">
+            <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+              💬 Form Responses
+            </h2>
+            ${answersHtml}
+          </div>
+
+          <!-- Frames Data -->
+          ${framesHtml}
+
+          <!-- View All Responses Button -->
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://designer.advertomedia.co.uk/responses" 
+               style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+              🔗 View All Responses
+            </a>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top: 40px; padding: 20px; background-color: #f3f4f6; border-radius: 10px; text-align: center; color: #6b7280; font-size: 14px;">
+            <p style="margin: 0 0 10px 0;">This email was sent automatically by Online Designer</p>
+            <p style="margin: 0;">
+              <a href="https://designer.advertomedia.co.uk" style="color: #3b82f6; text-decoration: none;">designer.advertomedia.co.uk</a> | 
+              <a href="mailto:designer@advertomedia.co.uk" style="color: #3b82f6; text-decoration: none;">designer@advertomedia.co.uk</a>
+            </p>
+          </div>
+          
+        </div>
+      </body>
+      </html>
+    `
+  }
+
+  const generateEmailText = (data: any): string => {
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+
+    let text = `NEW FORM RESPONSE RECEIVED!\n\n`
+    text += `Form: ${data.form_name}\n`
+    text += `Client: ${data.client_name}\n`
+    text += `Submitted: ${formatDate(data.submitted_at)}\n\n`
+
+    if (data.contact_name || data.contact_email || data.contact_phone || data.contact_postcode) {
+      text += `CONTACT INFORMATION:\n`
+      if (data.contact_name) text += `Name: ${data.contact_name}\n`
+      if (data.contact_email) text += `Email: ${data.contact_email}\n`
+      if (data.contact_phone) text += `Phone: ${data.contact_phone}\n`
+      if (data.contact_postcode) text += `Postcode: ${data.contact_postcode}\n`
+      text += `\n`
+    }
+
+    text += `RESPONSES:\n`
+    data.answers.forEach((answer: any, index: number) => {
+      text += `${index + 1}. ${answer.question_title}\n`
+      
+      let answerText = ''
+      switch (answer.question_type) {
+        case 'text_input':
+        case 'text_area':
+          answerText = answer.answer_text || 'No response'
+          break
+        case 'multiple_choice':
+          const selectedOption = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
+          answerText = selectedOption?.label || answer.answer_text || 'No selection'
+          break
+        case 'file_upload':
+          if (answer.file_url && answer.file_name) {
+            answerText = `File: ${answer.file_name} (${answer.file_url})`
+          } else {
+            answerText = 'No file uploaded'
+          }
+          break
+        case 'dimensions':
+          const dimensions = []
+          if (answer.width) dimensions.push(`Width: ${answer.width}${answer.units || ''}`)
+          if (answer.height) dimensions.push(`Height: ${answer.height}${answer.units || ''}`)
+          if (answer.depth) dimensions.push(`Depth: ${answer.depth}${answer.units || ''}`)
+          answerText = dimensions.length > 0 ? dimensions.join(' × ') : 'No dimensions provided'
+          break
+        case 'opinion_scale':
+          answerText = answer.scale_rating !== null ? `Rating: ${answer.scale_rating}/5` : 'No rating provided'
+          break
+        default:
+          answerText = answer.answer_text || 'No response'
+      }
+      
+      text += `   ${answerText}\n\n`
+    })
+
+    if (data.frames_data && data.frames_data.length > 0) {
+      text += `FRAME DATA:\n`
+      data.frames_data.forEach((frame: any) => {
+        text += `Frame ${frame.frame_number}:\n`
+        if (frame.location_text) text += `  Location: ${frame.location_text}\n`
+        if (frame.measurements_text) text += `  Measurements: ${frame.measurements_text}\n`
+        if (frame.image_url) text += `  Image: ${frame.image_url}\n`
+        text += `\n`
+      })
+    }
+
+    text += `View all responses: https://designer.advertomedia.co.uk/responses\n\n`
+    text += `---\nThis email was sent automatically by Online Designer\n`
+    text += `designer.advertomedia.co.uk | designer@advertomedia.co.uk`
+
+    return text
+  }
+
   const goNext = async () => {
     const step = steps[currentStepIndex]
     if (!step) return
 
     // require answer if needed
     const resp = responses[currentStepIndex]
-    if (step.is_required && (!resp || (!resp.option_id && !resp.answer_text && !resp.file && !resp.contact_name && !resp.contact_email))) {
-      alert('Please answer this step before continuing')
-      return
+    if (step.is_required) {
+      // Specialized validation per question type
+      if (step.question_type === 'frames_plan') {
+        const count = (resp as any)?.frames_count || 1
+        const frames = ((resp as any)?.frames || []) as Array<any>
+        const issues: string[] = []
+        for (let i = 0; i < count; i++) {
+          const f = frames[i] || {}
+          const missing: string[] = []
+          if ((step.frames_require_image ?? true) && !f.image_url) missing.push('Image')
+          if ((step.frames_require_location ?? true) && !(f.location_text || '').trim()) missing.push('Location')
+          if ((step.frames_require_measurements ?? false) && !(f.measurements_text || '').trim()) missing.push('Measurements')
+          if (missing.length > 0) {
+            issues.push(`Frame ${i + 1}: ${missing.join(', ')} required`)
+          }
+        }
+        if (issues.length > 0) {
+          alert(`Please complete the required fields before continuing:\n\n${issues.map(i => `• ${i}`).join('\n')}`)
+          return
+        }
+        // frames_plan is valid → proceed without generic check
+      } else if (!resp || (!resp.option_id && !resp.answer_text && !resp.file && !resp.contact_name && !resp.contact_email)) {
+        alert('Please answer this step before continuing')
+        return
+      }
     }
 
     if (currentStepIndex === steps.length - 1) {
@@ -447,9 +929,10 @@ export default function FormEmbed() {
         return
       }
 
-      const responseId = inserted.id
-      // build answers
-      const answers = [] as any[]
+  const responseId = inserted.id
+  // build answers and frame rows (for frames_plan)
+  const answers = [] as any[]
+  const frameRows = [] as any[]
       for (const [stepIndexStr, ans] of Object.entries(responses)) {
         const si = Number(stepIndexStr)
         const stepObj = steps[si]
@@ -500,11 +983,32 @@ export default function FormEmbed() {
           // Opinion scale rating
           scale_rating: ans.scale_rating ?? null
         })
+
+        // Collect frames_plan rows
+        if (stepObj.question_type === 'frames_plan' && (ans as any)?.frames?.length) {
+          const frames = (ans as any).frames as Array<any>
+          frames.forEach((f: any, idx: number) => {
+            frameRows.push({
+              response_id: responseId,
+              step_id: stepObj.id,
+              frame_number: f.frame_number ?? idx + 1,
+              image_url: f.image_url ?? null,
+              location_text: f.location_text ?? null,
+              measurements_text: f.measurements_text ?? null
+            })
+          })
+        }
       }
 
       if (answers.length > 0) {
         const { error: ansErr } = await supabase.from('response_answers').insert(answers)
         if (ansErr) console.error('Error inserting answers', ansErr)
+      }
+
+      // Insert frames rows if present
+      if (frameRows.length > 0) {
+        const { error: framesErr } = await supabase.from('response_frames').insert(frameRows)
+        if (framesErr) console.error('Error inserting response_frames', framesErr)
       }
 
       // Send webhook to Zapier if configured
@@ -513,6 +1017,14 @@ export default function FormEmbed() {
       } catch (error) {
         console.error('Webhook failed:', error)
         // Don't fail the form submission if webhook fails
+      }
+
+      // Send email notification to client
+      try {
+        await sendClientEmailNotification(responseId)
+      } catch (error) {
+        console.error('Email notification failed:', error)
+        // Don't fail the form submission if email fails
       }
 
       setCurrentStepIndex(currentStepIndex + 1)
@@ -1195,6 +1707,204 @@ export default function FormEmbed() {
                   </p>
                 )}
               </div>
+            </div>
+          </div>
+        ) : step.question_type === 'frames_plan' ? (
+          <div className="mt-6">
+            <div className="space-y-6">
+              {/* Number of frames selector */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">How many frames do you want?</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={step.frames_max_count || 10}
+                  value={(responses[currentStepIndex] as any)?.frames_count || 1}
+                  onChange={(e) => {
+                    const count = Math.max(1, Math.min(parseInt(e.target.value) || 1, step.frames_max_count || 10))
+                    setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        frames_count: count,
+                        frames: Array(count).fill(null).map((_, i) => 
+                          (r[currentStepIndex] as any)?.frames?.[i] || {
+                            frame_number: i + 1,
+                            image_url: '',
+                            location_text: '',
+                            measurements_text: ''
+                          }
+                        )
+                      }
+                    }))
+                  }}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  required={step.is_required}
+                />
+              </div>
+
+              {/* Frame sections */}
+              {Array.from({ length: (responses[currentStepIndex] as any)?.frames_count || 1 }, (_, frameIndex) => {
+                const frameData = (responses[currentStepIndex] as any)?.frames?.[frameIndex] || {}
+                
+                return (
+                  <div key={frameIndex} className="border rounded-lg p-6 bg-gray-50">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4">Frame {frameIndex + 1}</h4>
+                    
+                    <div className="space-y-4">
+                      {/* Image Upload */}
+                      {(step.frames_require_image ?? true) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Image{step.frames_require_image ? ' *' : ''}
+                          </label>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (file && step.id) {
+                                  try {
+                                    // Upload file logic here (similar to existing file upload)
+                                    const filename = `frames/${step.id}/${Date.now()}-${file.name}`
+                                    const { error: uploadError } = await supabase.storage
+                                      .from('form-assets')
+                                      .upload(filename, file)
+                                    
+                                    if (uploadError) throw uploadError
+                                    
+                                    const { data } = supabase.storage
+                                      .from('form-assets')
+                                      .getPublicUrl(filename)
+                                    
+                                    // Update frame data
+                                    setResponses(r => {
+                                      const current = r[currentStepIndex] || {}
+                                      const frames = [...((current as any)?.frames || [])]
+                                      frames[frameIndex] = {
+                                        ...frames[frameIndex],
+                                        frame_number: frameIndex + 1,
+                                        image_url: data.publicUrl
+                                      }
+                                      return {
+                                        ...r,
+                                        [currentStepIndex]: {
+                                          ...current,
+                                          frames
+                                        }
+                                      }
+                                    })
+                                  } catch (error) {
+                                    console.error('Error uploading frame image:', error)
+                                  }
+                                }
+                              }}
+                              className="hidden"
+                              id={`frame-image-${frameIndex}`}
+                            />
+                            <label 
+                              htmlFor={`frame-image-${frameIndex}`}
+                              className="cursor-pointer flex flex-col items-center space-y-2"
+                            >
+                              {frameData.image_url ? (
+                                <div className="space-y-2">
+                                  <img 
+                                    src={frameData.image_url} 
+                                    alt={`Frame ${frameIndex + 1}`}
+                                    className="w-32 h-32 object-cover rounded"
+                                  />
+                                  <p className="text-sm text-gray-600">Click to change</p>
+                                </div>
+                              ) : (
+                                <>
+                                  <Upload className="h-12 w-12 text-gray-400" />
+                                  <div>
+                                    <p className="text-lg font-medium text-gray-600">Choose file</p>
+                                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                                  </div>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Location Input */}
+                      {(step.frames_require_location ?? true) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Room Location (e.g., bedroom){step.frames_require_location ? ' *' : ''}
+                          </label>
+                          <input
+                            type="text"
+                            value={frameData.location_text || ''}
+                            onChange={(e) => {
+                              setResponses(r => {
+                                const current = r[currentStepIndex] || {}
+                                const frames = [...((current as any)?.frames || [])]
+                                frames[frameIndex] = {
+                                  ...frames[frameIndex],
+                                  frame_number: frameIndex + 1,
+                                  location_text: e.target.value
+                                }
+                                return {
+                                  ...r,
+                                  [currentStepIndex]: {
+                                    ...current,
+                                    frames
+                                  }
+                                }
+                              })
+                            }}
+                            placeholder="e.g., bedroom"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            required={step.frames_require_location && step.is_required}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Measurements Input */}
+                      {(step.frames_require_measurements ?? false) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Measurements (optional) - width × height in mm{step.frames_require_measurements ? ' *' : ''}
+                          </label>
+                          <input
+                            type="text"
+                            value={frameData.measurements_text || ''}
+                            onChange={(e) => {
+                              setResponses(r => {
+                                const current = r[currentStepIndex] || {}
+                                const frames = [...((current as any)?.frames || [])]
+                                frames[frameIndex] = {
+                                  ...frames[frameIndex],
+                                  frame_number: frameIndex + 1,
+                                  measurements_text: e.target.value
+                                }
+                                return {
+                                  ...r,
+                                  [currentStepIndex]: {
+                                    ...current,
+                                    frames
+                                  }
+                                }
+                              })
+                            }}
+                            placeholder="e.g., 1200 × 800"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            required={step.frames_require_measurements && step.is_required}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              
+              {step.is_required && (
+                <p className="text-xs text-gray-500">* indicates required fields</p>
+              )}
             </div>
           </div>
         ) : (
