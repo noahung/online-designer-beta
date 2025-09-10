@@ -8,6 +8,7 @@ interface UserSettings {
   webhook_url: string
   zapier_enabled: boolean
   api_key: string
+  brevo_api_key: string
 }
 
 export default function Settings() {
@@ -16,7 +17,8 @@ export default function Settings() {
   const [settings, setSettings] = useState<UserSettings>({
     webhook_url: '',
     zapier_enabled: false,
-    api_key: ''
+    api_key: '',
+    brevo_api_key: ''
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -31,7 +33,7 @@ export default function Settings() {
     try {
       const { data, error } = await supabase
         .from('user_settings')
-        .select('webhook_url, zapier_enabled, api_key')
+        .select('webhook_url, zapier_enabled, api_key, brevo_api_key')
         .eq('user_id', user?.id)
         .maybeSingle()
 
@@ -43,7 +45,8 @@ export default function Settings() {
         setSettings({
           webhook_url: data.webhook_url || '',
           zapier_enabled: data.zapier_enabled || false,
-          api_key: data.api_key || ''
+          api_key: data.api_key || '',
+          brevo_api_key: data.brevo_api_key || ''
         })
       } else {
         // Generate initial API key for new users
@@ -75,8 +78,9 @@ export default function Settings() {
           user_id: user.id,
           webhook_url: settings.webhook_url,
           zapier_enabled: settings.zapier_enabled,
-          api_key: settings.api_key
-        })
+          api_key: settings.api_key,
+          brevo_api_key: settings.brevo_api_key
+        }, { onConflict: 'user_id' })
 
       if (error) throw error
 
@@ -209,7 +213,42 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* API Settings */}
+        {/* Brevo API Key Settings */}
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.13s'}}>
+          <div className="flex items-center mb-6">
+            <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 rounded-xl border border-blue-200 dark:border-blue-400/30 mr-3">
+              <Key className="w-5 h-5 text-blue-600 dark:text-blue-200" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Brevo Email API Key</h2>
+          </div>
+          <div className="space-y-6">
+            <p className="text-sm text-gray-600 dark:text-white/70">
+              Enter your Brevo API key to enable email notifications for form responses.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
+                Brevo API Key
+              </label>
+              <input
+                type="text"
+                value={settings.brevo_api_key || ''}
+                onChange={e => setSettings(prev => ({ ...prev, brevo_api_key: e.target.value }))}
+                placeholder="Enter Brevo API Key"
+                className="w-full px-4 py-3 bg-gray-100 dark:bg-white/5 border border-gray-300 dark:border-white/20 rounded-xl text-gray-700 dark:text-white/80 font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500 dark:text-white/60 mt-2">
+                You can find your API key in your Brevo dashboard under SMTP & API settings.
+              </p>
+            </div>
+            <button 
+              onClick={saveWebhookSettings}
+              disabled={saving}
+              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-blue-800 disabled:to-cyan-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : 'Save Brevo API Key'}
+            </button>
+          </div>
+        </div>
         <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.15s'}}>
           <div className="flex items-center mb-6">
             <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-500/20 dark:to-emerald-500/20 rounded-xl border border-green-200 dark:border-green-400/30 mr-3">

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
 type Step = { 
@@ -29,6 +30,7 @@ type Step = {
 }
 
 export default function FormEmbed() {
+  const { user } = useAuth()
   const { id } = useParams()
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
@@ -74,7 +76,6 @@ export default function FormEmbed() {
     }>;
   }>>({})
 
-  const [clientInfo, setClientInfo] = useState<{name: string; logo_url?: string; primary_color?: string} | null>(null)
   const [formTheme, setFormTheme] = useState<string>('generic')
 
   useEffect(() => { if (id) loadForm(id) }, [id])
@@ -103,7 +104,8 @@ export default function FormEmbed() {
             name,
             logo_url,
             primary_color,
-            client_email
+            client_email,
+            email_notifications_enabled
           )
         `)
         .eq('id', formId)
@@ -133,7 +135,6 @@ export default function FormEmbed() {
         secondaryButtonTextColor: form.secondary_button_text_color || '#374151'
       })
       setFormTheme(form.form_theme || 'generic')
-      setClientInfo(form.clients)
 
       const { data: s, error: stepsError } = await supabase
         .from('form_steps')
@@ -291,41 +292,65 @@ export default function FormEmbed() {
       // Prepare comprehensive structured answers
       const structuredAnswers = answers.map(answer => {
         const step = steps.find(s => s.id === answer.step_id)
-        const baseAnswer = {
+        // Add all possible properties to baseAnswer type
+        const baseAnswer: {
+          question: string;
+          question_type: string;
+          step_order: number;
+          is_required: boolean;
+          answer_text?: string;
+          selected_option?: string;
+          selected_option_label?: string;
+          selected_option_image?: string;
+          file_url?: string;
+          file_name?: string;
+          file_size?: number;
+          rating?: number;
+          scale_type?: string;
+          scale_min?: number;
+          scale_max?: number;
+          dimensions?: {
+            width?: string;
+            height?: string;
+            depth?: string;
+            units?: string;
+            dimension_type?: string;
+          };
+        } = {
           question: step?.title || 'Unknown',
           question_type: step?.question_type || 'unknown',
           step_order: step?.step_order || 0,
           is_required: step?.is_required || false
-        }
+        };
 
         // Add type-specific data
         if (answer.answer_text) {
-          baseAnswer.answer_text = answer.answer_text
+          baseAnswer.answer_text = answer.answer_text;
         }
         
         if (answer.selected_option_id) {
-          baseAnswer.selected_option = answer.selected_option_id
+          baseAnswer.selected_option = answer.selected_option_id;
           // Try to get option label from step
-          const option = step?.options?.find(opt => opt.id === answer.selected_option_id)
+          const option = step?.options?.find(opt => opt.id === answer.selected_option_id);
           if (option) {
-            baseAnswer.selected_option_label = option.label
+            baseAnswer.selected_option_label = option.label;
             if (option.image_url) {
-              baseAnswer.selected_option_image = option.image_url
+              baseAnswer.selected_option_image = option.image_url;
             }
           }
         }
 
         if (answer.file_url) {
-          baseAnswer.file_url = answer.file_url
-          baseAnswer.file_name = answer.file_name
-          baseAnswer.file_size = answer.file_size
+          baseAnswer.file_url = answer.file_url;
+          baseAnswer.file_name = answer.file_name;
+          baseAnswer.file_size = answer.file_size;
         }
 
         if (answer.scale_rating) {
-          baseAnswer.rating = answer.scale_rating
-          baseAnswer.scale_type = step?.scale_type || 'number'
-          baseAnswer.scale_min = step?.scale_min || 1
-          baseAnswer.scale_max = step?.scale_max || 10
+          baseAnswer.rating = answer.scale_rating;
+          baseAnswer.scale_type = step?.scale_type || 'number';
+          baseAnswer.scale_min = step?.scale_min || 1;
+          baseAnswer.scale_max = step?.scale_max || 10;
         }
 
         if (answer.width || answer.height || answer.depth) {
@@ -335,11 +360,11 @@ export default function FormEmbed() {
             depth: answer.depth,
             units: answer.units,
             dimension_type: step?.dimension_type || '2d'
-          }
+          };
         }
 
-        return baseAnswer
-      })
+        return baseAnswer;
+      });
 
       // Categorize answers for easy access
       const textResponses = structuredAnswers
@@ -360,16 +385,17 @@ export default function FormEmbed() {
 
       const fileUploads = structuredAnswers
         .filter(a => a.question_type === 'file_upload' && a.file_url)
-        .map(a => `${a.file_name} (${(a.file_size / 1024 / 1024).toFixed(1)} MB) - ${a.file_url}`)
+  .map(a => a.file_size !== undefined ? `${a.file_name} (${(a.file_size / 1024 / 1024).toFixed(1)} MB) - ${a.file_url}` : `${a.file_name} - ${a.file_url}`)
 
       const dimensionMeasurements = structuredAnswers
         .filter(a => a.question_type === 'dimensions' && a.dimensions)
         .map(a => {
           const d = a.dimensions
+          if (!d) return '';
           if (d.dimension_type === '3d') {
-            return `${a.question}: ${d.width}${d.units} × ${d.height}${d.units} × ${d.depth}${d.units}`
+            return `${a.question}: ${d.width ?? ''}${d.units ?? ''} × ${d.height ?? ''}${d.units ?? ''} × ${d.depth ?? ''}${d.units ?? ''}`;
           } else {
-            return `${a.question}: ${d.width}${d.units} × ${d.height}${d.units}`
+            return `${a.question}: ${d.width ?? ''}${d.units ?? ''} × ${d.height ?? ''}${d.units ?? ''}`;
           }
         })
 
@@ -469,24 +495,39 @@ export default function FormEmbed() {
         return
       }
 
-      const BREVO_API_KEY = process.env.VITE_BREVO_API_KEY || import.meta.env.VITE_BREVO_API_KEY
-      
-      if (!BREVO_API_KEY) {
-        console.warn('Brevo API key not configured, skipping email notification')
-        return
+
+      // Fetch Brevo API key from user_settings
+      let brevoApiKey = null;
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('brevo_api_key')
+          .eq('user_id', user?.id)
+          .maybeSingle();
+        if (error) {
+          console.warn('Could not fetch Brevo API key:', error.message)
+        }
+        brevoApiKey = data?.brevo_api_key || null;
+      } catch (err) {
+        console.error('Error fetching Brevo API key:', err);
       }
 
-      console.log('Sending email notification to:', formData.clients.client_email)
+      if (!brevoApiKey) {
+        console.warn('Brevo API key not configured, skipping email notification');
+        return;
+      }
+
+      console.log('Sending email notification to:', formData.clients.client_email);
 
       // Get the full response data for email template
-      const responseData = await getResponseDataForEmail(responseId)
+      const responseData = await getResponseDataForEmail(responseId);
       if (!responseData) {
-        console.error('Could not fetch response data for email')
-        return
+        console.error('Could not fetch response data for email');
+        return;
       }
 
-      const emailHtml = generateEmailTemplate(responseData)
-      const emailText = generateEmailText(responseData)
+      const emailHtml = generateEmailTemplate(responseData);
+      const emailText = generateEmailText(responseData);
 
       const emailPayload = {
         sender: {
@@ -500,23 +541,23 @@ export default function FormEmbed() {
         subject: `New Response Received - ${formName}`,
         htmlContent: emailHtml,
         textContent: emailText
-      }
+      };
 
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'api-key': BREVO_API_KEY
+          'api-key': brevoApiKey
         },
         body: JSON.stringify(emailPayload)
-      })
+      });
 
       if (response.ok) {
-        console.log('Client email notification sent successfully')
+        console.log('Client email notification sent successfully');
       } else {
-        const errorData = await response.text()
-        console.error('Brevo API error:', response.status, errorData)
+        const errorData = await response.text();
+        console.error('Brevo API error:', response.status, errorData);
       }
 
     } catch (error) {
@@ -588,8 +629,8 @@ export default function FormEmbed() {
       return {
         response_id: responseData.id,
         form_name: formName,
-        client_name: clientInfo?.name || 'Client',
-        contact_name: responseData.contact_name,
+  client_name: formData?.clients?.name || 'Client',
+  contact_name: responseData.contact_name,
         contact_email: responseData.contact_email,
         contact_phone: responseData.contact_phone,
         contact_postcode: responseData.contact_postcode,
@@ -1125,14 +1166,14 @@ export default function FormEmbed() {
       <div className={currentTheme.styles.container}>
         <div className={currentTheme.styles.card}>
         {/* Client Header */}
-        {clientInfo && (
+  {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
             {/* Client Logo */}
-            {clientInfo.logo_url ? (
+            {formData?.clients?.logo_url ? (
               <div className="flex justify-center mb-3">
                 <img 
-                  src={clientInfo.logo_url} 
-                  alt={`${clientInfo.name} logo`}
+                  src={formData?.clients?.logo_url}
+                  alt={`${formData?.clients?.name ?? ''} logo`}
                   className="h-12 w-auto object-contain"
                 />
               </div>
@@ -1147,7 +1188,7 @@ export default function FormEmbed() {
             )}
             
             {/* Client Name */}
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">{clientInfo.name}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">{formData?.clients?.name}</h2>
             
             {/* Form Description */}
             {formDescription && (
@@ -1406,7 +1447,7 @@ export default function FormEmbed() {
                     className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label htmlFor="consent" className="text-sm text-gray-600 flex-1">
-                    <span className="text-orange-500">⚠️</span> I agree to be contacted by {clientInfo?.name || 'the company'} regarding my enquiry <span className="text-red-500">*</span>
+                    <span className="text-orange-500">⚠️</span> I agree to be contacted by {formData?.clients?.name || 'the company'} regarding my enquiry <span className="text-red-500">*</span>
                   </label>
                 </div>
               </div>
