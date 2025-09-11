@@ -14,14 +14,20 @@ class ODF_Shortcode {
         ), $atts, 'online_designer_form');
 
         if (empty($atts['id'])) {
-            return '<p>Error: Form ID is required. Use [online_designer_form id="your-form-id"]</p>';
+            return '<div class="odf-error">Error: Form ID is required. Use [online_designer_form id="your-form-id"]</div>';
         }
 
         $form_id = sanitize_text_field($atts['id']);
         $form_data = ODF_API::get_form($form_id);
 
         if (!$form_data) {
-            return '<p>Error: Unable to load form. Please check the form ID and API connection.</p>';
+            return '<div class="odf-error">Error: Unable to load form. Please check the form ID and API connection.</div>';
+        }
+
+        // Check if API returned an error
+        if (is_array($form_data) && isset($form_data['error'])) {
+            $error_msg = esc_html($form_data['error']);
+            return '<div class="odf-error">Error: ' . $error_msg . '</div>';
         }
 
         ob_start();

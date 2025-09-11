@@ -1,12 +1,12 @@
-/* Frontend CSS for Online Designer Forms */
-
-.odf-form-container {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    background-color: #f9f9f9;
+/* Error styling */
+.odf-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-weight: bold;
 }
 
 .odf-form h2 {
