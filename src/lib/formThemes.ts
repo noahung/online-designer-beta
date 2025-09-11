@@ -43,7 +43,7 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
     },
     styles: {
       background: 'bg-slate-50',
-      container: 'max-w-2xl mx-auto px-4 py-8',
+  container: 'w-full px-4 py-8',
       card: 'bg-white p-8 rounded-lg shadow-md border',
       input: 'w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent',
       button: {
@@ -69,7 +69,7 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
     },
     styles: {
       background: 'min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 relative overflow-hidden',
-      container: 'max-w-2xl mx-auto px-4 py-8 relative z-10',
+  container: 'w-full px-4 py-8 relative z-10',
       card: 'apple-glass-card rounded-3xl shadow-2xl p-10 border border-white/30',
       input: 'apple-input w-full px-5 py-4 rounded-2xl border border-white/20 transition-all duration-300 bg-white/60 focus:border-blue-400/60 focus:bg-white/80 backdrop-blur-xl',
       button: {

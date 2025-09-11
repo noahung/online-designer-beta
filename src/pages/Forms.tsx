@@ -92,13 +92,23 @@ export default function Forms() {
   }
 
   const copyEmbedCode = (formId: string) => {
-    const baseUrl = window.location.origin
+    const baseUrl = window.location.origin;
     // Use custom domain detection - if on custom domain, no basename needed
-    const isCustomDomain = window.location.hostname !== 'noahung.github.io'
-    const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : ''
-    const embedCode = `<iframe src="${baseUrl}${basename}/form/${formId}" width="100%" height="800" frameborder="0" style="border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`
-    navigator.clipboard.writeText(embedCode)
-    push({ type: 'success', message: 'Embed code copied to clipboard' })
+    const isCustomDomain = window.location.hostname !== 'noahung.github.io';
+    const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
+    const embedCode = `<div style="width:100%;"><iframe id="designerFormIframe" src="${baseUrl}${basename}/form/${formId}" style="width:100%;border:none;" allowfullscreen></iframe></div>
+<script>
+window.addEventListener("message", function(event) {
+  if (event.data && event.data.type === "designerFormHeight" && event.data.height) {
+    var iframe = document.getElementById("designerFormIframe");
+    if (iframe) {
+      iframe.style.height = event.data.height + "px";
+    }
+  }
+}, false);
+</script>`;
+    navigator.clipboard.writeText(embedCode);
+    push({ type: 'success', message: 'Embed code copied to clipboard' });
   }
 
   const openEditModal = async (formId: string) => {
