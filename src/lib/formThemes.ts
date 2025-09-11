@@ -68,7 +68,7 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       accentColor: 'bg-blue-600'
     },
     styles: {
-      background: 'min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 relative overflow-hidden',
+      background: 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 relative overflow-hidden',
   container: 'w-full px-4 py-8 relative z-10',
       card: 'apple-glass-card rounded-3xl shadow-2xl p-10 border border-white/30',
       input: 'apple-input w-full px-5 py-4 rounded-2xl border border-white/20 transition-all duration-300 bg-white/60 focus:border-blue-400/60 focus:bg-white/80 backdrop-blur-xl',
