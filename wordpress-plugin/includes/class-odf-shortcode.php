@@ -1,126 +1,39 @@
 <?php
-/**
- * Shortcode handler for Online Designer Forms
- */
-
+if (!defined('ABSPATH')) exit;
 class ODF_Shortcode {
-
-    /**
-     * Render the form using shortcode
-     */
     public static function render_form($atts) {
-        $atts = shortcode_atts(array(
-            'id' => '',
-        ), $atts, 'online_designer_form');
-
-        if (empty($atts['id'])) {
-            return '<div class="odf-error">Error: Form ID is required. Use [online_designer_form id="your-form-id"]</div>';
-        }
-
+        $atts = shortcode_atts(array('id' => get_option('odf_default_form_id')), $atts);
         $form_id = sanitize_text_field($atts['id']);
-        $form_data = ODF_API::get_form($form_id);
-
-        if (!$form_data) {
-            return '<div class="odf-error">Error: Unable to load form. Please check the form ID and API connection.</div>';
+    $api_url = 'https://bahloynyhjgmdndqabhu.supabase.co/functions/v1/api-forms?id=' . urlencode($form_id); // Hardcoded API URL
+        $api_key = get_option('odf_api_key');
+        if (!$form_id || !$api_key) {
+            return '<div style="color:red;">Form configuration missing. Please check plugin settings.</div>';
         }
-
-        // Check if API returned an error
-        if (is_array($form_data) && isset($form_data['error'])) {
-            $error_msg = esc_html($form_data['error']);
-            return '<div class="odf-error">Error: ' . $error_msg . '</div>';
+        $response = wp_remote_get($api_url, array(
+            'headers' => array('Authorization' => 'Bearer ' . $api_key)
+        ));
+        if (is_wp_error($response)) {
+            return '<div style="color:red;">Unable to fetch form. Error: ' . esc_html($response->get_error_message()) . '</div>';
         }
-
-        ob_start();
-        self::render_form_html($form_data, $form_id);
-        return ob_get_clean();
-    }
-
-    /**
-     * Render the form HTML
-     */
-    private static function render_form_html($form_data, $form_id) {
-        ?>
-        <div class="odf-form-container" data-form-id="<?php echo esc_attr($form_id); ?>">
-            <?php if (isset($form_data['title'])): ?>
-                <h2><?php echo esc_html($form_data['title']); ?></h2>
-            <?php endif; ?>
-
-            <?php if (isset($form_data['description'])): ?>
-                <p><?php echo esc_html($form_data['description']); ?></p>
-            <?php endif; ?>
-
-            <form class="odf-form" method="post" action="">
-                <?php if (isset($form_data['steps']) && is_array($form_data['steps'])): ?>
-                    <?php foreach ($form_data['steps'] as $step): ?>
-                        <div class="odf-step" data-step-id="<?php echo esc_attr($step['id']); ?>">
-                            <?php if (isset($step['fields']) && is_array($step['fields'])): ?>
-                                <?php foreach ($step['fields'] as $field): ?>
-                                    <div class="odf-field">
-                                        <label for="field_<?php echo esc_attr($field['id']); ?>"><?php echo esc_html($field['label']); ?></label>
-                                        <?php self::render_field($field); ?>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-
-                <button type="submit" class="odf-submit-btn">Submit</button>
-            </form>
-        </div>
-        <?php
-    }
-
-    /**
-     * Render individual form field
-     */
-    private static function render_field($field) {
-        $field_id = 'field_' . esc_attr($field['id']);
-        $field_name = esc_attr($field['name'] ?? $field['id']);
-        $field_type = esc_attr($field['type'] ?? 'text');
-        $required = (isset($field['required']) && $field['required']) ? 'required' : '';
-        $placeholder = isset($field['placeholder']) ? esc_attr($field['placeholder']) : '';
-
-        switch ($field_type) {
-            case 'text':
-            case 'email':
-            case 'tel':
-            case 'url':
-                echo '<input type="' . $field_type . '" id="' . $field_id . '" name="' . $field_name . '" placeholder="' . $placeholder . '" ' . $required . '>';
-                break;
-            case 'textarea':
-                echo '<textarea id="' . $field_id . '" name="' . $field_name . '" placeholder="' . $placeholder . '" ' . $required . '></textarea>';
-                break;
-            case 'select':
-                echo '<select id="' . $field_id . '" name="' . $field_name . '" ' . $required . '>';
-                echo '<option value="">' . ($placeholder ?: 'Select an option') . '</option>';
-                if (isset($field['options']) && is_array($field['options'])) {
-                    foreach ($field['options'] as $option) {
-                        $option_value = is_array($option) ? ($option['value'] ?? $option['label']) : $option;
-                        $option_label = is_array($option) ? ($option['label'] ?? $option['value']) : $option;
-                        echo '<option value="' . esc_attr($option_value) . '">' . esc_html($option_label) . '</option>';
+        $body = wp_remote_retrieve_body($response);
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            return '<div style="color:red;">Unable to fetch form. API response: <pre>' . esc_html($body) . '</pre></div>';
+        }
+        // Render the designer form using an iframe for full functionality with auto-resize
+        $iframe_id = 'odf_iframe_' . uniqid();
+        $html = '<iframe id="' . esc_attr($iframe_id) . '" src="' . esc_url($iframe_url) . '" style="width:100%;border:none;display:block;" allowfullscreen></iframe>';
+        $html .= '<script>
+            (function() {
+                var iframe = document.getElementById("' . esc_js($iframe_id) . '");
+                function setHeight(e) {
+                    if (e.data && e.data.type === "designerFormHeight" && e.data.height) {
+                        iframe.style.height = e.data.height + "px";
                     }
                 }
-                echo '</select>';
-                break;
-            case 'radio':
-                if (isset($field['options']) && is_array($field['options'])) {
-                    foreach ($field['options'] as $index => $option) {
-                        $option_value = is_array($option) ? ($option['value'] ?? $option['label']) : $option;
-                        $option_label = is_array($option) ? ($option['label'] ?? $option['value']) : $option;
-                        echo '<label><input type="radio" name="' . $field_name . '" value="' . esc_attr($option_value) . '" ' . $required . '> ' . esc_html($option_label) . '</label><br>';
-                    }
-                }
-                break;
-            case 'checkbox':
-                echo '<input type="checkbox" id="' . $field_id . '" name="' . $field_name . '" ' . $required . '>';
-                break;
-            case 'file':
-                echo '<input type="file" id="' . $field_id . '" name="' . $field_name . '" ' . $required . '>';
-                break;
-            default:
-                echo '<input type="text" id="' . $field_id . '" name="' . $field_name . '" placeholder="' . $placeholder . '" ' . $required . '>';
-        }
+                window.addEventListener("message", setHeight, false);
+            })();
+        </script>';
+        return $html;
     }
 }
-?>

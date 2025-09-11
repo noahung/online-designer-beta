@@ -78,6 +78,29 @@ export default function FormEmbed() {
 
   const [formTheme, setFormTheme] = useState<string>('generic')
 
+  // --- Add postMessage logic for iframe auto-resize ---
+  // Send height to parent window
+  const sendHeightToParent = () => {
+    // Use document.body.scrollHeight for full content height
+    window.parent.postMessage({
+      type: 'designerFormHeight',
+      height: document.body.scrollHeight
+    }, '*');
+  };
+
+  useEffect(() => {
+    sendHeightToParent();
+    window.addEventListener('resize', sendHeightToParent);
+    return () => {
+      window.removeEventListener('resize', sendHeightToParent);
+    };
+  }, []);
+
+  // Call sendHeightToParent after each step change
+  useEffect(() => {
+    sendHeightToParent();
+  }, [currentStepIndex, steps]);
+
   useEffect(() => { if (id) loadForm(id) }, [id])
 
   const loadForm = async (formId: string) => {
@@ -181,11 +204,11 @@ export default function FormEmbed() {
           let image_url = o.image_url
           // If image_url doesn't start with http, it might be an object path that needs a signed URL
           // But since we're using public buckets now, this should mostly be public URLs already
-          return { 
-            id: o.id, 
-            label: o.label, 
-            description: o.description, 
-            image_url, 
+          return (
+            <div>
+              {/* ...form rendering logic... */}
+            </div>
+          )
             jump_to_step: o.jump_to_step 
           }
         })
