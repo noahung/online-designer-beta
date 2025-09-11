@@ -12,7 +12,8 @@ interface ResponseData {
   form_id: string
   form_name: string
   client_name: string
-  client_email: string
+  client_email: string | null
+  additional_emails: string[]
   contact_name?: string
   contact_email?: string
   contact_phone?: string
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     const emailSent = await sendBrevoEmail(responseData)
     
     if (emailSent) {
-      // Update the notification queue if it exists
+      // Update the notification queue if it exists - update all entries for this response
       await supabase
         .from('email_notifications')
         .update({ 
@@ -57,11 +58,12 @@ export async function POST(req: Request) {
         .eq('response_id', response_id)
         .eq('status', 'pending')
 
+      const recipientCount = (responseData.client_email ? 1 : 0) + responseData.additional_emails.length
       return new Response(
         JSON.stringify({ 
           success: true,
-          message: 'Email notification sent successfully',
-          client_email: responseData.client_email
+          message: `Email notification sent successfully to ${recipientCount} recipient${recipientCount > 1 ? 's' : ''}`,
+          recipients: responseData.client_email ? [responseData.client_email, ...responseData.additional_emails] : responseData.additional_emails
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       )
@@ -118,7 +120,8 @@ async function getResponseData(response_id: string): Promise<ResponseData | null
           clients!inner (
             id,
             name,
-            client_email
+            client_email,
+            additional_emails
           )
         )
       `)
@@ -132,7 +135,17 @@ async function getResponseData(response_id: string): Promise<ResponseData | null
 
     // Check if client has email (forms is now a single object, not array)
     const form = responseData.forms as any
-    if (!form?.clients?.client_email) {
+    const additionalEmails = Array.isArray(form?.clients?.additional_emails) 
+      ? form.clients.additional_emails 
+      : []
+    
+    console.log('Client data from database:', {
+      client_email: form?.clients?.client_email,
+      additional_emails: form?.clients?.additional_emails,
+      processed_additional_emails: additionalEmails
+    })
+    
+    if (!form?.clients?.client_email && additionalEmails.length === 0) {
       console.log('No client email found, skipping notification')
       return null
     }
@@ -188,7 +201,8 @@ async function getResponseData(response_id: string): Promise<ResponseData | null
       form_id: responseData.form_id,
       form_name: form?.name || 'Unknown Form',
       client_name: form?.clients?.name || 'Unknown Client',
-      client_email: form?.clients?.client_email!,
+      client_email: form?.clients?.client_email || null,
+      additional_emails: additionalEmails,
       contact_name: responseData.contact_name,
       contact_email: responseData.contact_email,
       contact_phone: responseData.contact_phone,
@@ -209,15 +223,38 @@ async function sendBrevoEmail(data: ResponseData): Promise<boolean> {
     const emailHtml = generateEmailTemplate(data)
     const emailText = generateEmailText(data)
 
-    const emailPayload = {
+    // Build recipient list
+    const recipients = []
+
+    if (data.client_email) {
+      recipients.push({
+        email: data.client_email,
+        name: data.client_name
+      })
+    }
+
+    // Add additional emails
+    data.additional_emails.forEach(email => {
+      if (email && email.trim()) {
+        recipients.push({
+          email: email.trim(),
+          name: data.client_name
+        })
+      }
+    })
+
+    console.log('Email recipients:', recipients)
+    console.log('Additional emails from data:', data.additional_emails)
+
+    if (recipients.length === 0) {
+      console.error('No valid recipients found')
+      return false
+    }    const emailPayload = {
       sender: {
         name: BREVO_SENDER_NAME,
         email: BREVO_SENDER_EMAIL
       },
-      to: [{
-        email: data.client_email,
-        name: data.client_name
-      }],
+      to: recipients,
       subject: `New Response Received - ${data.form_name}`,
       htmlContent: emailHtml,
       textContent: emailText
@@ -234,7 +271,7 @@ async function sendBrevoEmail(data: ResponseData): Promise<boolean> {
     })
 
     if (response.ok) {
-      console.log('Email sent successfully via Brevo to:', data.client_email)
+      console.log('Email sent successfully via Brevo to:', recipients.map(r => r.email).join(', '))
       return true
     } else {
       const errorData = await response.text()
@@ -420,8 +457,8 @@ function generateEmailTemplate(data: ResponseData): string {
         <div style="margin-top: 40px; padding: 20px; background-color: #f3f4f6; border-radius: 10px; text-align: center; color: #6b7280; font-size: 14px;">
           <p style="margin: 0 0 10px 0;">This email was sent automatically by Online Designer</p>
           <p style="margin: 0;">
-            <a href="https://designer.advertomedia.co.uk" style="color: #3b82f6; text-decoration: none;">designer.advertomedia.co.uk</a> | 
-            <a href="mailto:designer@advertomedia.co.uk" style="color: #3b82f6; text-decoration: none;">designer@advertomedia.co.uk</a>
+            <a href="https://advertomedia.co.uk" style="color: #3b82f6; text-decoration: none;">advertomedia.co.uk</a> | 
+            <a href="mailto:info@advertomedia.co.uk" style="color: #3b82f6; text-decoration: none;">info@advertomedia.co.uk</a>
           </p>
         </div>
         

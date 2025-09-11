@@ -12,6 +12,7 @@ interface Client {
   primary_color: string
   secondary_color: string
   client_email: string | null
+  additional_emails: string[]
   client_password_hash: string | null
   email_notifications_enabled: boolean
   created_at: string
@@ -31,6 +32,7 @@ export default function Clients() {
     secondary_color: '#475569',
     logo_file: null as File | null,
     client_email: '',
+    additional_emails: [] as string[],
     client_password: '',
     email_notifications_enabled: true
   })
@@ -103,6 +105,7 @@ export default function Clients() {
           primary_color: formData.primary_color,
           secondary_color: formData.secondary_color,
           client_email: formData.client_email || null,
+          additional_emails: formData.additional_emails,
           client_password_hash: formData.client_password || null,
           email_notifications_enabled: formData.email_notifications_enabled
         }
@@ -136,6 +139,7 @@ export default function Clients() {
             primary_color: formData.primary_color,
             secondary_color: formData.secondary_color,
             client_email: formData.client_email || null,
+            additional_emails: formData.additional_emails,
             client_password_hash: formData.client_password || null,
             email_notifications_enabled: formData.email_notifications_enabled,
             user_id: user.id
@@ -171,6 +175,7 @@ export default function Clients() {
         secondary_color: '#475569',
         logo_file: null,
         client_email: '',
+        additional_emails: [],
         client_password: '',
         email_notifications_enabled: true
       })
@@ -192,6 +197,7 @@ export default function Clients() {
       secondary_color: client.secondary_color,
       logo_file: null,
       client_email: client.client_email || '',
+      additional_emails: client.additional_emails || [],
       client_password: client.client_password_hash || '',
       email_notifications_enabled: client.email_notifications_enabled ?? true
     })
@@ -545,6 +551,50 @@ export default function Clients() {
                   
                   <div>
                     <label className="block text-sm font-medium text-white/90 mb-2">
+                      Additional Recipients
+                    </label>
+                    <div className="space-y-2">
+                      {formData.additional_emails.map((email, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => {
+                              const newEmails = [...formData.additional_emails]
+                              newEmails[index] = e.target.value
+                              setFormData({ ...formData, additional_emails: newEmails })
+                            }}
+                            className="flex-1 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
+                            placeholder="additional@company.com"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newEmails = formData.additional_emails.filter((_, i) => i !== index)
+                              setFormData({ ...formData, additional_emails: newEmails })
+                            }}
+                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-colors"
+                            title="Remove email"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ 
+                          ...formData, 
+                          additional_emails: [...formData.additional_emails, ''] 
+                        })}
+                        className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white/70 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all duration-200 text-sm font-medium"
+                      >
+                        + Add Another Email
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-white/90 mb-2">
                       Client Password
                     </label>
                     <div className="relative">
@@ -599,7 +649,7 @@ export default function Clients() {
                   formData.email_notifications_enabled ? 'block' : 'hidden'
                 }`}>
                   <p className="text-sm text-yellow-200">
-                    <strong>📬 Email Alert:</strong> When enabled, your client will automatically receive an email notification at <strong>{formData.client_email || '[client email]'}</strong> whenever someone submits a response to their forms.
+                    <strong>📬 Email Alert:</strong> When enabled, email notifications will be sent to <strong>{formData.client_email || '[primary email]'}</strong>{formData.additional_emails.length > 0 && ` and ${formData.additional_emails.length} additional recipient${formData.additional_emails.length > 1 ? 's' : ''}`} whenever someone submits a response to their forms.
                   </p>
                 </div>
               </div>
@@ -703,6 +753,7 @@ export default function Clients() {
                       secondary_color: '#475569',
                       logo_file: null,
                       client_email: '',
+                      additional_emails: [],
                       client_password: '',
                       email_notifications_enabled: true
                     })

@@ -124,6 +124,7 @@ export default function FormEmbed() {
           secondary_button_color,
           secondary_button_text_color,
           clients (
+            id,
             name,
             logo_url,
             primary_color,
@@ -542,6 +543,25 @@ export default function FormEmbed() {
 
       console.log('Sending email notification to:', formData.clients.client_email);
 
+      // Fetch additional emails from the database
+      let additionalEmails: string[] = [];
+      try {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('additional_emails')
+          .eq('id', formData.clients.id)
+          .single();
+
+        if (clientData?.additional_emails && Array.isArray(clientData.additional_emails)) {
+          additionalEmails = clientData.additional_emails.filter((email: string) => 
+            email && email.trim() && email !== formData.clients.client_email
+          );
+        }
+        console.log('Additional emails found:', additionalEmails);
+      } catch (error) {
+        console.warn('Could not fetch additional emails:', error);
+      }
+
       // Get the full response data for email template
       const responseData = await getResponseDataForEmail(responseId);
       if (!responseData) {
@@ -552,15 +572,35 @@ export default function FormEmbed() {
       const emailHtml = generateEmailTemplate(responseData);
       const emailText = generateEmailText(responseData);
 
+      // Build recipients array
+      const recipients = [];
+
+      // Add primary email
+      if (formData.clients.client_email) {
+        recipients.push({
+          email: formData.clients.client_email,
+          name: formData.clients.name || 'Client'
+        });
+      }
+
+      // Add additional emails
+      additionalEmails.forEach(email => {
+        if (email && email.trim()) {
+          recipients.push({
+            email: email.trim(),
+            name: formData.clients.name || 'Client'
+          });
+        }
+      });
+
+      console.log('Final recipients list:', recipients);
+
       const emailPayload = {
         sender: {
           name: "Online Designer - Advertomedia",
           email: "designer@advertomedia.co.uk"
         },
-        to: [{
-          email: formData.clients.client_email,
-          name: formData.clients.name || 'Client'
-        }],
+        to: recipients,
         subject: `New Response Received - ${formName}`,
         htmlContent: emailHtml,
         textContent: emailText
@@ -577,7 +617,7 @@ export default function FormEmbed() {
       });
 
       if (response.ok) {
-        console.log('Client email notification sent successfully');
+        console.log(`Client email notification sent successfully to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
       } else {
         const errorData = await response.text();
         console.error('Brevo API error:', response.status, errorData);
