@@ -1467,6 +1467,26 @@ export default function FormEmbed() {
                 }
                 input.click()
               }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                e.currentTarget.classList.add('border-blue-500', 'bg-blue-50')
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50')
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50')
+                
+                const files = Array.from(e.dataTransfer.files)
+                if (files.length > 0) {
+                  handleFileUpload(files[0])
+                }
+              }}
             >
               <div className="flex flex-col items-center space-y-4">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
@@ -1756,13 +1776,10 @@ export default function FormEmbed() {
               {/* Number of frames selector */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">How many frames do you want?</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={step.frames_max_count || 10}
+                <select
                   value={(responses[currentStepIndex] as any)?.frames_count || 1}
                   onChange={(e) => {
-                    const count = Math.max(1, Math.min(parseInt(e.target.value) || 1, step.frames_max_count || 10))
+                    const count = parseInt(e.target.value)
                     setResponses(r => ({
                       ...r,
                       [currentStepIndex]: {
@@ -1779,9 +1796,15 @@ export default function FormEmbed() {
                       }
                     }))
                   }}
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   required={step.is_required}
-                />
+                >
+                  {Array.from({ length: step.frames_max_count || 10 }, (_, i) => i + 1).map(num => (
+                    <option key={num} value={num}>
+                      {num} {num === 1 ? 'frame' : 'frames'}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Frame sections */}
@@ -1847,6 +1870,59 @@ export default function FormEmbed() {
                             <label 
                               htmlFor={`frame-image-${frameIndex}`}
                               className="cursor-pointer flex flex-col items-center space-y-2"
+                              onDragOver={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                e.currentTarget.closest('.border-2')?.classList.add('border-blue-500', 'bg-blue-50')
+                              }}
+                              onDragLeave={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                e.currentTarget.closest('.border-2')?.classList.remove('border-blue-500', 'bg-blue-50')
+                              }}
+                              onDrop={async (e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                e.currentTarget.closest('.border-2')?.classList.remove('border-blue-500', 'bg-blue-50')
+                                
+                                const files = Array.from(e.dataTransfer.files)
+                                const imageFile = files.find(file => file.type.startsWith('image/'))
+                                
+                                if (imageFile && step.id) {
+                                  try {
+                                    const filename = `frames/${step.id}/${Date.now()}-${imageFile.name}`
+                                    const { error: uploadError } = await supabase.storage
+                                      .from('form-assets')
+                                      .upload(filename, imageFile)
+                                    
+                                    if (uploadError) throw uploadError
+                                    
+                                    const { data } = supabase.storage
+                                      .from('form-assets')
+                                      .getPublicUrl(filename)
+                                    
+                                    // Update frame data
+                                    setResponses(r => {
+                                      const current = r[currentStepIndex] || {}
+                                      const frames = [...((current as any)?.frames || [])]
+                                      frames[frameIndex] = {
+                                        ...frames[frameIndex],
+                                        frame_number: frameIndex + 1,
+                                        image_url: data.publicUrl
+                                      }
+                                      return {
+                                        ...r,
+                                        [currentStepIndex]: {
+                                          ...current,
+                                          frames
+                                        }
+                                      }
+                                    })
+                                  } catch (error) {
+                                    console.error('Error uploading frame image:', error)
+                                  }
+                                }
+                              }}
                             >
                               {frameData.image_url ? (
                                 <div className="space-y-2">
@@ -1862,7 +1938,7 @@ export default function FormEmbed() {
                                   <Upload className="h-12 w-12 text-gray-400" />
                                   <div>
                                     <p className="text-lg font-medium text-gray-600">Choose file</p>
-                                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB (drag & drop or click)</p>
                                   </div>
                                 </>
                               )}
