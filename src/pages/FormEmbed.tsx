@@ -201,17 +201,17 @@ export default function FormEmbed() {
       // Map steps and options, handling both public URLs and object paths
       const mapped: Step[] = s.map((row: any) => {
         const opts = (row.form_options || []).map((o: any) => {
-          let image_url = o.image_url
+          let image_url = o.image_url;
           // If image_url doesn't start with http, it might be an object path that needs a signed URL
           // But since we're using public buckets now, this should mostly be public URLs already
-          return (
-            <div>
-              {/* ...form rendering logic... */}
-            </div>
-          )
-            jump_to_step: o.jump_to_step 
-          }
-        })
+          return {
+            id: o.id,
+            label: o.label,
+            description: o.description,
+            image_url,
+            jump_to_step: o.jump_to_step
+          };
+        });
         return { 
           id: row.id, 
           title: row.title, 
