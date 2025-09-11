@@ -96,10 +96,10 @@ export default function FormEmbed() {
     };
   }, []);
 
-  // Call sendHeightToParent after each step change
+  // Call sendHeightToParent after each step change, response change, or frame count change
   useEffect(() => {
     sendHeightToParent();
-  }, [currentStepIndex, steps]);
+  }, [currentStepIndex, steps, responses]);
 
   useEffect(() => { if (id) loadForm(id) }, [id])
 
