@@ -32,7 +32,7 @@ const App = {
   hydrators: {},
 };
 
-// Set the base URL for all requests - use custom domain
+// Set the base URL for all requests - use custom domain or environment variable
 process.env.BASE_URL = process.env.BASE_URL || 'https://designer.advertomedia.co.uk';
 
 module.exports = App;

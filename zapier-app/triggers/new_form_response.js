@@ -65,7 +65,6 @@ module.exports = {
         required: true,
         type: 'string',
         helpText: 'Select the form to monitor for new responses',
-        dynamic: 'formList.id.name',
         search: 'formListSearch.id',
       },
     ],
