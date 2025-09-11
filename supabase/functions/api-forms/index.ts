@@ -7,6 +7,169 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+// Helper function to handle individual form fetching
+async function handleGetForm(supabaseClient: any, userId: string, formId: string, corsHeaders: any) {
+  // Get form data
+  const { data: form, error: formError } = await supabaseClient
+    .from('forms')
+    .select('*')
+    .eq('id', formId)
+    .eq('user_id', userId)
+    .single()
+
+  if (formError || !form) {
+    return new Response(
+      JSON.stringify({ error: 'Form not found' }),
+      { 
+        status: 404, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    )
+  }
+
+  // Get form steps
+  const { data: steps, error: stepsError } = await supabaseClient
+    .from('form_steps')
+    .select('*')
+    .eq('form_id', formId)
+    .order('step_order', { ascending: true })
+
+  // Initialize formData
+  let formData: any = {
+    id: form.id,
+    name: form.name,
+    title: form.name,
+    description: form.description,
+    steps: []
+  }
+
+  if (steps && steps.length > 0) {
+    for (const step of steps) {
+      const { data: fields, error: fieldsError } = await supabaseClient
+        .from('form_fields')
+        .select('*')
+        .eq('step_id', step.id)
+        .order('field_order', { ascending: true })
+
+      formData.steps.push({
+        id: step.id,
+        title: step.title,
+        description: step.description,
+        fields: fields || []
+      })
+    }
+  } else {
+    // If no steps, try to get fields directly (legacy support)
+    const { data: fields, error: fieldsError } = await supabaseClient
+      .from('form_fields')
+      .select('*')
+      .eq('form_id', formId)
+      .order('field_order', { ascending: true })
+
+    if (!fieldsError && fields) {
+      formData.steps = [{
+        id: 'step_1',
+        title: 'Form',
+        description: '',
+        fields: fields
+      }]
+    }
+  }
+
+  return new Response(
+    JSON.stringify(formData),
+    { 
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json' 
+      } 
+    }
+  )
+}
+
+// Helper function to handle form submission
+async function handleSubmitForm(supabaseClient: any, userId: string, formId: string, req: Request, corsHeaders: any) {
+  try {
+    const formData = await req.json()
+
+    // Verify form belongs to user
+    const { data: form, error: formError } = await supabaseClient
+      .from('forms')
+      .select('id')
+      .eq('id', formId)
+      .eq('user_id', userId)
+      .single()
+
+    if (formError || !form) {
+      return new Response(
+        JSON.stringify({ error: 'Form not found or access denied' }),
+        { 
+          status: 404, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
+
+    // Insert response
+    const { data: response, error: responseError } = await supabaseClient
+      .from('form_responses')
+      .insert({
+        form_id: formId,
+        user_id: userId,
+        response_data: formData,
+        submitted_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (responseError) {
+      console.error('Error inserting response:', responseError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to save response' }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      )
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        response_id: response.id,
+        message: 'Response submitted successfully'
+      }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    )
+  } catch (error) {
+    console.error('Error parsing request body:', error)
+    return new Response(
+      JSON.stringify({ error: 'Invalid request body' }),
+      { 
+        status: 400, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    )
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -17,6 +180,8 @@ serve(async (req) => {
     // Get API key from query parameters
     const url = new URL(req.url)
     const apiKey = url.searchParams.get('api_key')
+    const pathParts = url.pathname.split('/')
+    const formId = pathParts[pathParts.length - 1] // Get form ID from URL path
 
     if (!apiKey) {
       return new Response(
@@ -57,6 +222,17 @@ serve(async (req) => {
       )
     }
 
+    // Handle individual form fetching
+    if (formId && formId !== 'api-forms' && req.method === 'GET') {
+      return await handleGetForm(supabaseClient, userSettings.user_id, formId, corsHeaders)
+    }
+
+    // Handle form submission
+    if (formId && formId !== 'api-forms' && req.method === 'POST') {
+      return await handleSubmitForm(supabaseClient, userSettings.user_id, formId, req, corsHeaders)
+    }
+
+    // Handle form listing (existing functionality)
     if (!userSettings.zapier_enabled) {
       return new Response(
         JSON.stringify({ error: 'Zapier integration not enabled' }),

@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('ODF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ODF_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('ODF_API_BASE_URL', 'https://online-designer-beta.vercel.app/api'); // Update this to your deployed API URL
+define('ODF_API_BASE_URL', 'https://your-project.supabase.co/functions/v1/api-forms'); // Replace with your Supabase project URL
 
 // Include required files
 require_once ODF_PLUGIN_DIR . 'includes/class-odf-api.php';

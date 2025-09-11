@@ -84,20 +84,24 @@ You can have multiple forms on the same page:
 
 ## Configuration
 
-### API URL
-Update the `ODF_API_BASE_URL` constant in `online-designer-forms.php` to point to your Online Designer API:
+### API URL Setup
+
+Update the `ODF_API_BASE_URL` in `online-designer-forms.php` to point to your Supabase Edge Function:
+
 ```php
-define('ODF_API_BASE_URL', 'https://your-domain.com/api');
+define('ODF_API_BASE_URL', 'https://your-project-id.supabase.co/functions/v1/api-forms');
 ```
+
+Replace `your-project-id` with your actual Supabase project ID.
 
 ### Styling
 Customize the form appearance by editing `assets/css/frontend.css`.
 
 ## API Endpoints
 
-The plugin expects these API endpoints:
-- `GET /api/forms/{id}?api_key=YOUR_KEY` - Fetch form data
-- `POST /api/forms/{id}/responses?api_key=YOUR_KEY` - Submit form responses
+The plugin uses your existing Supabase Edge Function:
+- `GET /functions/v1/api-forms/{id}?api_key=YOUR_KEY` - Fetch form data
+- `POST /functions/v1/api-forms/{id}?api_key=YOUR_KEY` - Submit form responses
 
 ## Support
 

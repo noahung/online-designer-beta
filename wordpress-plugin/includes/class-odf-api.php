@@ -17,7 +17,7 @@ class ODF_API {
             return false;
         }
 
-        $url = self::$api_base_url . '/forms/' . $form_id . '?api_key=' . urlencode($api_key);
+        $url = self::$api_base_url . '/' . $form_id . '?api_key=' . urlencode($api_key);
 
         $response = wp_remote_get($url, array(
             'timeout' => 15, // Increased timeout
@@ -63,7 +63,7 @@ class ODF_API {
             return false;
         }
 
-        $url = self::$api_base_url . '/forms/' . $form_id . '/responses?api_key=' . urlencode($api_key);
+        $url = self::$api_base_url . '/' . $form_id . '?api_key=' . urlencode($api_key);
 
         $response = wp_remote_post($url, array(
             'timeout' => 10,
