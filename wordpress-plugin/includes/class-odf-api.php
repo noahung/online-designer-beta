@@ -11,13 +11,18 @@ class ODF_API {
      * Fetch form data from API
      */
     public static function get_form($form_id) {
-        $url = self::$api_base_url . '/forms/' . $form_id;
+        $api_key = get_option('odf_api_key', '');
+        if (empty($api_key)) {
+            error_log('ODF Error: API key not configured');
+            return false;
+        }
+
+        $url = self::$api_base_url . '/forms/' . $form_id . '?api_key=' . urlencode($api_key);
 
         $response = wp_remote_get($url, array(
             'timeout' => 10,
             'headers' => array(
                 'Content-Type' => 'application/json',
-                // Add any authentication headers if needed
             ),
         ));
 
@@ -41,14 +46,19 @@ class ODF_API {
      * Submit form data to API
      */
     public static function submit_form($form_id, $form_data) {
-        $url = self::$api_base_url . '/forms/' . $form_id . '/responses';
+        $api_key = get_option('odf_api_key', '');
+        if (empty($api_key)) {
+            error_log('ODF Error: API key not configured');
+            return false;
+        }
+
+        $url = self::$api_base_url . '/forms/' . $form_id . '/responses?api_key=' . urlencode($api_key);
 
         $response = wp_remote_post($url, array(
             'timeout' => 10,
             'body' => json_encode($form_data),
             'headers' => array(
                 'Content-Type' => 'application/json',
-                // Add any authentication headers if needed
             ),
         ));
 
