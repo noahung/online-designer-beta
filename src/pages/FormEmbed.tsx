@@ -98,6 +98,7 @@ export default function FormEmbed() {
         document.documentElement.scrollHeight,
         document.documentElement.offsetHeight
       );
+      console.log('[FormEmbed] Sending designerFormHeight:', height);
       window.parent.postMessage({
         type: 'designerFormHeight',
         height: height
