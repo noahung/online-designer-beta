@@ -1246,7 +1246,7 @@ export default function FormEmbed() {
   const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
 
   return (
-  <div className={currentTheme.styles.background} style={{ position: 'relative', minHeight: 'unset' }}>
+  <div className={currentTheme.styles.background} style={{ position: 'relative', height: 'auto', minHeight: 0 }}>
       {/* Soft UI decorations for soft-ui theme */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

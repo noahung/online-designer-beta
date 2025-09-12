@@ -136,8 +136,8 @@ export const buttons = {
 export const layout = {
   page: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-gray-50'
-      : 'min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900',
+      ? 'bg-gradient-to-br from-gray-50 via-orange-50 to-gray-50'
+      : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900',
   
   container: 'p-8 animate-fade-in',
   
