@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formThemes } from '../lib/formThemes'
@@ -30,6 +31,8 @@ type Step = {
 }
 
 export default function FormEmbed() {
+  // Ref for main form container
+  const formContainerRef = useRef<HTMLDivElement>(null);
   // MutationObserver for robust height updates
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -91,13 +94,12 @@ export default function FormEmbed() {
   const sendHeightToParent = () => {
     // Use requestAnimationFrame to ensure DOM is fully updated
     requestAnimationFrame(() => {
-      const height = Math.max(
-        document.body.scrollHeight,
-        document.body.offsetHeight,
-        document.documentElement.clientHeight,
-        document.documentElement.scrollHeight,
-        document.documentElement.offsetHeight
-      );
+      let height = 0;
+      if (formContainerRef.current) {
+        height = formContainerRef.current.offsetHeight;
+      } else {
+        height = document.body.scrollHeight;
+      }
       console.log('[FormEmbed] Sending designerFormHeight:', height);
       window.parent.postMessage({
         type: 'designerFormHeight',
@@ -1255,7 +1257,7 @@ export default function FormEmbed() {
   const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
 
   return (
-  <div className={currentTheme.styles.background} style={{ position: 'relative', height: 'auto', minHeight: 0 }}>
+  <div ref={formContainerRef} className={currentTheme.styles.background} style={{ position: 'relative', height: 'auto', minHeight: 0 }}>
       {/* Soft UI decorations for soft-ui theme */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
