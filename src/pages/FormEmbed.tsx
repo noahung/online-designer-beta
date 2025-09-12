@@ -533,25 +533,40 @@ export default function FormEmbed() {
         return
       }
 
+      // Check if we have the form owner's user_id
+      if (!formData.user_id) {
+        console.warn('Form owner user_id not found, cannot fetch Brevo API key')
+        return
+      }
 
       // Fetch Brevo API key from user_settings
       let brevoApiKey = null;
       try {
+        console.log('Fetching Brevo API key for user_id:', formData.user_id)
         const { data, error } = await supabase
           .from('user_settings')
           .select('brevo_api_key')
-          .eq('user_id', user?.id)
+          .eq('user_id', formData.user_id)
           .maybeSingle();
+
+        console.log('Brevo API key query result:', { data, error })
+
         if (error) {
           console.warn('Could not fetch Brevo API key:', error.message)
         }
         brevoApiKey = data?.brevo_api_key || null;
+        console.log('Retrieved Brevo API key:', brevoApiKey ? 'Found' : 'Not found')
       } catch (err) {
         console.error('Error fetching Brevo API key:', err);
       }
 
       if (!brevoApiKey) {
-        console.warn('Brevo API key not configured, skipping email notification');
+        console.warn('Brevo API key not configured in user settings, trying environment variable as fallback')
+        brevoApiKey = import.meta.env.VITE_BREVO_API_KEY
+      }
+
+      if (!brevoApiKey) {
+        console.warn('Brevo API key not configured in user settings or environment, skipping email notification');
         return;
       }
 
@@ -1231,7 +1246,7 @@ export default function FormEmbed() {
   const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
 
   return (
-    <div className={currentTheme.styles.background} style={{ position: 'relative' }}>
+  <div className={currentTheme.styles.background} style={{ position: 'relative', minHeight: 'unset' }}>
       {/* Soft UI decorations for soft-ui theme */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
