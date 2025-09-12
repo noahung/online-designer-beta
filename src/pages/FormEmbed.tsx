@@ -30,6 +30,14 @@ type Step = {
 }
 
 export default function FormEmbed() {
+  // MutationObserver for robust height updates
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      sendHeightToParent();
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    return () => observer.disconnect();
+  }, []);
   const { user } = useAuth()
   const { id } = useParams()
   const [steps, setSteps] = useState<Step[]>([])
