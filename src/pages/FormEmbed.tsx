@@ -7,12 +7,12 @@ import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
-type Step = { 
-  id: string; 
-  title: string; 
-  question_type: string; 
-  is_required: boolean; 
-  step_order: number; 
+type Step = {
+  id: string;
+  title: string;
+  question_type: string;
+  is_required: boolean;
+  step_order: number;
   options: Option[];
   max_file_size?: number;
   allowed_file_types?: string[];
@@ -28,6 +28,12 @@ type Step = {
   frames_require_measurements?: boolean;
   enable_room_location?: boolean;
   enable_measurements?: boolean;
+}
+
+// Email validation function
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 }
 
 export default function FormEmbed() {
@@ -499,17 +505,29 @@ export default function FormEmbed() {
         completion_percentage: completionPercentage
       }
 
-      // Send webhook
-      const response = await fetch(settings.webhook_url, {
+      // Send webhook via Supabase Edge Function to avoid CORS issues
+      const supabaseFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-webhook`
+      const response = await fetch(supabaseFunctionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify(webhookData)
+        body: JSON.stringify({
+          webhook_url: settings.webhook_url,
+          payload: webhookData,
+          user_id: formData.user_id
+        })
       })
 
       if (!response.ok) {
-        throw new Error(`Webhook failed with status: ${response.status}`)
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(`Webhook proxy failed: ${errorData.error || response.statusText}`)
+      }
+
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error(`Webhook delivery failed: ${result.error}`)
       }
 
       // Update response to mark webhook as sent
@@ -623,13 +641,15 @@ export default function FormEmbed() {
         });
       }
 
-      // Add additional emails
+      // Add additional emails with validation
       additionalEmails.forEach(email => {
-        if (email && email.trim()) {
+        if (email && email.trim() && isValidEmail(email.trim())) {
           recipients.push({
             email: email.trim(),
             name: formData.clients.name || 'Client'
           });
+        } else if (email && email.trim()) {
+          console.warn('Skipping invalid email address:', email.trim());
         }
       });
 
