@@ -84,6 +84,12 @@ export default function Responses() {
   const [clients, setClients] = useState<Client[]>([])
   const { push } = useToast()
 
+  // Pagination state
+  const [pageSize, setPageSize] = useState(10)
+  const [currentPage, setCurrentPage] = useState(1)
+  const totalPages = Math.ceil(responses.length / pageSize)
+  const paginatedResponses = responses.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   useEffect(() => {
     fetchData()
   }, [user])
@@ -424,6 +430,11 @@ export default function Responses() {
   push({ type: 'success', message: 'CSV export ready' })
   }
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedForm, selectedClient, pageSize])
+
   return (
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -505,10 +516,23 @@ export default function Responses() {
             </div>
           )}
 
-          <div className="flex items-end">
+          <div className="flex items-end space-x-4">
             <span className="text-sm text-gray-600 dark:text-white/60 px-3 py-3 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
               {filteredResponses.length} of {responses.length} responses
             </span>
+            <div>
+              <label className="text-sm text-gray-700 dark:text-white/90 mr-2">Page size:</label>
+              <select
+                value={pageSize}
+                onChange={e => setPageSize(Number(e.target.value))}
+                className="px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/10 backdrop-blur-md text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15 shadow-lg appearance-none"
+                style={{ minWidth: 70 }}
+              >
+                <option value={10} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">10</option>
+                <option value={20} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">20</option>
+                <option value={30} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">30</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -567,7 +591,7 @@ export default function Responses() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-white/10">
-                {filteredResponses.map((response, index) => (
+                {paginatedResponses.map((response, index) => (
                   <tr key={response.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 group animate-slide-up" style={{animationDelay: `${0.1 * index}s`}}>
                     <td className="px-6 py-4">
                       <div>
@@ -614,6 +638,25 @@ export default function Responses() {
           </div>
         </div>
       )}
+
+      {/* Pagination Controls */}
+      <div className="flex justify-end items-center mt-4 space-x-2">
+        <button
+          className="px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/10 backdrop-blur-md text-gray-900 dark:text-white font-medium shadow-lg transition-all duration-200 hover:bg-white/80 dark:hover:bg-white/20 disabled:opacity-50"
+          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+        >
+          Prev
+        </button>
+        <span className="text-sm text-gray-700 dark:text-white/80">Page {currentPage} of {totalPages}</span>
+        <button
+          className="px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/10 backdrop-blur-md text-gray-900 dark:text-white font-medium shadow-lg transition-all duration-200 hover:bg-white/80 dark:hover:bg-white/20 disabled:opacity-50"
+          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages || totalPages === 0}
+        >
+          Next
+        </button>
+      </div>
 
       {/* Response Details Modal */}
       {selectedResponse && (

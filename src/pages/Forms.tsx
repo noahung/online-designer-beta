@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 interface Form {
   id: string
   name: string
+  internal_name?: string | null
   description: string | null
   is_active: boolean
   created_at: string
@@ -39,6 +40,7 @@ export default function Forms() {
         .from('forms')
         .select(`
           *,
+          internal_name,
           clients (
             name,
             primary_color
@@ -236,6 +238,11 @@ window.addEventListener("message", function(event) {
                     <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
                       {form.name}
                     </h3>
+                    {form.internal_name && (
+                      <span className="ml-2 px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-300 border border-orange-400/30">
+                        {form.internal_name}
+                      </span>
+                    )}
                     <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
                       form.is_active 
                         ? 'bg-green-500/20 text-green-300 border-green-400/30'

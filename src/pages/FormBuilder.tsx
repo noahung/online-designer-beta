@@ -285,6 +285,7 @@ export default function FormBuilder() {
   const navigate = useNavigate()
   const { id: formId } = useParams() // Get form ID from URL params for editing
   const [name, setName] = useState('Window & Door Designer Tool')
+  const [internalName, setInternalName] = useState('')
   const [description, setDescription] = useState('Interactive form to help customers design their perfect windows and doors')
   const [welcomeMessage, setWelcomeMessage] = useState('Welcome to our design tool! Let\'s create the perfect windows and doors for your home.')
   const [clientId, setClientId] = useState<string | null>(null)
@@ -462,16 +463,17 @@ export default function FormBuilder() {
       if (stepsError) throw stepsError
 
       // Set form data
-      setName(formData.name)
-      setDescription(formData.description)
-      setWelcomeMessage(formData.welcome_message || '')
-      setClientId(formData.client_id)
-      setFormTheme(formData.form_theme || 'generic')
-      setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
-      setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
-      setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
-      setSecondaryButtonTextColor(formData.secondary_button_text_color || '#374151')
-      setIsEditing(true)
+  setName(formData.name)
+  setInternalName(formData.internal_name || '')
+  setDescription(formData.description)
+  setWelcomeMessage(formData.welcome_message || '')
+  setClientId(formData.client_id)
+  setFormTheme(formData.form_theme || 'generic')
+  setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
+  setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
+  setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
+  setSecondaryButtonTextColor(formData.secondary_button_text_color || '#374151')
+  setIsEditing(true)
 
       // Convert database steps to component format
       const convertedSteps: Step[] = (stepsData || []).map(step => ({
@@ -660,6 +662,7 @@ export default function FormBuilder() {
         const { error: formErr } = await supabase.from('forms')
           .update({ 
             name, 
+            internal_name: internalName,
             description, 
             client_id: clientId,
             welcome_message: welcomeMessage,
@@ -685,6 +688,7 @@ export default function FormBuilder() {
         // Create new form
         const { data: formData, error: formErr } = await supabase.from('forms').insert([{ 
           name, 
+          internal_name: internalName,
           description, 
           client_id: clientId, 
           user_id: user.id,
@@ -1068,6 +1072,22 @@ export default function FormBuilder() {
                       theme === 'light'
                         ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
                         : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className={`block text-sm font-medium ${
+                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Internal Name (Admin Only)</label>
+                  <input
+                    type="text"
+                    value={internalName}
+                    onChange={e => setInternalName(e.target.value)}
+                    placeholder="Internal name for admin use only"
+                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                      theme === 'light'
+                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-orange-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-orange-400'
                     }`}
                   />
                 </div>
