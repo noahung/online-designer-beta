@@ -15,6 +15,7 @@ interface Client {
   additional_emails: string[]
   client_password_hash: string | null
   email_notifications_enabled: boolean
+  webhook_url: string | null
   created_at: string
 }
 
@@ -34,7 +35,8 @@ export default function Clients() {
     client_email: '',
     additional_emails: [] as string[],
     client_password: '',
-    email_notifications_enabled: true
+    email_notifications_enabled: true,
+    webhook_url: ''
   })
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -107,7 +109,8 @@ export default function Clients() {
           client_email: formData.client_email || null,
           additional_emails: formData.additional_emails,
           client_password_hash: formData.client_password || null,
-          email_notifications_enabled: formData.email_notifications_enabled
+          email_notifications_enabled: formData.email_notifications_enabled,
+          webhook_url: formData.webhook_url || null
         }
 
         if (logoUrl) {
@@ -142,6 +145,7 @@ export default function Clients() {
             additional_emails: formData.additional_emails,
             client_password_hash: formData.client_password || null,
             email_notifications_enabled: formData.email_notifications_enabled,
+            webhook_url: formData.webhook_url || null,
             user_id: user.id
           })
           .select()
@@ -177,7 +181,8 @@ export default function Clients() {
         client_email: '',
         additional_emails: [],
         client_password: '',
-        email_notifications_enabled: true
+        email_notifications_enabled: true,
+        webhook_url: ''
       })
       setLogoPreview(null)
       fetchClients()
@@ -199,7 +204,8 @@ export default function Clients() {
       client_email: client.client_email || '',
       additional_emails: client.additional_emails || [],
       client_password: client.client_password_hash || '',
-      email_notifications_enabled: client.email_notifications_enabled ?? true
+      email_notifications_enabled: client.email_notifications_enabled ?? true,
+      webhook_url: client.webhook_url || ''
     })
     setLogoPreview(client.logo_url)
     setShowModal(true)
@@ -420,6 +426,30 @@ export default function Clients() {
                         alt={`${client.name} logo`}
                         className="h-8"
                       />
+                    </div>
+                  </div>
+                )}
+
+                {client.webhook_url && (
+                  <div>
+                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
+                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
+                    }`}>Webhook</label>
+                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
+                      theme === 'light'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-green-500/10 border-green-400/30'
+                    }`}>
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${
+                          theme === 'light' ? 'bg-green-500' : 'bg-green-400'
+                        }`}></div>
+                        <span className={`text-xs font-medium ${
+                          theme === 'light' ? 'text-green-700' : 'text-green-300'
+                        }`}>
+                          Zapier Connected
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -654,6 +684,23 @@ export default function Clients() {
                 </div>
               </div>
 
+              {/* Webhook URL */}
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  🔗 Zapier Webhook URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.webhook_url}
+                  onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                />
+                <p className="text-xs text-white/60 mt-2">
+                  📡 Form responses will be automatically sent to this Zapier webhook URL
+                </p>
+              </div>
+
               {/* Primary Color */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-3">
@@ -755,7 +802,8 @@ export default function Clients() {
                       client_email: '',
                       additional_emails: [],
                       client_password: '',
-                      email_notifications_enabled: true
+                      email_notifications_enabled: true,
+                      webhook_url: ''
                     })
                     setLogoPreview(null)
                   }}

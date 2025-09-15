@@ -6,8 +6,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 interface WebhookNotification {
   id: string
-  webhook_id: string
-  target_url: string
+  webhook_url: string
   payload: any
   attempts: number
 }
@@ -23,10 +22,9 @@ Deno.serve(async (req) => {
       .from('webhook_notifications')
       .select(`
         id,
-        webhook_id,
+        webhook_url,
         payload,
-        attempts,
-        webhooks!inner(target_url)
+        attempts
       `)
       .eq('status', 'pending')
       .lt('attempts', 3) // Max 3 attempts
@@ -45,7 +43,7 @@ Deno.serve(async (req) => {
     // Process each notification
     const results = await Promise.allSettled(
       notifications.map(async (notification: any) => {
-        const webhookUrl = notification.webhooks?.target_url
+        const webhookUrl = notification.webhook_url
 
         if (!webhookUrl) {
           console.error('No webhook URL found for notification:', notification.id)
@@ -89,7 +87,7 @@ Deno.serve(async (req) => {
               attempts: newAttempts,
               status: shouldRetry ? 'pending' : 'failed',
               last_attempt_at: new Date().toISOString(),
-              error_message: error.message,
+              error_message: (error as Error).message,
               updated_at: new Date().toISOString()
             })
             .eq('id', notification.id)
