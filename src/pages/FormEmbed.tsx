@@ -471,6 +471,8 @@ export default function FormEmbed() {
         response_id: responseId,
         form_id: formData.id,
         form_name: formData.name,
+        client_id: formData.clients?.id || null,
+        client_name: formData.clients?.name || null,
         submitted_at: new Date().toISOString(),
         
         // Contact information (flattened for easy access)
