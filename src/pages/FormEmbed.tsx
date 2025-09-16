@@ -6,6 +6,13 @@ import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
+// Extend window interface for height update timeout
+declare global {
+  interface Window {
+    heightUpdateTimeout?: number;
+  }
+}
+
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
 
 // Email validation function - matches Brevo's strict validation requirements
@@ -163,10 +170,32 @@ export default function FormEmbed() {
   // MutationObserver for robust height updates
   useEffect(() => {
     const observer = new MutationObserver(() => {
-      sendHeightToParent();
+      // Debounce the height updates to avoid too many calls
+      clearTimeout(window.heightUpdateTimeout);
+      window.heightUpdateTimeout = setTimeout(() => {
+        sendHeightToParent();
+      }, 100);
     });
     observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-    return () => observer.disconnect();
+    
+    // Also observe for image loads which can change height
+    const handleImageLoad = () => sendHeightToParent();
+    const images = document.querySelectorAll('img');
+    images.forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', handleImageLoad);
+        img.addEventListener('error', handleImageLoad);
+      }
+    });
+    
+    return () => {
+      observer.disconnect();
+      clearTimeout(window.heightUpdateTimeout);
+      images.forEach(img => {
+        img.removeEventListener('load', handleImageLoad);
+        img.removeEventListener('error', handleImageLoad);
+      });
+    };
   }, []);
   const { user } = useAuth()
   const { id } = useParams()
@@ -227,21 +256,33 @@ export default function FormEmbed() {
     // Use requestAnimationFrame to ensure DOM is fully updated
     requestAnimationFrame(() => {
       let height = 0;
+      
+      // Try multiple methods to get the most accurate height
       if (formContainerRef.current) {
+        // Method 1: Use the container ref
         height = formContainerRef.current.offsetHeight;
+        
+        // Method 2: Also check scrollHeight for content that might overflow
+        const scrollHeight = formContainerRef.current.scrollHeight;
+        height = Math.max(height, scrollHeight);
       } else {
+        // Fallback: Use document body
         height = document.body.scrollHeight;
       }
       
-      // Ensure minimum height to prevent collapsing and handle edge cases
+      // Ensure minimum height to prevent collapsing
       height = Math.max(height, 200);
       
-      // If height is still very small, try document.body.scrollHeight as fallback
-      if (height < 300) {
-        height = Math.max(document.body.scrollHeight, height);
+      // Account for potential scrollbars
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      if (scrollbarWidth > 0) {
+        height += 20; // Extra buffer if scrollbar exists
       }
       
-      console.log('[FormEmbed] Sending designerFormHeight:', height);
+      // Add some padding for safety
+      height += 20;
+      
+      console.log('[FormEmbed] Sending designerFormHeight:', height, 'Scrollbar detected:', scrollbarWidth > 0);
       window.parent.postMessage({
         type: 'designerFormHeight',
         height: height
@@ -258,9 +299,26 @@ export default function FormEmbed() {
       sendHeightToParent();
     }, 500);
     
+    // Send height when window fully loads
+    const handleLoad = () => sendHeightToParent();
+    window.addEventListener('load', handleLoad);
+    
+    // Periodic height checks for dynamic content (every 2 seconds for 10 seconds)
+    let periodicCheckCount = 0;
+    const periodicCheck = setInterval(() => {
+      if (periodicCheckCount < 5) {
+        sendHeightToParent();
+        periodicCheckCount++;
+      } else {
+        clearInterval(periodicCheck);
+      }
+    }, 2000);
+    
     return () => {
       window.removeEventListener('resize', sendHeightToParent);
+      window.removeEventListener('load', handleLoad);
       clearTimeout(initialTimeout);
+      clearInterval(periodicCheck);
     };
   }, []);
 
