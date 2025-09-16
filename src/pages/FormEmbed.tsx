@@ -1612,17 +1612,17 @@ export default function FormEmbed() {
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
   return (
-  <div ref={formContainerRef} className={`${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto' }}>
-      {/* Soft UI decorations for soft-ui theme */}
+  <div ref={formContainerRef} className={`${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto', minHeight: 'fit-content', paddingBottom: '0' }}>
+      {/* Soft UI decorations for soft-ui theme - only show within form bounds */}
       {formTheme === 'soft-ui' && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ height: 'fit-content', paddingBottom: '0' }}>
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-pink-600/20 rounded-full blur-3xl"></div>
         </div>
       )}
       
-      <div className={currentTheme.styles.container}>
-        <div className={currentTheme.styles.card}>
+      <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0' }}>
+        <div className={currentTheme.styles.card} style={{ marginBottom: '0' }}>
         {/* Client Header */}
   {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">

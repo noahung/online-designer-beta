@@ -43,7 +43,7 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
     },
     styles: {
       background: 'bg-slate-50',
-  container: 'w-full px-4 py-8',
+  container: 'w-full px-4 py-8 flex justify-center',
       card: 'bg-white p-8 rounded-lg shadow-md border w-full max-w-4xl',
       input: 'w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent',
       button: {
@@ -68,8 +68,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       accentColor: 'bg-blue-600'
     },
     styles: {
-      background: 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 relative overflow-hidden',
-  container: 'w-full px-4 py-8 relative z-10',
+      background: 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 relative',
+  container: 'w-full px-4 py-8 relative z-10 flex justify-center',
       card: 'apple-glass-card rounded-3xl shadow-2xl p-10 border border-white/30 w-full max-w-4xl',
       input: 'apple-input w-full px-5 py-4 rounded-2xl border border-white/20 transition-all duration-300 bg-white/60 focus:border-blue-400/60 focus:bg-white/80 backdrop-blur-xl',
       button: {
@@ -83,11 +83,10 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       },
       progress: 'w-full bg-white/40 backdrop-blur-sm rounded-full h-2 overflow-hidden apple-progress shadow-inner',
       decorations: `
-        <div class="apple-decorations absolute inset-0 overflow-hidden pointer-events-none">
-          <div class="absolute -top-32 -right-32 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-purple-500/15 rounded-full blur-3xl animate-pulse"></div>
-          <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-gradient-to-tr from-indigo-400/10 to-pink-500/15 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
-          <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-cyan-300/5 to-blue-400/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
-          <div class="absolute inset-0 bg-gradient-to-t from-transparent via-white/5 to-white/10"></div>
+        <div class="apple-decorations absolute inset-0 overflow-hidden pointer-events-none" style="height: fit-content;">
+          <div class="absolute -top-16 -right-16 w-32 h-32 bg-gradient-to-br from-blue-400/10 to-purple-500/15 rounded-full blur-2xl animate-pulse"></div>
+          <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-gradient-to-tr from-indigo-400/10 to-pink-500/15 rounded-full blur-2xl animate-pulse" style="animation-delay: 1s;"></div>
+          <div class="absolute top-1/4 left-1/4 w-48 h-48 bg-gradient-to-r from-cyan-300/5 to-blue-400/10 rounded-full blur-2xl animate-pulse" style="animation-delay: 2s;"></div>
         </div>
       `
     },
