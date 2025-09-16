@@ -1238,7 +1238,7 @@ export default function FormBuilder() {
 
             {/* Color Customization */}
             <CollapsibleSection
-              title="Button Colors"
+              title="Button Colours"
               icon={<svg className="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
                 <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -1517,95 +1517,144 @@ export default function FormBuilder() {
                         </button>
                       </div>
                       
-                      <div className="space-y-4">
-                        {currentStep.options.map((option, optIndex) => (
-                          <div key={optIndex} className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/10 transition-all duration-200">
-                            <div className="space-y-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 space-y-3">
-                                  <input
-                                    type="text"
-                                    value={option.label}
-                                    onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, label: e.target.value })}
-                                    placeholder="Option label"
-                                    className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 font-medium"
-                                  />
-                                  <textarea
-                                    value={option.description || ''}
-                                    onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, description: e.target.value })}
-                                    placeholder="Option description"
-                                    rows={2}
-                                    className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm resize-none"
-                                  />
-                                </div>
-                                <div className="ml-4 space-y-3">
-                                  <button
-                                    onClick={() => deleteOption(selectedStepIndex!, optIndex)}
-                                    className="p-2 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 hover:scale-110"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {currentStep.question_type === 'image_selection' && (
-                                <div className="space-y-3 mt-4">
-                                  <div className="flex items-center space-x-3">
-                                    <label className="text-sm text-white/90">Image</label>
+                      {/* Grid layout for image selection options */}
+                      {currentStep.question_type === 'image_selection' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {currentStep.options.map((option, optIndex) => (
+                            <div key={optIndex} className="group relative bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:shadow-xl">
+                              {/* Image Upload Area */}
+                              <div className="aspect-square p-4">
+                                {option.image_url ? (
+                                  <div className="relative h-full w-full">
+                                    <img
+                                      src={option.image_url}
+                                      alt="Option preview"
+                                      className="h-full w-full object-cover rounded-lg border border-white/20 shadow-lg"
+                                    />
                                     <button
-                                      onClick={() => {
-                                        const input = document.createElement('input')
-                                        input.type = 'file'
-                                        input.accept = 'image/*'
-                                        input.onchange = (e) => {
-                                          const file = (e.target as HTMLInputElement).files?.[0] || null
-                                          handleFileChange(selectedStepIndex!, optIndex, file)
-                                        }
-                                        input.click()
-                                      }}
-                                      className="inline-flex items-center px-3 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-200 rounded-xl border border-cyan-400/30 transition-all duration-200 hover:scale-105 shadow-lg text-sm"
+                                      onClick={() => updateOption(selectedStepIndex!, optIndex, { ...option, image_url: undefined, imageFile: null })}
+                                      className="absolute -top-2 -right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
                                     >
-                                      <Upload className="mr-2 h-4 w-4" />
-                                      Upload Image
+                                      <X className="h-3 w-3" />
                                     </button>
                                   </div>
-                                  {option.image_url && (
-                                    <div className="relative inline-block">
-                                      <img 
-                                        src={option.image_url} 
-                                        alt="Option preview" 
-                                        className="h-24 w-32 object-cover rounded-xl border border-white/20 shadow-lg"
-                                      />
-                                      <button
-                                        onClick={() => updateOption(selectedStepIndex!, optIndex, { ...option, image_url: undefined, imageFile: null })}
-                                        className="absolute -top-2 -right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      const input = document.createElement('input')
+                                      input.type = 'file'
+                                      input.accept = 'image/*'
+                                      input.onchange = (e) => {
+                                        const file = (e.target as HTMLInputElement).files?.[0] || null
+                                        handleFileChange(selectedStepIndex!, optIndex, file)
+                                      }
+                                      input.click()
+                                    }}
+                                    className="h-full w-full border-2 border-dashed border-white/30 rounded-lg hover:border-cyan-400/50 hover:bg-cyan-500/10 transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105"
+                                  >
+                                    <Upload className="h-8 w-8 text-white/40 group-hover:text-cyan-300 transition-colors duration-200" />
+                                    <span className="text-xs text-white/50 group-hover:text-cyan-200 transition-colors duration-200">Upload Image</span>
+                                  </button>
+                                )}
+                              </div>
 
-                              <div className="space-y-2 mt-4">
-                                <label className="block text-xs text-white/70">Jump to step (optional)</label>
+                              {/* Label and Description */}
+                              <div className="p-4 space-y-3">
                                 <input
-                                  type="number"
-                                  min={1}
-                                  max={steps.length}
-                                  value={option.jump_to_step ?? ''}
-                                  onChange={(e) => updateOption(selectedStepIndex!, optIndex, { 
-                                    ...option, 
-                                    jump_to_step: e.target.value ? Number(e.target.value) : undefined 
-                                  })}
-                                  placeholder="Step number"
-                                  className="w-24 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
+                                  type="text"
+                                  value={option.label}
+                                  onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, label: e.target.value })}
+                                  placeholder="Option label"
+                                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm font-medium"
                                 />
+                                <textarea
+                                  value={option.description || ''}
+                                  onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, description: e.target.value })}
+                                  placeholder="Description (optional)"
+                                  rows={2}
+                                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs resize-none"
+                                />
+
+                                {/* Jump to step */}
+                                <div className="space-y-1">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={steps.length}
+                                    value={option.jump_to_step ?? ''}
+                                    onChange={(e) => updateOption(selectedStepIndex!, optIndex, {
+                                      ...option,
+                                      jump_to_step: e.target.value ? Number(e.target.value) : undefined
+                                    })}
+                                    placeholder="Jump to step"
+                                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Delete button */}
+                              <button
+                                onClick={() => deleteOption(selectedStepIndex!, optIndex)}
+                                className="absolute top-2 right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Original layout for non-image selection options */
+                        <div className="space-y-4">
+                          {currentStep.options.map((option, optIndex) => (
+                            <div key={optIndex} className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/10 transition-all duration-200">
+                              <div className="space-y-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 space-y-3">
+                                    <input
+                                      type="text"
+                                      value={option.label}
+                                      onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, label: e.target.value })}
+                                      placeholder="Option label"
+                                      className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 font-medium"
+                                    />
+                                    <textarea
+                                      value={option.description || ''}
+                                      onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, description: e.target.value })}
+                                      placeholder="Option description"
+                                      rows={2}
+                                      className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm resize-none"
+                                    />
+                                  </div>
+                                  <div className="ml-4 space-y-3">
+                                    <button
+                                      onClick={() => deleteOption(selectedStepIndex!, optIndex)}
+                                      className="p-2 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 hover:scale-110"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2 mt-4">
+                                  <label className="block text-xs text-white/70">Jump to step (optional)</label>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={steps.length}
+                                    value={option.jump_to_step ?? ''}
+                                    onChange={(e) => updateOption(selectedStepIndex!, optIndex, {
+                                      ...option,
+                                      jump_to_step: e.target.value ? Number(e.target.value) : undefined
+                                    })}
+                                    placeholder="Step number"
+                                    className="w-24 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
