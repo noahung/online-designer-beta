@@ -43,8 +43,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
     },
     styles: {
       background: 'bg-slate-50',
-  container: 'w-full px-4 py-8',
-      card: 'bg-white p-8 rounded-lg shadow-md border',
+  container: 'w-full px-4 py-8 flex items-center justify-center min-h-screen',
+      card: 'bg-white p-8 rounded-lg shadow-md border w-full max-w-2xl',
       input: 'w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent',
       button: {
         primary: 'bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors',
@@ -69,8 +69,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
     },
     styles: {
       background: 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 relative overflow-hidden',
-  container: 'w-full px-4 py-8 relative z-10',
-      card: 'apple-glass-card rounded-3xl shadow-2xl p-10 border border-white/30',
+  container: 'w-full px-4 py-8 relative z-10 flex items-center justify-center min-h-screen',
+      card: 'apple-glass-card rounded-3xl shadow-2xl p-10 border border-white/30 w-full max-w-2xl',
       input: 'apple-input w-full px-5 py-4 rounded-2xl border border-white/20 transition-all duration-300 bg-white/60 focus:border-blue-400/60 focus:bg-white/80 backdrop-blur-xl',
       button: {
         primary: 'apple-button text-white px-8 py-4 rounded-full font-medium inline-flex items-center gap-3 transition-all duration-300 shadow-lg hover:shadow-2xl backdrop-blur-sm',
@@ -185,15 +185,15 @@ export const softUIStyles = `
   }
   
   .apple-glass-card {
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(25px) saturate(200%);
     -webkit-backdrop-filter: blur(25px) saturate(200%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: 
       0 8px 40px rgba(0, 0, 0, 0.12),
       0 20px 60px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.3);
     position: relative;
   }
   

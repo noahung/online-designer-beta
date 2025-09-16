@@ -309,10 +309,10 @@ export default function FormBuilder() {
 
   // Collapsible sections state
   const [collapsedSections, setCollapsedSections] = useState({
-    formSettings: false,
-    formTheme: false,
-    buttonColors: false,
-    formSteps: false,
+    formSettings: true,  // Collapsed by default
+    formTheme: true,     // Collapsed by default
+    buttonColors: true,  // Collapsed by default
+    formSteps: false,    // Keep expanded for easy access to add steps
   })
 
   const toggleSection = (sectionKey: keyof typeof collapsedSections) => {

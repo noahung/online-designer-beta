@@ -78,6 +78,88 @@ type Step = {
 export default function FormEmbed() {
   // Ref for main form container
   const formContainerRef = useRef<HTMLDivElement>(null);
+
+  // Animated Image Card Component
+  const AnimatedImageCard = ({ 
+    option, 
+    isSelected, 
+    onClick, 
+    isAnimating, 
+    animationDirection,
+    index 
+  }: {
+    option: Option;
+    isSelected: boolean;
+    onClick: () => void;
+    isAnimating: boolean;
+    animationDirection: 'forward' | 'backward';
+    index: number;
+  }) => {
+    const animationDelay = index * 50; // Stagger animation by 50ms per card
+    
+    return (
+      <button 
+        onClick={onClick} 
+        className={`
+          border rounded-lg p-4 text-left hover:shadow-md transition-all duration-300 ease-out
+          ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}
+          ${isAnimating ? 
+            animationDirection === 'forward' 
+              ? 'animate-fade-in-up' 
+              : 'animate-fade-in-down'
+            : ''
+          }
+        `}
+        style={{
+          animationDelay: isAnimating ? `${animationDelay}ms` : '0ms',
+          animationFillMode: 'both'
+        }}
+      >
+        {option.image_url && (
+          <div className={`
+            aspect-square w-full mb-3 rounded-lg overflow-hidden bg-gray-100 
+            transition-all duration-300 ease-out
+            ${isAnimating ? 'animate-scale-in' : ''}
+          `}
+          style={{
+            animationDelay: isAnimating ? `${animationDelay + 100}ms` : '0ms',
+            animationFillMode: 'both'
+          }}
+          >
+            <img 
+              src={option.image_url} 
+              alt={option.label} 
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+            />
+          </div>
+        )}
+        <div className={`
+          font-medium text-gray-900 transition-all duration-200
+          ${isAnimating ? 'animate-slide-in' : ''}
+        `}
+        style={{
+          animationDelay: isAnimating ? `${animationDelay + 200}ms` : '0ms',
+          animationFillMode: 'both'
+        }}
+        >
+          {option.label}
+        </div>
+        {option.description && (
+          <div className={`
+            text-sm text-gray-500 mt-1 transition-all duration-200
+            ${isAnimating ? 'animate-slide-in' : ''}
+          `}
+          style={{
+            animationDelay: isAnimating ? `${animationDelay + 250}ms` : '0ms',
+            animationFillMode: 'both'
+          }}
+          >
+            {option.description}
+          </div>
+        )}
+      </button>
+    );
+  };
   // MutationObserver for robust height updates
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -102,6 +184,11 @@ export default function FormEmbed() {
   const [navigationHistory, setNavigationHistory] = useState<number[]>([0])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Animation state for morph transitions
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [previousStepIndex, setPreviousStepIndex] = useState<number | null>(null)
+  const [animationDirection, setAnimationDirection] = useState<'forward' | 'backward'>('forward')
   const [responses, setResponses] = useState<Record<number, { 
     option_id?: string; 
     answer_text?: string; 
@@ -295,6 +382,7 @@ export default function FormEmbed() {
           scale_type: row.scale_type,
           scale_min: row.scale_min,
           scale_max: row.scale_max,
+          images_per_row: row.images_per_row,
           // Frames plan configuration (default when null/undefined)
           frames_max_count: row.frames_max_count ?? 10,
           frames_require_image: row.frames_require_image ?? true,
@@ -321,9 +409,23 @@ export default function FormEmbed() {
       // find index for jump_to_step
       const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
       if (idx >= 0) {
-        // Add current step to history before jumping
-        setNavigationHistory(prev => [...prev, currentStepIndex])
-        setCurrentStepIndex(idx)
+        // Check if both current and target steps are image selection steps
+        const currentStep = steps[currentStepIndex]
+        const targetStep = steps[idx]
+        if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+          setPreviousStepIndex(currentStepIndex)
+          setAnimationDirection('forward')
+          setIsAnimating(true)
+          setTimeout(() => {
+            setNavigationHistory(prev => [...prev, currentStepIndex])
+            setCurrentStepIndex(idx)
+            setTimeout(() => setIsAnimating(false), 300)
+          }, 150)
+        } else {
+          // Add current step to history before jumping
+          setNavigationHistory(prev => [...prev, currentStepIndex])
+          setCurrentStepIndex(idx)
+        }
       }
       return
     }
@@ -1321,7 +1423,21 @@ export default function FormEmbed() {
 
     // Regular next step navigation - add to history
     setNavigationHistory(prev => [...prev, currentStepIndex])
-    setCurrentStepIndex(currentStepIndex + 1)
+    
+    // Trigger animation for image selection steps
+    const currentStep = steps[currentStepIndex]
+    const nextStep = steps[currentStepIndex + 1]
+    if (currentStep?.question_type === 'image_selection' && nextStep?.question_type === 'image_selection') {
+      setPreviousStepIndex(currentStepIndex)
+      setAnimationDirection('forward')
+      setIsAnimating(true)
+      setTimeout(() => {
+        setCurrentStepIndex(currentStepIndex + 1)
+        setTimeout(() => setIsAnimating(false), 300)
+      }, 150)
+    } else {
+      setCurrentStepIndex(currentStepIndex + 1)
+    }
   }
 
   const goPrev = () => {
@@ -1331,20 +1447,37 @@ export default function FormEmbed() {
       newHistory.pop() // Remove current step
       const previousStep = newHistory[newHistory.length - 1]
       setNavigationHistory(newHistory)
-      setCurrentStepIndex(previousStep)
+      
+      // Trigger animation for image selection steps
+      const currentStep = steps[currentStepIndex]
+      const prevStep = steps[previousStep]
+      if (currentStep?.question_type === 'image_selection' && prevStep?.question_type === 'image_selection') {
+        setPreviousStepIndex(currentStepIndex)
+        setAnimationDirection('backward')
+        setIsAnimating(true)
+        setTimeout(() => {
+          setCurrentStepIndex(previousStep)
+          setTimeout(() => setIsAnimating(false), 300)
+        }, 150)
+      } else {
+        setCurrentStepIndex(previousStep)
+      }
     } else {
       // Regular previous navigation if no history (shouldn't happen but safeguard)
       setCurrentStepIndex(Math.max(0, currentStepIndex - 1))
     }
   }
 
+  // Get the current theme configuration
+  const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white p-8 rounded shadow max-w-2xl w-full text-center">
+      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold">Loading form...</h2>
-          <p className="text-slate-600">Please wait while we load your form.</p>
+          <p className={currentTheme.styles.text.body}>Please wait while we load your form.</p>
         </div>
       </div>
     )
@@ -1352,18 +1485,18 @@ export default function FormEmbed() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white p-8 rounded shadow max-w-2xl w-full text-center">
+      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-red-600">Error Loading Form</h2>
-          <p className="text-slate-600 mb-4">{error}</p>
+          <p className={`${currentTheme.styles.text.body} mb-4`}>{error}</p>
           <button 
             onClick={() => id && loadForm(id)}
             style={{
               backgroundColor: formColors.primaryButtonColor,
               color: formColors.primaryButtonTextColor
             }}
-            className="px-4 py-2 rounded hover:opacity-90 transition-all duration-200"
+            className={`${currentTheme.styles.button.primary} hover:opacity-90 transition-all duration-200`}
           >
             Try Again
           </button>
@@ -1374,10 +1507,10 @@ export default function FormEmbed() {
 
   if (!steps || steps.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white p-8 rounded shadow max-w-2xl w-full text-center">
+      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <h2 className="text-xl font-semibold">Form not available</h2>
-          <p className="text-slate-600">This form isn't published or contains no steps.</p>
+          <p className={currentTheme.styles.text.body}>This form isn't published or contains no steps.</p>
         </div>
       </div>
     )
@@ -1385,10 +1518,10 @@ export default function FormEmbed() {
 
   if (currentStepIndex >= steps.length) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white p-8 rounded shadow max-w-2xl w-full text-center">
+      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <h2 className="text-xl font-semibold">Thank you</h2>
-          <p className="text-slate-600">Your submission has been received.</p>
+          <p className={currentTheme.styles.text.body}>Your submission has been received.</p>
         </div>
       </div>
     )
@@ -1397,11 +1530,8 @@ export default function FormEmbed() {
   const step = steps[currentStepIndex]
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
-  // Get the current theme configuration
-  const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
-
   return (
-  <div ref={formContainerRef} className={currentTheme.styles.background} style={{ position: 'relative', height: 'auto', minHeight: 0 }}>
+  <div ref={formContainerRef} className={`${currentTheme.styles.background} min-h-screen`} style={{ position: 'relative', height: 'auto' }}>
       {/* Soft UI decorations for soft-ui theme */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -2276,27 +2406,25 @@ export default function FormEmbed() {
             className={`grid gap-4 mt-6 ${
               step.images_per_row === 1 
                 ? 'grid-cols-1' 
+                : step.images_per_row === 2
+                ? 'grid-cols-1 sm:grid-cols-2'
                 : step.images_per_row === 3 
-                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' 
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
                 : step.images_per_row === 4
-                ? 'grid-cols-2 md:grid-cols-4'
-                : 'grid-cols-1 md:grid-cols-2' // default case
+                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
             }`}
           >
-            {step.options.map((opt: any) => (
-              <button key={opt.id} onClick={() => selectOption(opt)} className={`border rounded-lg p-4 text-left hover:shadow-md transition-all duration-200 ${responses[currentStepIndex]?.option_id === opt.id ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                {opt.image_url && (
-                  <div className="aspect-square w-full mb-3 rounded-lg overflow-hidden bg-gray-100">
-                    <img 
-                      src={opt.image_url} 
-                      alt={opt.label} 
-                      className="w-full h-full object-cover" 
-                    />
-                  </div>
-                )}
-                <div className="font-medium text-gray-900">{opt.label}</div>
-                {opt.description && <div className="text-sm text-gray-500 mt-1">{opt.description}</div>}
-              </button>
+            {step.options.map((opt: any, index: number) => (
+              <AnimatedImageCard
+                key={opt.id}
+                option={opt}
+                isSelected={responses[currentStepIndex]?.option_id === opt.id}
+                onClick={() => selectOption(opt)}
+                isAnimating={isAnimating}
+                animationDirection={animationDirection}
+                index={index}
+              />
             ))}
           </div>
         )}
