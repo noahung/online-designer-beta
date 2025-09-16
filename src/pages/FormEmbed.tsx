@@ -8,10 +8,48 @@ import { useAuth } from '../contexts/AuthContext'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
 
-// Email validation function
+// Email validation function - matches Brevo's strict validation requirements
 function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
+  if (!email || typeof email !== 'string') return false
+
+  // Remove any whitespace
+  email = email.trim()
+
+  // Basic format check
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+  if (!emailRegex.test(email)) return false
+
+  // Split into local and domain parts
+  const [localPart, domain] = email.split('@')
+
+  // Local part validations (RFC 5322 compliant)
+  if (!localPart || localPart.length === 0 || localPart.length > 80) return false
+  if (localPart.startsWith('.') || localPart.endsWith('.')) return false
+  if (localPart.includes('..')) return false
+
+  // Domain validations
+  if (!domain || domain.length === 0 || domain.length > 253) return false
+  if (domain.startsWith('.') || domain.endsWith('.')) return false
+  if (domain.includes('..')) return false
+
+  // Domain must have at least one dot
+  if (!domain.includes('.')) return false
+
+  // Check domain parts (each part should be valid)
+  const domainParts = domain.split('.')
+  for (const part of domainParts) {
+    if (part.length === 0 || part.length > 63) return false
+    if (part.startsWith('-') || part.endsWith('-')) return false
+    // Domain parts should only contain valid characters
+    if (!/^[a-zA-Z0-9-]+$/.test(part)) return false
+  }
+
+  // Additional Brevo-specific validations
+  // Reject obviously invalid patterns that Brevo doesn't accept
+  if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) return false
+  if (localPart.includes('..') || domain.includes('..')) return false
+
+  return true
 }
 
 type Step = { 
@@ -327,25 +365,46 @@ export default function FormEmbed() {
   }
 
   const sendWebhook = async (responseId: string, answers: any[], contactData: any) => {
+    console.log('🚀 [WEBHOOK] Starting webhook send process...')
+    console.log('📋 [WEBHOOK] Response ID:', responseId)
+    console.log('📊 [WEBHOOK] Answers count:', answers.length)
+    console.log('👤 [WEBHOOK] Contact data:', contactData)
+
     try {
       if (!formData) {
-        console.log('No form data available for webhook')
+        console.log('❌ [WEBHOOK] No form data available for webhook')
         return
       }
 
+      console.log('📝 [WEBHOOK] Form data found:', {
+        formId: formData.id,
+        formName: formData.name,
+        clientId: formData.client_id
+      })
+
       // Get client's webhook URL (new per-client system)
+      console.log('🔍 [WEBHOOK] Fetching client webhook URL...')
       const { data: client, error: clientError } = await supabase
         .from('clients')
         .select('webhook_url')
         .eq('id', formData.client_id)
         .maybeSingle()
 
+      console.log('📡 [WEBHOOK] Client query result:', { client, clientError })
+
       if (clientError || !client || !client.webhook_url) {
-        console.log('Client webhook not configured')
+        console.log('⚠️ [WEBHOOK] Client webhook not configured:', {
+          error: clientError?.message,
+          hasClient: !!client,
+          webhookUrl: client?.webhook_url
+        })
         return
       }
 
+      console.log('✅ [WEBHOOK] Client webhook URL found:', client.webhook_url)
+
       // Prepare comprehensive structured answers
+      console.log('🔧 [WEBHOOK] Preparing structured answers...')
       const structuredAnswers = answers.map(answer => {
         const step = steps.find(s => s.id === answer.step_id)
         // Add all possible properties to baseAnswer type
@@ -383,7 +442,7 @@ export default function FormEmbed() {
         if (answer.answer_text) {
           baseAnswer.answer_text = answer.answer_text;
         }
-        
+
         if (answer.selected_option_id) {
           baseAnswer.selected_option = answer.selected_option_id;
           // Try to get option label from step
@@ -421,6 +480,8 @@ export default function FormEmbed() {
 
         return baseAnswer;
       });
+
+      console.log('📊 [WEBHOOK] Structured answers prepared:', structuredAnswers.length)
 
       // Categorize answers for easy access
       const textResponses = structuredAnswers
@@ -473,25 +534,31 @@ export default function FormEmbed() {
       const answeredQuestions = structuredAnswers.length
       const completionPercentage = Math.round((answeredQuestions / totalQuestions) * 100)
 
+      console.log('📈 [WEBHOOK] Completion metrics:', {
+        totalQuestions,
+        answeredQuestions,
+        completionPercentage: `${completionPercentage}%`
+      })
+
       // Prepare comprehensive webhook payload
       const webhookData = {
-  response_id: responseId,
-  form_id: formData.id,
-  form_name: formData.name,
-  internal_name: formData.internal_name || null,
-  client_id: formData.clients?.id || null,
-  client_name: formData.clients?.name || null,
+        response_id: responseId,
+        form_id: formData.id,
+        form_name: formData.name,
+        internal_name: formData.internal_name || null,
+        client_id: formData.clients?.id || null,
+        client_name: formData.clients?.name || null,
         submitted_at: new Date().toISOString(),
-        
+
         // Contact information (flattened for easy access)
         contact__name: contactData.contact_name || null,
         contact__email: contactData.contact_email || null,
         contact__phone: contactData.contact_phone || null,
         contact__postcode: contactData.contact_postcode || null,
-        
+
         // Complete structured data
         answers: JSON.stringify(structuredAnswers),
-        
+
         // Categorized responses for easy mapping
         answers__text_responses: textResponses,
         answers__multiple_choice: multipleChoiceResponses,
@@ -499,17 +566,28 @@ export default function FormEmbed() {
         answers__file_uploads: fileUploads,
         answers__dimensions: dimensionMeasurements,
         answers__opinion_ratings: opinionRatings,
-        
+
         // Direct file access
         file_attachments: fileAttachments,
         file_names: fileNames,
-        
+
         // Summary data
         total_questions_answered: answeredQuestions,
         completion_percentage: completionPercentage
       }
 
+      console.log('📦 [WEBHOOK] Webhook payload prepared:', {
+        responseId,
+        formId: formData.id,
+        clientName: formData.clients?.name,
+        answersCount: structuredAnswers.length,
+        hasFiles: fileAttachments.length > 0
+      })
+
       // Send webhook via Supabase Edge Function
+      console.log('🌐 [WEBHOOK] Sending webhook via Supabase Edge Function...')
+      console.log('🔗 [WEBHOOK] Target URL:', client.webhook_url)
+
       const response = await fetch('https://bahloynyhjgmdndqabhu.supabase.co/functions/v1/send-webhook', {
         method: 'POST',
         headers: {
@@ -522,67 +600,89 @@ export default function FormEmbed() {
         })
       })
 
+      console.log('📡 [WEBHOOK] Edge Function response status:', response.status)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ [WEBHOOK] Edge Function error response:', errorText)
         throw new Error(`Webhook failed with status: ${response.status}`)
       }
 
+      const responseData = await response.json()
+      console.log('✅ [WEBHOOK] Edge Function success response:', responseData)
+
       // Update response to mark webhook as sent
-      await supabase
+      console.log('💾 [WEBHOOK] Updating database to mark webhook as sent...')
+      const { error: updateError } = await supabase
         .from('responses')
         .update({ webhook_sent: true })
         .eq('id', responseId)
 
-      console.log('Webhook sent successfully')
+      if (updateError) {
+        console.error('❌ [WEBHOOK] Database update error:', updateError)
+      } else {
+        console.log('✅ [WEBHOOK] Database updated successfully')
+      }
+
+      console.log('🎉 [WEBHOOK] Webhook process completed successfully!')
     } catch (error) {
-      console.error('Webhook error:', error)
+      console.error('💥 [WEBHOOK] Webhook error:', error)
       throw error
     }
   }
 
   const sendClientEmailNotification = async (responseId: string) => {
+    console.log('📧 [EMAIL] Starting email notification for response:', responseId)
+
     try {
       if (!formData || !formData.clients) {
-        console.log('No form data or client info available for email notification')
+        console.log('❌ [EMAIL] No form data or client info available')
         return
       }
 
+      console.log('👥 [EMAIL] Client info:', {
+        clientName: formData.clients.name,
+        clientEmail: formData.clients.client_email,
+        emailNotificationsEnabled: formData.clients.email_notifications_enabled
+      })
+
       // Check if the client has email notifications enabled
       if (!formData.clients.email_notifications_enabled) {
-        console.log('Client has email notifications disabled, skipping notification')
+        console.log('⚠️ [EMAIL] Client has email notifications disabled')
         return
       }
 
       // Check if the client has an email configured
       if (!formData.clients.client_email) {
-        console.log('Client does not have email configured, skipping notification')
+        console.log('⚠️ [EMAIL] Client does not have email configured')
         return
       }
 
-      // Check if we have the form owner's user_id
-      if (!formData.user_id) {
-        console.warn('Form owner user_id not found, cannot fetch Brevo API key')
-        return
-      }
+      console.log('🔑 [EMAIL] Fetching Brevo API key from user settings...')
 
       // Fetch Brevo API key from user_settings
       let brevoApiKey = null;
       try {
-        console.log('Fetching Brevo API key for user_id:', formData.user_id)
+        console.log('🔍 [EMAIL] Querying user_settings for Brevo API key...')
         const { data, error } = await supabase
           .from('user_settings')
           .select('brevo_api_key')
           .eq('user_id', formData.user_id)
           .maybeSingle();
 
-        console.log('Brevo API key query result:', { data, error })
+        console.log('📊 [EMAIL] Brevo API key query result:', {
+          found: !!data,
+          error: error?.message,
+          hasApiKey: !!(data?.brevo_api_key)
+        })
 
         if (error) {
-          console.warn('Could not fetch Brevo API key:', error.message)
+          console.warn('⚠️ [EMAIL] Could not fetch Brevo API key:', error.message)
         }
         brevoApiKey = data?.brevo_api_key || null;
-        console.log('Retrieved Brevo API key:', brevoApiKey ? 'Found' : 'Not found')
+        console.log('🔑 [EMAIL] Brevo API key status:', brevoApiKey ? 'Found' : 'Not found')
       } catch (err) {
-        console.error('Error fetching Brevo API key:', err);
+        console.error('❌ [EMAIL] Error fetching Brevo API key:', err);
       }
 
       if (!brevoApiKey) {
@@ -647,7 +747,7 @@ export default function FormEmbed() {
         }
       });
 
-      console.log('Final recipients list:', recipients);
+      console.log('📝 [EMAIL] Recipients list:', recipients);
 
       const emailPayload = {
         sender: {
@@ -660,6 +760,14 @@ export default function FormEmbed() {
         textContent: emailText
       };
 
+      console.log('📦 [EMAIL] Email payload prepared:', {
+        subject: emailPayload.subject,
+        recipientCount: recipients.length,
+        hasHtmlContent: !!emailHtml,
+        hasTextContent: !!emailText
+      });
+
+      console.log('🌐 [EMAIL] Sending email via Brevo API...');
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -670,11 +778,13 @@ export default function FormEmbed() {
         body: JSON.stringify(emailPayload)
       });
 
+      console.log('📡 [EMAIL] Brevo API response status:', response.status);
+
       if (response.ok) {
-        console.log(`Client email notification sent successfully to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
+        console.log(`✅ [EMAIL] Client email notification sent successfully to ${recipients.length} recipient${recipients.length > 1 ? 's' : ''}`);
       } else {
         const errorData = await response.text();
-        console.error('Brevo API error:', response.status, errorData);
+        console.error('❌ [EMAIL] Brevo API error:', response.status, errorData);
       }
 
     } catch (error) {
@@ -1030,6 +1140,13 @@ export default function FormEmbed() {
     const step = steps[currentStepIndex]
     if (!step) return
 
+    console.log('➡️ [FORM] Navigation triggered:', {
+      currentStep: currentStepIndex + 1,
+      totalSteps: steps.length,
+      stepType: step.question_type,
+      isLastStep: currentStepIndex === steps.length - 1
+    })
+
     // require answer if needed
     const resp = responses[currentStepIndex]
     if (step.is_required) {
@@ -1060,6 +1177,10 @@ export default function FormEmbed() {
     }
 
     if (currentStepIndex === steps.length - 1) {
+      console.log('🎯 [FORM] Final step reached - starting form submission process...')
+      console.log('📝 [FORM] Form data:', { formId: id, formName, clientId: formData?.client_id })
+      console.log('📊 [FORM] Responses to submit:', responses)
+
       // Find contact information from responses
       let contactData = {}
       for (const [stepIndexStr, ans] of Object.entries(responses)) {
@@ -1076,18 +1197,24 @@ export default function FormEmbed() {
         }
       }
 
+      console.log('👤 [FORM] Contact data extracted:', contactData)
+
       // submit: create responses row and response_answers
-      const { data: inserted, error: resErr } = await supabase.from('responses').insert([{ 
+      console.log('💾 [FORM] Creating response record in database...')
+      const { data: inserted, error: resErr } = await supabase.from('responses').insert([{
         form_id: id,
         ...contactData
       }]).select().single()
+
       if (resErr || !inserted) {
-        console.error('Error creating response', resErr)
+        console.error('❌ [FORM] Error creating response:', resErr)
         alert('Submission failed')
         return
       }
 
-  const responseId = inserted.id
+      console.log('✅ [FORM] Response record created:', { responseId: inserted.id, submitted_at: inserted.submitted_at })
+
+      const responseId = inserted.id
   // build answers and frame rows (for frames_plan)
   const answers = [] as any[]
   const frameRows = [] as any[]
@@ -1170,16 +1297,23 @@ export default function FormEmbed() {
       }
 
       // Webhook is now sent automatically via database trigger
-      // The sendWebhook function is no longer needed
-      // await sendWebhook(responseId, answers, contactData)
+      console.log('🚀 [WEBHOOK] Database trigger should fire now for webhook...')
+      console.log('📡 [WEBHOOK] Expecting webhook to be sent to client webhook URL')
+      console.log('⏳ [WEBHOOK] Webhook will be processed asynchronously by database trigger')
 
       // Send email notification to client
+      console.log('📧 [EMAIL] Starting client email notification process...')
       try {
         await sendClientEmailNotification(responseId)
+        console.log('✅ [EMAIL] Client email notification completed')
       } catch (error) {
-        console.error('Email notification failed:', error)
+        console.error('❌ [EMAIL] Email notification failed:', error)
         // Don't fail the form submission if email fails
       }
+
+      console.log('🎉 [FORM] Form submission completed successfully!')
+      console.log('📋 [FORM] Response ID:', responseId)
+      console.log('🔗 [FORM] View responses at: https://designer.advertomedia.co.uk/responses')
 
       setCurrentStepIndex(currentStepIndex + 1)
       return

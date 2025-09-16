@@ -1,8 +1,35 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // Email validation function
 function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
+  // More comprehensive regex that handles complex email formats
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+  if (!emailRegex.test(email)) return false
+
+  // Additional validation checks
+  const [localPart, domain] = email.split('@')
+
+  // Local part validations
+  if (!localPart || localPart.length > 64) return false
+  if (localPart.startsWith('.') || localPart.endsWith('.')) return false
+  if (localPart.includes('..')) return false
+
+  // Domain validations
+  if (!domain || domain.length > 253) return false
+  if (domain.startsWith('.') || domain.endsWith('.')) return false
+  if (domain.includes('..')) return false
+
+  // Check for valid domain structure (must have at least one dot)
+  if (!domain.includes('.')) return false
+
+  // Check that domain doesn't start or end with hyphen
+  const domainParts = domain.split('.')
+  for (const part of domainParts) {
+    if (part.startsWith('-') || part.endsWith('-')) return false
+    if (part.length > 63) return false
+  }
+
+  return true
 }
 
 const corsHeaders = {
@@ -32,10 +59,41 @@ serve(async (req) => {
   }
 
   try {
+    // Create client with service role for internal operations
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+
+    // For user authentication, we'll use the anon key client to verify the user
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: authHeader
+          }
+        }
+      }
+    )
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     const { response_id } = await req.json()
 

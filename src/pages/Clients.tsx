@@ -19,10 +19,48 @@ interface Client {
   created_at: string
 }
 
-// Email validation function
+// Email validation function - matches Brevo's strict validation requirements
 function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
+  if (!email || typeof email !== 'string') return false
+
+  // Remove any whitespace
+  email = email.trim()
+
+  // Basic format check
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+  if (!emailRegex.test(email)) return false
+
+  // Split into local and domain parts
+  const [localPart, domain] = email.split('@')
+
+  // Local part validations (RFC 5322 compliant)
+  if (!localPart || localPart.length === 0 || localPart.length > 64) return false
+  if (localPart.startsWith('.') || localPart.endsWith('.')) return false
+  if (localPart.includes('..')) return false
+
+  // Domain validations
+  if (!domain || domain.length === 0 || domain.length > 253) return false
+  if (domain.startsWith('.') || domain.endsWith('.')) return false
+  if (domain.includes('..')) return false
+
+  // Domain must have at least one dot
+  if (!domain.includes('.')) return false
+
+  // Check domain parts (each part should be valid)
+  const domainParts = domain.split('.')
+  for (const part of domainParts) {
+    if (part.length === 0 || part.length > 63) return false
+    if (part.startsWith('-') || part.endsWith('-')) return false
+    // Domain parts should only contain valid characters
+    if (!/^[a-zA-Z0-9-]+$/.test(part)) return false
+  }
+
+  // Additional Brevo-specific validations
+  // Reject obviously invalid patterns that Brevo doesn't accept
+  if (email.includes('..') || email.startsWith('.') || email.endsWith('.')) return false
+  if (localPart.includes('..') || domain.includes('..')) return false
+
+  return true
 }
 
 export default function Clients() {

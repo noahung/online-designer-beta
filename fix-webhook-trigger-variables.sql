@@ -1,4 +1,6 @@
--- Create webhook trigger function to send data to Zapier
+-- Fix webhook trigger function by adding missing variable declarations
+-- This fixes the undefined variable errors in the notify_zapier_webhook function
+
 CREATE OR REPLACE FUNCTION notify_zapier_webhook()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -198,43 +200,3 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create webhook_notifications table to store pending webhook deliveries
-CREATE TABLE IF NOT EXISTS webhook_notifications (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  webhook_url TEXT NOT NULL,
-  form_id UUID NOT NULL,
-  response_id UUID NOT NULL,
-  payload JSONB NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
-  attempts INTEGER DEFAULT 0,
-  last_attempt_at TIMESTAMPTZ,
-  error_message TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Create index for efficient querying
-CREATE INDEX IF NOT EXISTS idx_webhook_notifications_status ON webhook_notifications(status);
-CREATE INDEX IF NOT EXISTS idx_webhook_notifications_webhook_url ON webhook_notifications(webhook_url);
-CREATE INDEX IF NOT EXISTS idx_webhook_notifications_created_at ON webhook_notifications(created_at);
-
--- Create the trigger on the responses table
-DROP TRIGGER IF EXISTS trigger_notify_zapier_webhook ON responses;
-
-CREATE TRIGGER trigger_notify_zapier_webhook
-  AFTER INSERT ON responses
-  FOR EACH ROW
-  EXECUTE FUNCTION notify_zapier_webhook();
-
--- Grant necessary permissions
-GRANT ALL ON webhook_notifications TO authenticated;
-GRANT ALL ON webhook_notifications TO anon;
-GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO authenticated;
-GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO anon;
-<<<<<<< HEAD
-
--- Comment for documentation
-COMMENT ON FUNCTION notify_zapier_webhook() IS 'Automatically stores webhook data for client-specific Zapier URLs when new form response is received';
-COMMENT ON TRIGGER trigger_notify_zapier_webhook ON responses IS 'Triggers storage of Zapier webhook data for each new form response using client webhook URLs';
-COMMENT ON TABLE webhook_notifications IS 'Stores webhook payloads waiting to be sent to client-specific Zapier URLs';

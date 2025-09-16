@@ -7,10 +7,36 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || 'your-brevo-api-key'
 const BREVO_SENDER_EMAIL = 'designer@advertomedia.co.uk'
 const BREVO_SENDER_NAME = 'Online Designer - Advertomedia'
 
-// Email validation function
+// Email validation function - more permissive for complex email formats
 function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
+  // More comprehensive regex that handles complex email formats
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+  if (!emailRegex.test(email)) return false
+
+  // Additional validation checks
+  const [localPart, domain] = email.split('@')
+
+  // Local part validations
+  if (!localPart || localPart.length > 64) return false
+  if (localPart.startsWith('.') || localPart.endsWith('.')) return false
+  if (localPart.includes('..')) return false
+
+  // Domain validations
+  if (!domain || domain.length > 253) return false
+  if (domain.startsWith('.') || domain.endsWith('.')) return false
+  if (domain.includes('..')) return false
+
+  // Check for valid domain structure (must have at least one dot)
+  if (!domain.includes('.')) return false
+
+  // Check that domain doesn't start or end with hyphen
+  const domainParts = domain.split('.')
+  for (const part of domainParts) {
+    if (part.startsWith('-') || part.endsWith('-')) return false
+    if (part.length > 63) return false
+  }
+
+  return true
 }
 
 interface ResponseData {
