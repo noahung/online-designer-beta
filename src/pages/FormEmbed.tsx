@@ -232,6 +232,15 @@ export default function FormEmbed() {
       } else {
         height = document.body.scrollHeight;
       }
+      
+      // Ensure minimum height to prevent collapsing and handle edge cases
+      height = Math.max(height, 200);
+      
+      // If height is still very small, try document.body.scrollHeight as fallback
+      if (height < 300) {
+        height = Math.max(document.body.scrollHeight, height);
+      }
+      
       console.log('[FormEmbed] Sending designerFormHeight:', height);
       window.parent.postMessage({
         type: 'designerFormHeight',
@@ -243,17 +252,31 @@ export default function FormEmbed() {
   useEffect(() => {
     sendHeightToParent();
     window.addEventListener('resize', sendHeightToParent);
+    
+    // Also send height after a short delay to ensure everything is rendered
+    const initialTimeout = setTimeout(() => {
+      sendHeightToParent();
+    }, 500);
+    
     return () => {
       window.removeEventListener('resize', sendHeightToParent);
+      clearTimeout(initialTimeout);
     };
   }, []);
 
   // Call sendHeightToParent after each step change, response change, or frame count change
   useEffect(() => {
-    // Use setTimeout to ensure all DOM updates are complete
+    // Use setTimeout to ensure all DOM updates and animations are complete
     const timeoutId = setTimeout(() => {
       sendHeightToParent();
-    }, 100);
+      
+      // Send again after potential CSS transitions (animations, etc.)
+      const secondTimeoutId = setTimeout(() => {
+        sendHeightToParent();
+      }, 300);
+      
+      return () => clearTimeout(secondTimeoutId);
+    }, 200);
 
     return () => clearTimeout(timeoutId);
   }, [currentStepIndex, steps, responses]);
@@ -1473,7 +1496,7 @@ export default function FormEmbed() {
 
   if (loading) {
     return (
-      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold">Loading form...</h2>
@@ -1485,7 +1508,7 @@ export default function FormEmbed() {
 
   if (error) {
     return (
-      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-red-600">Error Loading Form</h2>
@@ -1507,7 +1530,7 @@ export default function FormEmbed() {
 
   if (!steps || steps.length === 0) {
     return (
-      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <h2 className="text-xl font-semibold">Form not available</h2>
           <p className={currentTheme.styles.text.body}>This form isn't published or contains no steps.</p>
@@ -1518,7 +1541,7 @@ export default function FormEmbed() {
 
   if (currentStepIndex >= steps.length) {
     return (
-      <div className={`${currentTheme.styles.background} min-h-screen flex items-center justify-center`}>
+      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
           <h2 className="text-xl font-semibold">Thank you</h2>
           <p className={currentTheme.styles.text.body}>Your submission has been received.</p>
@@ -1531,7 +1554,7 @@ export default function FormEmbed() {
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
   return (
-  <div ref={formContainerRef} className={`${currentTheme.styles.background} min-h-screen`} style={{ position: 'relative', height: 'auto' }}>
+  <div ref={formContainerRef} className={`${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto' }}>
       {/* Soft UI decorations for soft-ui theme */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

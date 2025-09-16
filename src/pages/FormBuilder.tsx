@@ -1670,6 +1670,42 @@ export default function FormBuilder() {
 
                   {currentStep.question_type === 'file_upload' && (
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">File Upload Preview</label>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+                          <div 
+                            className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-cyan-400/50 transition-colors cursor-pointer"
+                          >
+                            <div className="flex flex-col items-center space-y-4">
+                              <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="text-lg font-medium text-white/90 mb-2">
+                                  Drop files here or click to browse
+                                </p>
+                                <p className="text-sm text-white/60">
+                                  Maximum file size: {currentStep.max_file_size || 5}MB
+                                </p>
+                                {(currentStep.allowed_file_types || []).length > 0 && (
+                                  <p className="text-xs text-white/50 mt-1">
+                                    Allowed types: {(currentStep.allowed_file_types || []).map(type => {
+                                      if (type === 'image/*') return 'Images'
+                                      if (type === 'application/pdf') return 'PDF'
+                                      if (type.includes('word')) return 'Word docs'
+                                      if (type === 'text/*') return 'Text files'
+                                      return type.split('/')[1]?.toUpperCase() || type
+                                    }).join(', ')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="block text-sm font-medium text-white/90">Maximum File Size (MB)</label>
@@ -1770,8 +1806,131 @@ export default function FormBuilder() {
                     </div>
                   )}
 
+                  {currentStep.question_type === 'text_input' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Text Input Preview</label>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+                          <div className="text-sm text-white/70 mb-3">Enter your response</div>
+                          <textarea
+                            placeholder="Enter your answer here..."
+                            rows={4}
+                            className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 resize-none"
+                            readOnly
+                          />
+                          {currentStep.is_required && (
+                            <p className="text-xs text-white/60 mt-2">* This field is required</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Required</label>
+                        <select
+                          value={currentStep.is_required ? 'true' : 'false'}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            is_required: e.target.value === 'true' 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="true" className="bg-slate-800">Required</option>
+                          <option value="false" className="bg-slate-800">Optional</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                   {currentStep.question_type === 'dimensions' && (
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Dimensions Preview</label>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+                          <div className="text-sm text-white/70 mb-4">Enter measurements</div>
+                          
+                          {/* Dimension Type Preview */}
+                          <div className="space-y-3 mb-4">
+                            <div className="flex items-center space-x-6">
+                              <label className="flex items-center space-x-2">
+                                <input
+                                  type="radio"
+                                  name="dimensionTypePreview"
+                                  value="2d"
+                                  checked={currentStep.dimension_type === '2d' || !currentStep.dimension_type}
+                                  className="text-cyan-400 focus:ring-cyan-400 bg-white/10 border-white/20"
+                                  readOnly
+                                />
+                                <span className="text-white/70">2D (Width × Height)</span>
+                              </label>
+                              <label className="flex items-center space-x-2">
+                                <input
+                                  type="radio"
+                                  name="dimensionTypePreview"
+                                  value="3d"
+                                  checked={currentStep.dimension_type === '3d'}
+                                  className="text-cyan-400 focus:ring-cyan-400 bg-white/10 border-white/20"
+                                  readOnly
+                                />
+                                <span className="text-white/70">3D (Width × Height × Depth)</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Units Preview */}
+                          <div className="space-y-2 mb-4">
+                            <label className="block text-sm font-medium text-white/70">Units</label>
+                            <select
+                              value="mm"
+                              className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                              disabled
+                            >
+                              <option value="mm">Millimeters (mm)</option>
+                              <option value="cm">Centimeters (cm)</option>
+                              <option value="m">Meters (m)</option>
+                              <option value="in">Inches (in)</option>
+                              <option value="ft">Feet (ft)</option>
+                            </select>
+                          </div>
+
+                          {/* Dimension Input Fields Preview */}
+                          <div className={`grid gap-4 ${currentStep.dimension_type === '3d' ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
+                            <div>
+                              <label className="block text-sm font-medium text-white/70 mb-1">Width</label>
+                              <input
+                                type="number"
+                                placeholder="0"
+                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                                readOnly
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-white/70 mb-1">Height</label>
+                              <input
+                                type="number"
+                                placeholder="0"
+                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                                readOnly
+                              />
+                            </div>
+                            {currentStep.dimension_type === '3d' && (
+                              <div>
+                                <label className="block text-sm font-medium text-white/70 mb-1">Depth</label>
+                                <input
+                                  type="number"
+                                  placeholder="0"
+                                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                                  readOnly
+                                />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {currentStep.is_required && (
+                            <p className="text-xs text-white/60 mt-2">* These fields are required</p>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Dimension Type</label>
                         <div className="space-y-3">
@@ -1825,6 +1984,48 @@ export default function FormBuilder() {
 
                   {currentStep.question_type === 'opinion_scale' && (
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Scale Preview</label>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+                          <div className="text-center">
+                            {currentStep.scale_type === 'star' ? (
+                              // Star Rating Preview (1-5)
+                              <div className="flex justify-center gap-2">
+                                {[1, 2, 3, 4, 5].map((rating) => (
+                                  <button
+                                    key={rating}
+                                    type="button"
+                                    className="text-4xl text-white/40 hover:text-cyan-300 transition-colors"
+                                    disabled
+                                  >
+                                    ⭐
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              // Number Scale Preview (configurable range)
+                              <div className="w-full overflow-x-auto">
+                                <div className="flex justify-center gap-1 sm:gap-2 min-w-max px-4">
+                                  {Array.from(
+                                    { length: (currentStep.scale_max || 10) - (currentStep.scale_min || 1) + 1 },
+                                    (_, i) => (currentStep.scale_min || 1) + i
+                                  ).map((rating) => (
+                                    <button
+                                      key={rating}
+                                      type="button"
+                                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg border-2 bg-white/10 border-white/20 text-white/70 font-semibold text-sm sm:text-base transition-all flex-shrink-0 hover:bg-white/20 hover:border-cyan-400/50"
+                                      disabled
+                                    >
+                                      {rating}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Scale Type</label>
                         <div className="space-y-3">
@@ -1915,6 +2116,88 @@ export default function FormBuilder() {
 
                   {currentStep.question_type === 'frames_plan' && (
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Frames Plan Preview</label>
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
+                          <div className="space-y-4">
+                            {/* Frame count selector preview */}
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-white/70">How many frames do you want?</label>
+                              <select
+                                value={1}
+                                className="w-32 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                                disabled
+                              >
+                                {Array.from({ length: currentStep.frames_max_count || 10 }, (_, i) => i + 1).map(num => (
+                                  <option key={num} value={num}>
+                                    {num} {num === 1 ? 'frame' : 'frames'}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Sample frame preview */}
+                            <div className="border border-white/20 rounded-lg p-4 bg-white/5">
+                              <h4 className="text-lg font-medium text-white/90 mb-4">Frame 1</h4>
+                              
+                              <div className="space-y-4">
+                                {/* Image Upload Preview */}
+                                {currentStep.frames_require_image !== false && (
+                                  <div>
+                                    <label className="block text-sm font-medium text-white/70 mb-2">
+                                      Image{currentStep.frames_require_image ? ' *' : ''}
+                                    </label>
+                                    <div className="border-2 border-dashed border-white/30 rounded-lg p-6 text-center">
+                                      <div className="flex flex-col items-center space-y-2">
+                                        <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                                          <svg className="w-6 h-6 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                          </svg>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium text-white/70">Choose file</p>
+                                          <p className="text-xs text-white/50">PNG, JPG up to 10MB</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Location Input Preview */}
+                                {currentStep.frames_require_location !== false && (
+                                  <div>
+                                    <label className="block text-sm font-medium text-white/70 mb-2">
+                                      Room Location (e.g., bedroom){currentStep.frames_require_location ? ' *' : ''}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g., bedroom"
+                                      className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                                      readOnly
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Measurements Input Preview */}
+                                {currentStep.frames_require_measurements !== false && (
+                                  <div>
+                                    <label className="block text-sm font-medium text-white/70 mb-2">
+                                      Measurements (optional) - width × height in mm{currentStep.frames_require_measurements ? ' *' : ''}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder="e.g., 1200 × 800"
+                                      className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
+                                      readOnly
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Maximum Number of Frames</label>
                         <input
