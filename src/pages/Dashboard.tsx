@@ -496,10 +496,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* System Diagnostics Section */}
-      <div className="mt-12">
-        <SystemDiagnostics />
-      </div>
+      {/* System Diagnostics Section - Hidden for now */}
+      {false && (
+        <div className="mt-12">
+          <SystemDiagnostics />
+        </div>
+      )}
 
       {/* Verification Results Section */}
       {verificationResults && (

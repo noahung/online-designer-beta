@@ -160,58 +160,60 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Zapier Integration */}
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.1s'}}>
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 rounded-xl border border-purple-200 dark:border-purple-400/30 mr-3">
-              <Webhook className="w-5 h-5 text-purple-600 dark:text-purple-200" />
+        {/* Zapier Integration - Hidden for now */}
+        {false && (
+          <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.1s'}}>
+            <div className="flex items-center mb-6">
+              <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 rounded-xl border border-purple-200 dark:border-purple-400/30 mr-3">
+                <Webhook className="w-5 h-5 text-purple-600 dark:text-purple-200" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Zapier Integration</h2>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Zapier Integration</h2>
-          </div>
-          
-          <div className="space-y-6">
-            <p className="text-sm text-gray-600 dark:text-white/70">
-              Connect your forms to Zapier to automatically send responses to your email, CRM, or other tools.
-            </p>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                Webhook URL
-              </label>
-              <input
-                type="url"
-                value={settings.webhook_url}
-                onChange={(e) => setSettings(prev => ({ ...prev, webhook_url: e.target.value }))}
-                placeholder="https://hooks.zapier.com/hooks/catch/..."
-                className="w-full px-4 py-3 bg-white dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-white/50 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 hover:bg-gray-50 dark:hover:bg-white/15"
-              />
-              <p className="text-xs text-gray-500 dark:text-white/60 mt-2">
-                Copy this URL from your Zapier webhook trigger
+            <div className="space-y-6">
+              <p className="text-sm text-gray-600 dark:text-white/70">
+                Connect your forms to Zapier to automatically send responses to your email, CRM, or other tools.
               </p>
-            </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
+                  Webhook URL
+                </label>
+                <input
+                  type="url"
+                  value={settings.webhook_url}
+                  onChange={(e) => setSettings(prev => ({ ...prev, webhook_url: e.target.value }))}
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  className="w-full px-4 py-3 bg-white dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-white/50 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 hover:bg-gray-50 dark:hover:bg-white/15"
+                />
+                <p className="text-xs text-gray-500 dark:text-white/60 mt-2">
+                  Copy this URL from your Zapier webhook trigger
+                </p>
+              </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="zapier-enabled"
-                checked={settings.zapier_enabled}
-                onChange={(e) => setSettings(prev => ({ ...prev, zapier_enabled: e.target.checked }))}
-                className="w-4 h-4 text-purple-600 bg-white dark:bg-white/10 border-gray-300 dark:border-white/30 rounded focus:ring-purple-500 focus:ring-2"
-              />
-              <label htmlFor="zapier-enabled" className="ml-3 text-sm text-gray-700 dark:text-white/80">
-                Enable Zapier webhooks for all forms
-              </label>
-            </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="zapier-enabled"
+                  checked={settings.zapier_enabled}
+                  onChange={(e) => setSettings(prev => ({ ...prev, zapier_enabled: e.target.checked }))}
+                  className="w-4 h-4 text-purple-600 bg-white dark:bg-white/10 border-gray-300 dark:border-white/30 rounded focus:ring-purple-500 focus:ring-2"
+                />
+                <label htmlFor="zapier-enabled" className="ml-3 text-sm text-gray-700 dark:text-white/80">
+                  Enable Zapier webhooks for all forms
+                </label>
+              </div>
 
-            <button 
-              onClick={saveWebhookSettings}
-              disabled={saving}
-              className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-800 disabled:to-pink-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save Webhook Settings'}
-            </button>
+              <button 
+                onClick={saveWebhookSettings}
+                disabled={saving}
+                className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-800 disabled:to-pink-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving...' : 'Save Webhook Settings'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Brevo API Key Settings */}
         <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.13s'}}>
