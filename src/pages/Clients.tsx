@@ -461,6 +461,30 @@ export default function Clients() {
                     </div>
                   </div>
                 )}
+
+                {client.webhook_url && (
+                  <div>
+                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
+                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
+                    }`}>Webhook</label>
+                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
+                      theme === 'light'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-green-500/10 border-green-400/30'
+                    }`}>
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${
+                          theme === 'light' ? 'bg-green-500' : 'bg-green-400'
+                        }`}></div>
+                        <span className={`text-xs font-medium ${
+                          theme === 'light' ? 'text-green-700' : 'text-green-300'
+                        }`}>
+                          Zapier Connected
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

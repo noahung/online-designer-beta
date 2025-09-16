@@ -9,7 +9,10 @@ DECLARE
   answers_data JSON;
   payload JSON;
 BEGIN
-  -- Get the client's webhook URL for this form
+  -- Log trigger activation
+  RAISE LOG '🔍 [WEBHOOK TRIGGER] Trigger activated for response_id: %, form_id: %', NEW.id, NEW.form_id;
+
+  -- Get client's webhook URL for this form
   SELECT c.webhook_url INTO client_webhook_url
   FROM forms f
   JOIN clients c ON f.client_id = c.id
@@ -17,27 +20,42 @@ BEGIN
   AND c.webhook_url IS NOT NULL
   AND c.webhook_url != '';
 
+  RAISE LOG '🔍 [WEBHOOK TRIGGER] Client webhook URL lookup result: %', CASE WHEN client_webhook_url IS NOT NULL THEN 'FOUND' ELSE 'NOT FOUND' END;
+
   -- If no webhook URL configured for this client, exit
   IF client_webhook_url IS NULL THEN
+    RAISE LOG '⚠️ [WEBHOOK TRIGGER] No webhook URL configured for form %, skipping webhook creation', NEW.form_id;
     RETURN NEW;
   END IF;
+
+  RAISE LOG '✅ [WEBHOOK TRIGGER] Webhook URL found: %', client_webhook_url;
+
+  BEGIN
+    RAISE LOG '🔍 [WEBHOOK TRIGGER] Building webhook payload...';
     -- Build the response data
     SELECT json_build_object(
       'response_id', NEW.id,
       'form_id', NEW.form_id,
-      'submitted_at', NEW.created_at,
-      'contact_name', NEW.contact_name,
-      'contact_email', NEW.contact_email,
-      'contact_phone', NEW.contact_phone,
-      'contact_postcode', NEW.contact_postcode
+      'submitted_at', NOW(),
+      'contact_name', COALESCE(NEW.contact_name, ''),
+      'contact_email', COALESCE(NEW.contact_email, ''),
+      'contact_phone', COALESCE(NEW.contact_phone, ''),
+      'contact_postcode', COALESCE(NEW.contact_postcode, '')
     ) INTO contact_data;
 
-    -- Get form name
+    RAISE LOG '🔍 [WEBHOOK TRIGGER] Contact data built successfully';
+
+    -- Get form name and client info
     SELECT json_build_object(
-      'form_name', f.name
+      'form_name', f.name,
+      'client_name', c.name,
+      'client_id', c.id
     ) INTO form_data
     FROM forms f
+    JOIN clients c ON f.client_id = c.id
     WHERE f.id = NEW.form_id;
+
+    RAISE LOG '🔍 [WEBHOOK TRIGGER] Form data retrieved: form=%, client=%', form_data->>'form_name', form_data->>'client_name';
 
     -- Get answers data
     SELECT json_agg(
@@ -61,16 +79,18 @@ BEGIN
     JOIN form_steps fs ON ra.step_id = fs.id
     WHERE ra.response_id = NEW.id;
 
+    RAISE LOG '🔍 [WEBHOOK TRIGGER] Answers data built, count: %', CASE WHEN answers_data IS NOT NULL THEN array_length(answers_data, 1) ELSE 0 END;
+
     -- Build complete payload in Zapier format
     SELECT json_build_object(
       'response_id', NEW.id::text,
       'form_id', NEW.form_id::text,
       'form_name', form_data->>'form_name',
-      'submitted_at', NEW.created_at::text,
-      'contact__name', NEW.contact_name,
-      'contact__email', NEW.contact_email,
-      'contact__phone', NEW.contact_phone,
-      'contact__postcode', NEW.contact_postcode,
+      'submitted_at', NOW()::text,
+      'contact__name', COALESCE(NEW.contact_name, ''),
+      'contact__email', COALESCE(NEW.contact_email, ''),
+      'contact__phone', COALESCE(NEW.contact_phone, ''),
+      'contact__postcode', COALESCE(NEW.contact_postcode, ''),
       'answers', COALESCE(answers_data, '[]'::json),
       'answers__text_responses', COALESCE(text_answers, '[]'::json),
       'answers__multiple_choice', COALESCE(multiple_choice_answers, '[]'::json),
@@ -140,6 +160,8 @@ BEGIN
       WHERE ra.response_id = NEW.id
     ) as categorized_answers;
 
+    RAISE LOG '🔍 [WEBHOOK TRIGGER] Complete payload built successfully';
+
     -- Store webhook payload for processing (instead of direct HTTP call)
     INSERT INTO webhook_notifications (
       webhook_url,
@@ -156,6 +178,14 @@ BEGIN
       'pending',
       now()
     );
+
+    RAISE LOG '✅ [WEBHOOK TRIGGER] Webhook notification created successfully for response_id: %', NEW.id;
+
+  EXCEPTION WHEN OTHERS THEN
+    -- Log error but don't fail the form submission
+    RAISE LOG '❌ [WEBHOOK TRIGGER] Error in webhook creation: %', SQLERRM;
+    RAISE LOG '❌ [WEBHOOK TRIGGER] Error details - SQLSTATE: %, SQLCODE: %', SQLSTATE, SQLCODE;
+  END;
 
   RETURN NEW;
 END;
@@ -194,6 +224,7 @@ GRANT ALL ON webhook_notifications TO authenticated;
 GRANT ALL ON webhook_notifications TO anon;
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO authenticated;
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO anon;
+<<<<<<< HEAD
 
 -- Comment for documentation
 COMMENT ON FUNCTION notify_zapier_webhook() IS 'Automatically stores webhook data for client-specific Zapier URLs when new form response is received';
