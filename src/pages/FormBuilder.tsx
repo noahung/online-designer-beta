@@ -1519,7 +1519,17 @@ export default function FormBuilder() {
                       
                       {/* Grid layout for image selection options */}
                       {currentStep.question_type === 'image_selection' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className={`grid gap-4 ${
+                          currentStep.images_per_row === 1
+                            ? 'grid-cols-1'
+                            : currentStep.images_per_row === 2
+                            ? 'grid-cols-1 sm:grid-cols-2'
+                            : currentStep.images_per_row === 3
+                            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                            : currentStep.images_per_row === 4
+                            ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                            : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
+                        }`}>
                           {currentStep.options.map((option, optIndex) => (
                             <div key={optIndex} className="group relative bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:shadow-xl">
                               {/* Image Upload Area */}
