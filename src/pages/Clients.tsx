@@ -15,7 +15,14 @@ interface Client {
   additional_emails: string[]
   client_password_hash: string | null
   email_notifications_enabled: boolean
+  webhook_url: string | null
   created_at: string
+}
+
+// Email validation function
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
 }
 
 export default function Clients() {
@@ -34,7 +41,8 @@ export default function Clients() {
     client_email: '',
     additional_emails: [] as string[],
     client_password: '',
-    email_notifications_enabled: true
+    email_notifications_enabled: true,
+    webhook_url: ''
   })
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -91,6 +99,32 @@ export default function Clients() {
     setUploading(true)
 
     try {
+      // Validate primary email if provided
+      if (formData.client_email && !isValidEmail(formData.client_email)) {
+        push({
+          title: 'Invalid Email',
+          description: 'Please enter a valid primary email address',
+          type: 'error'
+        })
+        setUploading(false)
+        return
+      }
+
+      // Validate additional emails
+      const invalidEmails = formData.additional_emails.filter(email => email && !isValidEmail(email))
+      if (invalidEmails.length > 0) {
+        push({
+          title: 'Invalid Additional Emails',
+          description: `Please fix these invalid email addresses: ${invalidEmails.join(', ')}`,
+          type: 'error'
+        })
+        setUploading(false)
+        return
+      }
+
+      // Filter out empty additional emails
+      const validAdditionalEmails = formData.additional_emails.filter(email => email && email.trim())
+
       let logoUrl: string | null = null
 
       if (editingClient) {
@@ -105,9 +139,10 @@ export default function Clients() {
           primary_color: formData.primary_color,
           secondary_color: formData.secondary_color,
           client_email: formData.client_email || null,
-          additional_emails: formData.additional_emails,
+          additional_emails: validAdditionalEmails,
           client_password_hash: formData.client_password || null,
-          email_notifications_enabled: formData.email_notifications_enabled
+          email_notifications_enabled: formData.email_notifications_enabled,
+          webhook_url: formData.webhook_url || null
         }
 
         if (logoUrl) {
@@ -139,9 +174,10 @@ export default function Clients() {
             primary_color: formData.primary_color,
             secondary_color: formData.secondary_color,
             client_email: formData.client_email || null,
-            additional_emails: formData.additional_emails,
+            additional_emails: validAdditionalEmails,
             client_password_hash: formData.client_password || null,
             email_notifications_enabled: formData.email_notifications_enabled,
+            webhook_url: formData.webhook_url || null,
             user_id: user.id
           })
           .select()
@@ -177,7 +213,8 @@ export default function Clients() {
         client_email: '',
         additional_emails: [],
         client_password: '',
-        email_notifications_enabled: true
+        email_notifications_enabled: true,
+        webhook_url: ''
       })
       setLogoPreview(null)
       fetchClients()
@@ -199,7 +236,8 @@ export default function Clients() {
       client_email: client.client_email || '',
       additional_emails: client.additional_emails || [],
       client_password: client.client_password_hash || '',
-      email_notifications_enabled: client.email_notifications_enabled ?? true
+      email_notifications_enabled: client.email_notifications_enabled ?? true,
+      webhook_url: client.webhook_url || ''
     })
     setLogoPreview(client.logo_url)
     setShowModal(true)
@@ -563,6 +601,15 @@ export default function Clients() {
                               const newEmails = [...formData.additional_emails]
                               newEmails[index] = e.target.value
                               setFormData({ ...formData, additional_emails: newEmails })
+                              
+                              // Validate email format
+                              if (e.target.value && !isValidEmail(e.target.value)) {
+                                push({
+                                  title: 'Invalid Email',
+                                  description: 'Please enter a valid email address',
+                                  type: 'warning'
+                                })
+                              }
                             }}
                             className="flex-1 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
                             placeholder="additional@company.com"
@@ -652,6 +699,31 @@ export default function Clients() {
                     <strong>📬 Email Alert:</strong> When enabled, email notifications will be sent to <strong>{formData.client_email || '[primary email]'}</strong>{formData.additional_emails.length > 0 && ` and ${formData.additional_emails.length} additional recipient${formData.additional_emails.length > 1 ? 's' : ''}`} whenever someone submits a response to their forms.
                   </p>
                 </div>
+              </div>
+
+              {/* Webhook URL */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>
+                  🔗 Webhook URL (Zapier)
+                </label>
+                <input
+                  type="url"
+                  value={formData.webhook_url}
+                  onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })}
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 ${
+                    theme === 'light'
+                      ? 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:bg-white/90'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-purple-400 focus:border-transparent hover:bg-white/15'
+                  }`}
+                />
+                <p className={`text-xs mt-2 ${
+                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                }`}>
+                  Enter your Zapier webhook URL to automatically send form responses to your workflows
+                </p>
               </div>
 
               {/* Primary Color */}
@@ -755,7 +827,8 @@ export default function Clients() {
                       client_email: '',
                       additional_emails: [],
                       client_password: '',
-                      email_notifications_enabled: true
+                      email_notifications_enabled: true,
+                      webhook_url: ''
                     })
                     setLogoPreview(null)
                   }}

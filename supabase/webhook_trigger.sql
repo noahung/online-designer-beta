@@ -2,20 +2,25 @@
 CREATE OR REPLACE FUNCTION notify_zapier_webhook()
 RETURNS TRIGGER AS $$
 DECLARE
-  webhook_record RECORD;
+  client_webhook_url TEXT;
   response_data JSON;
   form_data JSON;
   contact_data JSON;
   answers_data JSON;
   payload JSON;
 BEGIN
-  -- Get webhook subscriptions for this form
-  FOR webhook_record IN
-    SELECT w.target_url, w.user_id
-    FROM webhooks w
-    WHERE w.form_id = NEW.form_id
-    AND w.active = true
-  LOOP
+  -- Get the client's webhook URL for this form
+  SELECT c.webhook_url INTO client_webhook_url
+  FROM forms f
+  JOIN clients c ON f.client_id = c.id
+  WHERE f.id = NEW.form_id
+  AND c.webhook_url IS NOT NULL
+  AND c.webhook_url != '';
+
+  -- If no webhook URL configured for this client, exit
+  IF client_webhook_url IS NULL THEN
+    RETURN NEW;
+  END IF;
     -- Build the response data
     SELECT json_build_object(
       'response_id', NEW.id,
@@ -137,22 +142,20 @@ BEGIN
 
     -- Store webhook payload for processing (instead of direct HTTP call)
     INSERT INTO webhook_notifications (
-      webhook_id,
+      webhook_url,
       form_id,
       response_id,
       payload,
       status,
       created_at
     ) VALUES (
-      webhook_record.id,
+      client_webhook_url,
       NEW.form_id,
       NEW.id,
       payload,
       'pending',
       now()
     );
-
-  END LOOP;
 
   RETURN NEW;
 END;
@@ -161,7 +164,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Create webhook_notifications table to store pending webhook deliveries
 CREATE TABLE IF NOT EXISTS webhook_notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  webhook_id UUID REFERENCES webhooks(id) ON DELETE CASCADE,
+  webhook_url TEXT NOT NULL,
   form_id UUID NOT NULL,
   response_id UUID NOT NULL,
   payload JSONB NOT NULL,
@@ -175,7 +178,7 @@ CREATE TABLE IF NOT EXISTS webhook_notifications (
 
 -- Create index for efficient querying
 CREATE INDEX IF NOT EXISTS idx_webhook_notifications_status ON webhook_notifications(status);
-CREATE INDEX IF NOT EXISTS idx_webhook_notifications_webhook_id ON webhook_notifications(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_notifications_webhook_url ON webhook_notifications(webhook_url);
 CREATE INDEX IF NOT EXISTS idx_webhook_notifications_created_at ON webhook_notifications(created_at);
 
 -- Create the trigger on the responses table
@@ -193,6 +196,6 @@ GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO authenticated;
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO anon;
 
 -- Comment for documentation
-COMMENT ON FUNCTION notify_zapier_webhook() IS 'Automatically stores webhook data for Zapier when new form response is received';
-COMMENT ON TRIGGER trigger_notify_zapier_webhook ON responses IS 'Triggers storage of Zapier webhook data for each new form response';
-COMMENT ON TABLE webhook_notifications IS 'Stores webhook payloads waiting to be sent to Zapier';
+COMMENT ON FUNCTION notify_zapier_webhook() IS 'Automatically stores webhook data for client-specific Zapier URLs when new form response is received';
+COMMENT ON TRIGGER trigger_notify_zapier_webhook ON responses IS 'Triggers storage of Zapier webhook data for each new form response using client webhook URLs';
+COMMENT ON TABLE webhook_notifications IS 'Stores webhook payloads waiting to be sent to client-specific Zapier URLs';

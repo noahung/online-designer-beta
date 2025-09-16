@@ -7,6 +7,12 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || 'your-brevo-api-key'
 const BREVO_SENDER_EMAIL = 'designer@advertomedia.co.uk'
 const BREVO_SENDER_NAME = 'Online Designer - Advertomedia'
 
+// Email validation function
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
 interface ResponseData {
   response_id: string
   form_id: string
@@ -233,13 +239,15 @@ async function sendBrevoEmail(data: ResponseData): Promise<boolean> {
       })
     }
 
-    // Add additional emails
+    // Add additional emails with validation
     data.additional_emails.forEach(email => {
-      if (email && email.trim()) {
+      if (email && email.trim() && isValidEmail(email.trim())) {
         recipients.push({
           email: email.trim(),
           name: data.client_name
         })
+      } else if (email && email.trim()) {
+        console.warn('Skipping invalid email address:', email.trim())
       }
     })
 

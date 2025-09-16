@@ -7,6 +7,13 @@ import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 type Option = { id: string; label: string; description?: string; image_url?: string; jump_to_step?: number }
+
+// Email validation function
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
 type Step = { 
   id: string; 
   title: string; 
@@ -326,15 +333,15 @@ export default function FormEmbed() {
         return
       }
 
-      // Get user's webhook settings
-      const { data: settings, error: settingsError } = await supabase
-        .from('user_settings')
-        .select('webhook_url, zapier_enabled')
-        .eq('user_id', formData.user_id)
+      // Get client's webhook URL (new per-client system)
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('webhook_url')
+        .eq('id', formData.client_id)
         .maybeSingle()
 
-      if (settingsError || !settings || !settings.zapier_enabled || !settings.webhook_url) {
-        console.log('Webhook not configured or not enabled')
+      if (clientError || !client || !client.webhook_url) {
+        console.log('Client webhook not configured')
         return
       }
 
@@ -510,7 +517,7 @@ export default function FormEmbed() {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
-          webhook_url: settings.webhook_url,
+          webhook_url: client.webhook_url,
           payload: webhookData
         })
       })
@@ -601,7 +608,7 @@ export default function FormEmbed() {
 
         if (clientData?.additional_emails && Array.isArray(clientData.additional_emails)) {
           additionalEmails = clientData.additional_emails.filter((email: string) => 
-            email && email.trim() && email !== formData.clients.client_email
+            email && email.trim() && email !== formData.clients.client_email && isValidEmail(email.trim())
           );
         }
         console.log('Additional emails found:', additionalEmails);
@@ -1162,13 +1169,9 @@ export default function FormEmbed() {
         if (framesErr) console.error('Error inserting response_frames', framesErr)
       }
 
-      // Send webhook to Zapier if configured
-      try {
-        await sendWebhook(responseId, answers, contactData)
-      } catch (error) {
-        console.error('Webhook failed:', error)
-        // Don't fail the form submission if webhook fails
-      }
+      // Webhook is now sent automatically via database trigger
+      // The sendWebhook function is no longer needed
+      // await sendWebhook(responseId, answers, contactData)
 
       // Send email notification to client
       try {
