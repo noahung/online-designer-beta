@@ -83,6 +83,18 @@ type Step = {
 }
 
 export default function FormEmbed() {
+  useEffect(() => {
+    if (window.self !== window.top) {
+      // Inject style override for .min-h-screen in iframe context
+      const STYLE_ID = 'odf-embed-min-h-fix';
+      if (!document.getElementById(STYLE_ID)) {
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.innerHTML = `.min-h-screen { min-height: auto !important; }`;
+        document.head.appendChild(style);
+      }
+    }
+  }, []);
   // Ref for main form container
   const formContainerRef = useRef<HTMLDivElement>(null);
 
