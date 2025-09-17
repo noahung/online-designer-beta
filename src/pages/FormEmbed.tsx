@@ -1375,7 +1375,12 @@ export default function FormEmbed() {
     return text
   }
 
-  const goNext = async () => {
+  const goNext = async (e?: React.MouseEvent) => {
+    // Prevent default behavior to avoid scroll jumping on mobile
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     const step = steps[currentStepIndex]
     if (!step) return
 
@@ -1584,14 +1589,20 @@ export default function FormEmbed() {
     }
   }
 
-  const goPrev = () => {
+  const goPrev = (e?: React.MouseEvent) => {
+    // Prevent default behavior to avoid scroll jumping on mobile
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+
     if (navigationHistory.length > 1) {
       // Go back to the previous step in history
       const newHistory = [...navigationHistory]
       newHistory.pop() // Remove current step
       const previousStep = newHistory[newHistory.length - 1]
       setNavigationHistory(newHistory)
-      
+
       // Trigger animation for image selection steps
       const currentStep = steps[currentStepIndex]
       const prevStep = steps[previousStep]
@@ -1610,6 +1621,13 @@ export default function FormEmbed() {
       // Regular previous navigation if no history (shouldn't happen but safeguard)
       setCurrentStepIndex(Math.max(0, currentStepIndex - 1))
     }
+
+    // Prevent scroll jumping by maintaining focus on the form container
+    setTimeout(() => {
+      if (formContainerRef.current) {
+        formContainerRef.current.focus({ preventScroll: true })
+      }
+    }, 100)
   }
 
   // Get the current theme configuration
@@ -2587,7 +2605,7 @@ export default function FormEmbed() {
           </button>
           <div className="flex items-center gap-2">
             <button 
-              onClick={goNext} 
+              onClick={(e) => goNext(e)} 
               className={currentTheme.styles.button.primary}
               style={{
                 backgroundColor: formColors.primaryButtonColor,
