@@ -676,7 +676,40 @@ export default function FormEmbed() {
         return baseAnswer;
       });
 
-      console.log('📊 [WEBHOOK] Structured answers prepared:', structuredAnswers.length)
+      // Get frames data if it exists
+      const { data: framesData, error: framesError } = await supabase
+        .from('response_frames')
+        .select('*')
+        .eq('response_id', responseId)
+        .order('frame_number', { ascending: true })
+
+      if (framesError) {
+        console.error('❌ [WEBHOOK] Error fetching frames data:', framesError)
+      }
+
+      console.log('📊 [WEBHOOK] Frames data:', framesData?.length || 0, 'frames found')
+
+      // Add frames data to structured answers
+      const framesAnswers = (framesData || []).map(frame => {
+        const step = steps.find(s => s.id === frame.step_id)
+        return {
+          question: step?.title || 'Frame Question',
+          question_type: 'frames_plan',
+          step_order: step?.step_order || 0,
+          is_required: step?.is_required || false,
+          frame_number: frame.frame_number,
+          frame_data: {
+            image_url: frame.image_url,
+            location_text: frame.location_text,
+            measurements_text: frame.measurements_text
+          }
+        }
+      })
+
+      // Combine regular answers with frames answers
+      const allStructuredAnswers = [...structuredAnswers, ...framesAnswers]
+
+      console.log('📊 [WEBHOOK] Total structured answers:', allStructuredAnswers.length)
 
       // Categorize answers for easy access
       const textResponses = structuredAnswers
@@ -724,6 +757,15 @@ export default function FormEmbed() {
         .filter(a => a.file_name)
         .map(a => a.file_name)
 
+      // Add frames-specific categorization
+      const framesInfo = framesAnswers.map(frame => ({
+        question: frame.question,
+        frame_number: frame.frame_number,
+        image_url: frame.frame_data.image_url,
+        location_text: frame.frame_data.location_text,
+        measurements_text: frame.frame_data.measurements_text
+      }))
+
       // Calculate completion metrics
       const totalQuestions = steps.length
       const answeredQuestions = structuredAnswers.length
@@ -752,7 +794,7 @@ export default function FormEmbed() {
         contact__postcode: contactData.contact_postcode || null,
 
         // Complete structured data
-        answers: JSON.stringify(structuredAnswers),
+        answers: JSON.stringify(allStructuredAnswers),
 
         // Categorized responses for easy mapping
         answers__text_responses: textResponses,
@@ -761,6 +803,7 @@ export default function FormEmbed() {
         answers__file_uploads: fileUploads,
         answers__dimensions: dimensionMeasurements,
         answers__opinion_ratings: opinionRatings,
+        answers__frames: framesInfo,
 
         // Direct file access
         file_attachments: fileAttachments,
@@ -775,7 +818,8 @@ export default function FormEmbed() {
         responseId,
         formId: formData.id,
         clientName: formData.clients?.name,
-        answersCount: structuredAnswers.length,
+        answersCount: allStructuredAnswers.length,
+        framesCount: framesInfo.length,
         hasFiles: fileAttachments.length > 0
       })
 
@@ -1461,7 +1505,9 @@ export default function FormEmbed() {
           depth: ans.depth ? parseFloat(ans.depth) : null,
           units: ans.units ?? null,
           // Opinion scale rating
-          scale_rating: ans.scale_rating ?? null
+          scale_rating: ans.scale_rating ?? null,
+          // Frames count for frames_plan questions
+          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null
         })
 
         // Collect frames_plan rows
@@ -1491,10 +1537,15 @@ export default function FormEmbed() {
         if (framesErr) console.error('Error inserting response_frames', framesErr)
       }
 
-      // Webhook is now sent automatically via database trigger
-      console.log('🚀 [WEBHOOK] Database trigger should fire now for webhook...')
-      console.log('📡 [WEBHOOK] Expecting webhook to be sent to client webhook URL')
-      console.log('⏳ [WEBHOOK] Webhook will be processed asynchronously by database trigger')
+      // Webhook is now sent directly after all data is inserted
+      console.log('🚀 [WEBHOOK] Sending webhook directly after database operations...')
+      try {
+        await sendWebhook(responseId, answers, contactData)
+        console.log('✅ [WEBHOOK] Direct webhook sent successfully')
+      } catch (error) {
+        console.error('❌ [WEBHOOK] Direct webhook failed:', error)
+        // Don't fail the form submission if webhook fails
+      }
 
       // Send email notification to client
       console.log('📧 [EMAIL] Starting client email notification process...')

@@ -1,43 +1,34 @@
--- Verify and recreate webhook system
--- Run this in Supabase SQL Editor to ensure webhook system is working
+-- Fix webhook trigger to include all form response data
+-- This migration updates the notify_zapier_webhook function to send comprehensive data to Zapier
 
--- First, check if webhook_notifications table exists
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'webhook_notifications') THEN
-    RAISE NOTICE 'Creating webhook_notifications table...';
+-- Fix webhook trigger to include all form response data
+-- This migration updates the notify_zapier_webhook function to send comprehensive data to Zapier
 
-    -- Create webhook_notifications table
-    CREATE TABLE webhook_notifications (
-      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-      webhook_url TEXT NOT NULL,
-      form_id UUID NOT NULL,
-      response_id UUID NOT NULL,
-      payload JSONB NOT NULL,
-      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
-      attempts INTEGER DEFAULT 0,
-      last_attempt_at TIMESTAMPTZ,
-      error_message TEXT,
-      created_at TIMESTAMPTZ DEFAULT now(),
-      updated_at TIMESTAMPTZ DEFAULT now()
-    );
+-- Ensure webhook_notifications table exists with correct JSONB type (matching schema)
+CREATE TABLE IF NOT EXISTS webhook_notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  webhook_url TEXT NOT NULL,
+  form_id UUID NOT NULL,
+  response_id UUID NOT NULL,
+  payload JSONB NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+  attempts INTEGER DEFAULT 0,
+  last_attempt_at TIMESTAMPTZ,
+  error_message TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-    -- Create indexes
-    CREATE INDEX IF NOT EXISTS idx_webhook_notifications_status ON webhook_notifications(status);
-    CREATE INDEX IF NOT EXISTS idx_webhook_notifications_webhook_url ON webhook_notifications(webhook_url);
-    CREATE INDEX IF NOT EXISTS idx_webhook_notifications_created_at ON webhook_notifications(created_at);
+-- Create indexes if they don't exist
+CREATE INDEX IF NOT EXISTS idx_webhook_notifications_status ON webhook_notifications(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_notifications_webhook_url ON webhook_notifications(webhook_url);
+CREATE INDEX IF NOT EXISTS idx_webhook_notifications_created_at ON webhook_notifications(created_at);
 
-    -- Grant permissions
-    GRANT ALL ON webhook_notifications TO authenticated;
-    GRANT ALL ON webhook_notifications TO anon;
+-- Grant permissions
+GRANT ALL ON webhook_notifications TO authenticated;
+GRANT ALL ON webhook_notifications TO anon;
 
-    RAISE NOTICE 'webhook_notifications table created successfully';
-  ELSE
-    RAISE NOTICE 'webhook_notifications table already exists';
-  END IF;
-END $$;
-
--- Recreate the webhook trigger function
+-- Recreate the webhook trigger function with full data mapping including frames
 CREATE OR REPLACE FUNCTION notify_zapier_webhook()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -52,6 +43,7 @@ DECLARE
   file_uploads JSONB;
   dimensions_data JSONB;
   opinion_ratings JSONB;
+  frames_data JSONB;
   total_questions INTEGER;
   completion_percentage INTEGER;
 BEGIN
@@ -67,23 +59,23 @@ BEGIN
   END IF;
 
   -- Build contact information
-  contact_info := json_build_object(
+  contact_info := jsonb_build_object(
     'name', NEW.contact_name,
     'email', NEW.contact_email,
     'phone', NEW.contact_phone,
     'postcode', NEW.contact_postcode
   );
 
-  -- Get all answers with detailed information
+  -- Get all answers with detailed information including frames data
   SELECT
-    json_agg(
-      json_build_object(
+    jsonb_agg(
+      jsonb_build_object(
         'question', fs.title,
         'question_type', fs.question_type,
         'answer_text', ra.answer_text,
         'selected_option', CASE
           WHEN ra.selected_option_id IS NOT NULL THEN
-            (SELECT json_build_object('id', fo.id, 'label', fo.label, 'image_url', fo.image_url)
+            (SELECT jsonb_build_object('id', fo.id, 'label', fo.label, 'image_url', fo.image_url)
              FROM form_options fo WHERE fo.id = ra.selected_option_id)
           ELSE NULL
         END,
@@ -92,7 +84,7 @@ BEGIN
         'file_size', ra.file_size,
         'dimensions', CASE
           WHEN ra.width IS NOT NULL OR ra.height IS NOT NULL OR ra.depth IS NOT NULL THEN
-            json_build_object(
+            jsonb_build_object(
               'width', ra.width,
               'height', ra.height,
               'depth', ra.depth,
@@ -101,6 +93,21 @@ BEGIN
           ELSE NULL
         END,
         'scale_rating', ra.scale_rating,
+        'frames', CASE
+          WHEN fs.question_type = 'frames_plan' THEN
+            (SELECT jsonb_agg(
+                jsonb_build_object(
+                  'frame_number', rf.frame_number,
+                  'image_url', rf.image_url,
+                  'location_text', rf.location_text,
+                  'measurements_text', rf.measurements_text
+                )
+             )
+             FROM response_frames rf
+             WHERE rf.response_id = ra.response_id AND rf.step_id = ra.step_id)
+          ELSE NULL
+        END,
+        'frames_count', ra.frames_count,
         'step_order', fs.step_order
       )
     ),
@@ -112,13 +119,13 @@ BEGIN
   WHERE ra.response_id = NEW.id;
 
   -- Build categorized responses
-  SELECT json_agg(ra.answer_text) INTO text_responses
+  SELECT jsonb_agg(ra.answer_text) INTO text_responses
   FROM response_answers ra
   JOIN form_steps fs ON ra.step_id = fs.id
   WHERE ra.response_id = NEW.id AND ra.answer_text IS NOT NULL AND fs.question_type = 'text_input';
 
-  SELECT json_agg(
-    json_build_object(
+  SELECT jsonb_agg(
+    jsonb_build_object(
       'question', fs.title,
       'answer', fo.label,
       'option_id', fo.id
@@ -129,8 +136,8 @@ BEGIN
   JOIN form_options fo ON ra.selected_option_id = fo.id
   WHERE ra.response_id = NEW.id AND fs.question_type IN ('multiple_choice', 'image_selection');
 
-  SELECT json_agg(
-    json_build_object(
+  SELECT jsonb_agg(
+    jsonb_build_object(
       'question', fs.title,
       'image_url', fo.image_url,
       'option_label', fo.label
@@ -141,8 +148,8 @@ BEGIN
   JOIN form_options fo ON ra.selected_option_id = fo.id
   WHERE ra.response_id = NEW.id AND fs.question_type = 'image_selection';
 
-  SELECT json_agg(
-    json_build_object(
+  SELECT jsonb_agg(
+    jsonb_build_object(
       'question', fs.title,
       'file_name', ra.file_name,
       'file_url', ra.file_url,
@@ -153,10 +160,10 @@ BEGIN
   JOIN form_steps fs ON ra.step_id = fs.id
   WHERE ra.response_id = NEW.id AND ra.file_url IS NOT NULL;
 
-  SELECT json_agg(
-    json_build_object(
+  SELECT jsonb_agg(
+    jsonb_build_object(
       'question', fs.title,
-      'dimensions', json_build_object(
+      'dimensions', jsonb_build_object(
         'width', ra.width,
         'height', ra.height,
         'depth', ra.depth,
@@ -168,8 +175,8 @@ BEGIN
   JOIN form_steps fs ON ra.step_id = fs.id
   WHERE ra.response_id = NEW.id AND (ra.width IS NOT NULL OR ra.height IS NOT NULL OR ra.depth IS NOT NULL);
 
-  SELECT json_agg(
-    json_build_object(
+  SELECT jsonb_agg(
+    jsonb_build_object(
       'question', fs.title,
       'rating', ra.scale_rating
     )
@@ -178,8 +185,33 @@ BEGIN
   JOIN form_steps fs ON ra.step_id = fs.id
   WHERE ra.response_id = NEW.id AND ra.scale_rating IS NOT NULL;
 
+  -- Build frames data for frames_plan questions
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'question', fs.title,
+      'step_id', fs.id,
+      'frames_count', ra.frames_count,
+      'frames', (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'frame_number', rf.frame_number,
+            'image_url', rf.image_url,
+            'location_text', rf.location_text,
+            'measurements_text', rf.measurements_text
+          )
+        )
+        FROM response_frames rf
+        WHERE rf.response_id = NEW.id AND rf.step_id = fs.id
+      )
+    )
+  ) INTO frames_data
+  FROM form_steps fs
+  JOIN response_answers ra ON ra.step_id = fs.id AND ra.response_id = NEW.id
+  WHERE fs.form_id = NEW.form_id AND fs.question_type = 'frames_plan'
+  AND EXISTS (SELECT 1 FROM response_frames rf WHERE rf.response_id = NEW.id AND rf.step_id = fs.id);
+
   -- Build file attachments array
-  SELECT json_agg(ra.file_url) INTO file_attachments
+  SELECT jsonb_agg(ra.file_url) INTO file_attachments
   FROM response_answers ra
   WHERE ra.response_id = NEW.id AND ra.file_url IS NOT NULL;
 
@@ -195,7 +227,7 @@ BEGIN
     client_webhook_url,
     NEW.form_id,
     NEW.id,
-    json_build_object(
+    jsonb_build_object(
       'response_id', NEW.id::text,
       'form_id', NEW.form_id::text,
       'form_name', form_name,
@@ -212,9 +244,10 @@ BEGIN
       'answers__file_uploads', COALESCE(file_uploads, '[]'::jsonb),
       'answers__dimensions', COALESCE(dimensions_data, '[]'::jsonb),
       'answers__opinion_ratings', COALESCE(opinion_ratings, '[]'::jsonb),
+      'answers__frames', COALESCE(frames_data, '[]'::jsonb),
       'file_attachments', COALESCE(file_attachments, '[]'::jsonb),
       'file_names', COALESCE(
-        (SELECT json_agg(ra.file_name)
+        (SELECT jsonb_agg(ra.file_name)
          FROM response_answers ra
          WHERE ra.response_id = NEW.id AND ra.file_name IS NOT NULL),
         '[]'::jsonb
@@ -230,8 +263,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Recreate the trigger
+-- Recreate the webhook trigger to ensure it's using the updated function
+-- Changed to trigger on response_answers to ensure all data is inserted first
 DROP TRIGGER IF EXISTS trigger_notify_zapier_webhook ON responses;
+DROP TRIGGER IF EXISTS trigger_notify_zapier_webhook ON response_answers;
+
+-- Recreate the trigger to ensure it's using the updated function
+DROP TRIGGER IF EXISTS trigger_notify_zapier_webhook ON responses;
+DROP TRIGGER IF EXISTS trigger_notify_zapier_webhook ON response_answers;
+DROP FUNCTION IF EXISTS notify_zapier_webhook_trigger();
+
 CREATE TRIGGER trigger_notify_zapier_webhook
   AFTER INSERT ON responses
   FOR EACH ROW
@@ -240,15 +281,3 @@ CREATE TRIGGER trigger_notify_zapier_webhook
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO authenticated;
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO anon;
-
--- Test the setup
-SELECT
-  'Webhook system status:' as status,
-  CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'webhook_notifications')
-    THEN '✅ webhook_notifications table exists'
-    ELSE '❌ webhook_notifications table missing'
-  END as table_status,
-  CASE WHEN EXISTS (SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'trigger_notify_zapier_webhook')
-    THEN '✅ webhook trigger exists'
-    ELSE '❌ webhook trigger missing'
-  END as trigger_status;

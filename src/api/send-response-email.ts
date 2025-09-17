@@ -197,6 +197,7 @@ async function getResponseData(response_id: string): Promise<ResponseData | null
         depth,
         units,
         scale_rating,
+        frames_count,
         step_id,
         form_steps!step_id (
           id,
@@ -389,6 +390,28 @@ function generateEmailTemplate(data: ResponseData): string {
         } else {
           answerContent = 'No rating provided'
         }
+        break
+      
+      case 'frames_plan':
+        let frameContent = ''
+        if (answer.frames_count) {
+          frameContent += `Selected ${answer.frames_count} frame${answer.frames_count === 1 ? '' : 's'}`
+        } else {
+          frameContent += 'No frame count selected'
+        }
+
+        // Add measurements summary if available
+        if (data.frames_data && data.frames_data.length > 0) {
+          const measurements = data.frames_data
+            .filter((frame: any) => frame.measurements_text)
+            .map((frame: any) => `Frame ${frame.frame_number}: ${frame.measurements_text}`)
+            .join(', ')
+          if (measurements) {
+            frameContent += `<br><strong>Measurements:</strong> ${measurements}`
+          }
+        }
+
+        answerContent = frameContent
         break
       
       default:
