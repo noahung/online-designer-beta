@@ -1192,7 +1192,8 @@ export default function FormEmbed() {
         
         case 'opinion_scale':
           if (answer.scale_rating !== null) {
-            const stars = '★'.repeat(answer.scale_rating) + '☆'.repeat(5 - answer.scale_rating)
+            const clampedRating = Math.max(0, Math.min(5, answer.scale_rating))
+            const stars = '★'.repeat(clampedRating) + '☆'.repeat(5 - clampedRating)
             answerContent = `${stars} (${answer.scale_rating}/5)`
           } else {
             answerContent = 'No rating provided'
@@ -1430,6 +1431,23 @@ export default function FormEmbed() {
           return
         }
         // frames_plan is valid → proceed without generic check
+      } else if (step.question_type === 'dimensions') {
+        const dimensionResp = resp as any
+        const missing: string[] = []
+        
+        if (!dimensionResp?.width || dimensionResp.width === '') missing.push('Width')
+        if (!dimensionResp?.height || dimensionResp.height === '') missing.push('Height')
+        
+        // For 3D dimensions, depth is also required
+        if (dimensionResp?.dimension_type === '3d' && (!dimensionResp?.depth || dimensionResp.depth === '')) {
+          missing.push('Depth')
+        }
+        
+        if (missing.length > 0) {
+          alert(`Please provide the following required measurements:\n\n${missing.map(m => `• ${m}`).join('\n')}`)
+          return
+        }
+        // dimensions are valid → proceed without generic check
       } else if (!resp || (!resp.option_id && !resp.answer_text && !resp.file && !resp.contact_name && !resp.contact_email)) {
         alert('Please answer this step before continuing')
         return

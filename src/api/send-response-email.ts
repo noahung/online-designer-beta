@@ -385,7 +385,8 @@ function generateEmailTemplate(data: ResponseData): string {
       
       case 'opinion_scale':
         if (answer.scale_rating !== null) {
-          const stars = '★'.repeat(answer.scale_rating) + '☆'.repeat(5 - answer.scale_rating)
+          const clampedRating = Math.max(0, Math.min(5, answer.scale_rating))
+          const stars = '★'.repeat(clampedRating) + '☆'.repeat(5 - clampedRating)
           answerContent = `${stars} (${answer.scale_rating}/5)`
         } else {
           answerContent = 'No rating provided'
