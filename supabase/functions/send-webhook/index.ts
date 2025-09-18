@@ -51,7 +51,10 @@ Deno.serve(async (req) => {
 
     if (response.ok) {
       console.log('✅ [SEND-WEBHOOK] Webhook sent successfully')
-      return new Response('Webhook sent successfully', { status: 200 })
+      return new Response(JSON.stringify({ success: true, message: 'Webhook sent successfully' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      })
     } else {
       const errorText = await response.text()
       console.error('❌ [SEND-WEBHOOK] Webhook failed:', {
@@ -59,11 +62,25 @@ Deno.serve(async (req) => {
         statusText: response.statusText,
         error: errorText
       })
-      return new Response(`Webhook failed: ${response.status} ${response.statusText}`, { status: 500 })
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Webhook failed: ${response.status} ${response.statusText}`,
+        details: errorText
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      })
     }
 
   } catch (error) {
     console.error('❌ [SEND-WEBHOOK] Error in send-webhook function:', error)
-    return new Response('Internal server error', { status: 500 })
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Internal server error',
+      details: (error as Error).message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
 })

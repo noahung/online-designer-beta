@@ -368,6 +368,7 @@ export default function FormEmbed() {
           name,
           description,
           user_id,
+          client_id,
           form_theme,
           primary_button_color,
           primary_button_text_color,
@@ -823,32 +824,43 @@ export default function FormEmbed() {
         hasFiles: fileAttachments.length > 0
       })
 
-      // Send webhook via Supabase Edge Function
-      console.log('🌐 [WEBHOOK] Sending webhook via Supabase Edge Function...')
+      // Send webhook directly to Zapier (simplified approach)
+      console.log('🌐 [WEBHOOK] Sending webhook directly to Zapier...')
       console.log('🔗 [WEBHOOK] Target URL:', client.webhook_url)
 
-      const response = await fetch('https://bahloynyhjgmdndqabhu.supabase.co/functions/v1/send-webhook', {
+      const response = await fetch(client.webhook_url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          'User-Agent': 'Online Designer Webhook/1.0'
         },
-        body: JSON.stringify({
-          webhook_url: client.webhook_url,
-          payload: webhookData
-        })
+        body: JSON.stringify(webhookData)
       })
 
-      console.log('📡 [WEBHOOK] Edge Function response status:', response.status)
+      console.log('📡 [WEBHOOK] Zapier response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('❌ [WEBHOOK] Edge Function error response:', errorText)
+        console.error('❌ [WEBHOOK] Zapier error response:', errorText)
         throw new Error(`Webhook failed with status: ${response.status}`)
       }
 
-      const responseData = await response.json()
-      console.log('✅ [WEBHOOK] Edge Function success response:', responseData)
+      console.log('✅ [WEBHOOK] Webhook sent successfully to Zapier')
+
+      // Update response to mark webhook as sent
+      console.log('💾 [WEBHOOK] Updating database to mark webhook as sent...')
+      const { error: updateError } = await supabase
+        .from('responses')
+        .update({ webhook_sent: true })
+        .eq('id', responseId)
+
+      if (updateError) {
+        console.error('❌ [WEBHOOK] Database update error:', updateError)
+      } else {
+        console.log('✅ [WEBHOOK] Database updated successfully')
+      }
+
+      console.log('🎉 [WEBHOOK] Webhook process completed successfully!')
 
       // Update response to mark webhook as sent
       console.log('💾 [WEBHOOK] Updating database to mark webhook as sent...')
