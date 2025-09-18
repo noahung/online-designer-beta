@@ -467,6 +467,7 @@ document.addEventListener("DOMContentLoaded", function() {
           name,
           description,
           user_id,
+          client_id,
           form_theme,
           primary_button_color,
           primary_button_text_color,
