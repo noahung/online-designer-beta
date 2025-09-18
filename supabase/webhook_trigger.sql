@@ -192,7 +192,7 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     -- Log error but don't fail the form submission
     RAISE LOG '❌ [WEBHOOK TRIGGER] Error in webhook creation: %', SQLERRM;
-    RAISE LOG '❌ [WEBHOOK TRIGGER] Error details - SQLSTATE: %, SQLCODE: %', SQLSTATE, SQLCODE;
+    RAISE LOG '❌ [WEBHOOK TRIGGER] Error details - SQLSTATE: %', SQLSTATE;
   END;
 
   RETURN NEW;
@@ -220,19 +220,18 @@ CREATE INDEX IF NOT EXISTS idx_webhook_notifications_webhook_url ON webhook_noti
 CREATE INDEX IF NOT EXISTS idx_webhook_notifications_created_at ON webhook_notifications(created_at);
 
 -- Create the trigger on the responses table
-DROP TRIGGER IF EXISTS trigger_notify_zapier_webhook ON responses;
+-- DISABLED: Webhook is now sent from FormEmbed.tsx after all data is inserted
 
-CREATE TRIGGER trigger_notify_zapier_webhook
-  AFTER INSERT ON responses
-  FOR EACH ROW
-  EXECUTE FUNCTION notify_zapier_webhook();
+-- CREATE TRIGGER trigger_notify_zapier_webhook
+--   AFTER INSERT ON responses
+--   FOR EACH ROW
+--   EXECUTE FUNCTION notify_zapier_webhook();
 
 -- Grant necessary permissions
 GRANT ALL ON webhook_notifications TO authenticated;
 GRANT ALL ON webhook_notifications TO anon;
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO authenticated;
 GRANT EXECUTE ON FUNCTION notify_zapier_webhook() TO anon;
-<<<<<<< HEAD
 
 -- Comment for documentation
 COMMENT ON FUNCTION notify_zapier_webhook() IS 'Automatically stores webhook data for client-specific Zapier URLs when new form response is received';

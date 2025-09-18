@@ -4,56 +4,36 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-interface WebhookPayload {
-  webhook_url: string
-  payload: any
-  user_id: string
-}
+console.log('🔍 [SEND-WEBHOOK] Send-webhook Edge Function started')
 
 Deno.serve(async (req) => {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-    })
-  }
+  console.log('🔍 [SEND-WEBHOOK] Request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    console.log('❌ [SEND-WEBHOOK] Invalid method:', req.method)
+    return new Response('Method not allowed', { status: 405 })
   }
 
   try {
-    const { webhook_url, payload, user_id }: WebhookPayload = await req.json()
+    const { webhook_url, payload } = await req.json()
 
-    if (!webhook_url || !payload || !user_id) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters: webhook_url, payload, user_id' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      )
+    console.log('🔍 [SEND-WEBHOOK] Parsed request:', {
+      webhook_url: webhook_url,
+      payload_keys: Object.keys(payload || {})
+    })
+
+    if (!webhook_url || !payload) {
+      console.log('❌ [SEND-WEBHOOK] Missing required parameters')
+      return new Response('Missing webhook_url or payload', { status: 400 })
     }
 
-    // Verify user has webhook enabled
-    const { data: settings, error: settingsError } = await supabase
-      .from('user_settings')
-      .select('webhook_url, zapier_enabled')
-      .eq('user_id', user_id)
-      .maybeSingle()
+    console.log('🔍 [SEND-WEBHOOK] Sending webhook to:', webhook_url)
 
-    if (settingsError || !settings || !settings.zapier_enabled || settings.webhook_url !== webhook_url) {
-      return new Response(
-        JSON.stringify({ error: 'Webhook not enabled or URL mismatch' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Send webhook to Zapier
+    // Send the webhook to the client's URL
     const response = await fetch(webhook_url, {
       method: 'POST',
       headers: {
@@ -63,48 +43,27 @@ Deno.serve(async (req) => {
       body: JSON.stringify(payload)
     })
 
+    console.log('🔍 [SEND-WEBHOOK] Webhook response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    })
+
     if (response.ok) {
-      console.log(`Webhook sent successfully to ${webhook_url}`)
-      return new Response(
-        JSON.stringify({ success: true, message: 'Webhook sent successfully' }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
+      console.log('✅ [SEND-WEBHOOK] Webhook sent successfully')
+      return new Response('Webhook sent successfully', { status: 200 })
     } else {
       const errorText = await response.text()
-      console.error(`Webhook failed: ${response.status} - ${errorText}`)
-      return new Response(
-        JSON.stringify({
-          error: 'Webhook delivery failed',
-          status: response.status,
-          details: errorText
-        }),
-        {
-          status: response.status,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          }
-        }
-      )
+      console.error('❌ [SEND-WEBHOOK] Webhook failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      })
+      return new Response(`Webhook failed: ${response.status} ${response.statusText}`, { status: 500 })
     }
 
   } catch (error) {
-    console.error('Webhook proxy error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        }
-      }
-    )
+    console.error('❌ [SEND-WEBHOOK] Error in send-webhook function:', error)
+    return new Response('Internal server error', { status: 500 })
   }
 })
