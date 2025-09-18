@@ -824,38 +824,42 @@ export default function FormEmbed() {
         hasFiles: fileAttachments.length > 0
       })
 
-      // Send webhook directly to Zapier (simplified approach)
-      console.log('🌐 [WEBHOOK] Sending webhook directly to Zapier...')
+      // Send webhook via Supabase Edge Function (with CORS support)
+      console.log('🌐 [WEBHOOK] Sending webhook via Supabase Edge Function...')
       console.log('🔗 [WEBHOOK] Target URL:', client.webhook_url)
 
-      const response = await fetch(client.webhook_url, {
+      const response = await fetch('https://bahloynyhjgmdndqabhu.supabase.co/functions/v1/send-webhook', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'Online Designer Webhook/1.0'
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify(webhookData)
+        body: JSON.stringify({
+          webhook_url: client.webhook_url,
+          payload: webhookData
+        })
       })
 
-      console.log('📡 [WEBHOOK] Zapier response status:', response.status)
+      console.log('📡 [WEBHOOK] Edge Function response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('❌ [WEBHOOK] Zapier error response:', errorText)
+        console.error('❌ [WEBHOOK] Edge Function error response:', errorText)
         throw new Error(`Webhook failed with status: ${response.status}`)
       }
 
-      console.log('✅ [WEBHOOK] Webhook sent successfully to Zapier')
+      const responseData = await response.json()
+      console.log('✅ [WEBHOOK] Edge Function success response:', responseData)
 
       // Update response to mark webhook as sent
       console.log('💾 [WEBHOOK] Updating database to mark webhook as sent...')
-      const { error: updateError } = await supabase
+      const { error: webhookUpdateError } = await supabase
         .from('responses')
         .update({ webhook_sent: true })
         .eq('id', responseId)
 
-      if (updateError) {
-        console.error('❌ [WEBHOOK] Database update error:', updateError)
+      if (webhookUpdateError) {
+        console.error('❌ [WEBHOOK] Database update error:', webhookUpdateError)
       } else {
         console.log('✅ [WEBHOOK] Database updated successfully')
       }

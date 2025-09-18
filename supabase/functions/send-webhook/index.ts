@@ -7,6 +7,19 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 console.log('🔍 [SEND-WEBHOOK] Send-webhook Edge Function started')
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400',
+      },
+    })
+  }
+
   console.log('🔍 [SEND-WEBHOOK] Request received:', {
     method: req.method,
     url: req.url,
@@ -15,7 +28,17 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') {
     console.log('❌ [SEND-WEBHOOK] Invalid method:', req.method)
-    return new Response('Method not allowed', { status: 405 })
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Method not allowed',
+      details: 'Only POST requests are allowed'
+    }), {
+      status: 405,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      }
+    })
   }
 
   try {
@@ -28,7 +51,17 @@ Deno.serve(async (req) => {
 
     if (!webhook_url || !payload) {
       console.log('❌ [SEND-WEBHOOK] Missing required parameters')
-      return new Response('Missing webhook_url or payload', { status: 400 })
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Missing required parameters',
+        details: 'webhook_url and payload are required'
+      }), {
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        }
+      })
     }
 
     console.log('🔍 [SEND-WEBHOOK] Sending webhook to:', webhook_url)
@@ -53,7 +86,10 @@ Deno.serve(async (req) => {
       console.log('✅ [SEND-WEBHOOK] Webhook sent successfully')
       return new Response(JSON.stringify({ success: true, message: 'Webhook sent successfully' }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        }
       })
     } else {
       const errorText = await response.text()
@@ -68,7 +104,10 @@ Deno.serve(async (req) => {
         details: errorText
       }), {
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        }
       })
     }
 
@@ -80,7 +119,10 @@ Deno.serve(async (req) => {
       details: (error as Error).message
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      }
     })
   }
 })
