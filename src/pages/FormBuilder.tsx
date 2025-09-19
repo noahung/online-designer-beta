@@ -209,6 +209,233 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, canDelet
   )
 }
 
+// Sortable Image Selection Option Item Component
+interface SortableImageOptionItemProps {
+  option: Option
+  stepIndex: number
+  optionIndex: number
+  imagesPerRow: number
+  onUpdate: (stepIndex: number, optionIndex: number, updatedOption: Option) => void
+  onDelete: (stepIndex: number, optionIndex: number) => void
+  onFileChange: (stepIndex: number, optionIndex: number, file: File | null) => void
+}
+
+function SortableImageOptionItem({ 
+  option, 
+  stepIndex, 
+  optionIndex, 
+  imagesPerRow,
+  onUpdate, 
+  onDelete, 
+  onFileChange 
+}: SortableImageOptionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `step-${stepIndex}-option-${optionIndex}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:shadow-xl ${isDragging ? 'rotate-2 scale-105' : ''}`}
+    >
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 left-2 z-10 cursor-grab active:cursor-grabbing p-1 bg-black/20 hover:bg-black/40 text-white/60 hover:text-white rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100"
+        title="Drag to reorder"
+      >
+        <GripVertical className="h-3 w-3" />
+      </div>
+
+      {/* Image Upload Area */}
+      <div className="aspect-square p-4">
+        {option.image_url ? (
+          <div className="relative h-full w-full">
+            <img
+              src={option.image_url}
+              alt="Option preview"
+              className="h-full w-full object-cover rounded-lg border border-white/20 shadow-lg"
+            />
+            <button
+              onClick={() => onUpdate(stepIndex, optionIndex, { ...option, image_url: undefined, imageFile: null })}
+              className="absolute -top-2 -right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.accept = 'image/*'
+              input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0] || null
+                onFileChange(stepIndex, optionIndex, file)
+              }
+              input.click()
+            }}
+            className="h-full w-full border-2 border-dashed border-white/30 rounded-lg hover:border-cyan-400/50 hover:bg-cyan-500/10 transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105"
+          >
+            <Upload className="h-8 w-8 text-white/40 group-hover:text-cyan-300 transition-colors duration-200" />
+            <span className="text-xs text-white/50 group-hover:text-cyan-200 transition-colors duration-200">Upload Image</span>
+          </button>
+        )}
+      </div>
+
+      {/* Label and Description */}
+      <div className="p-4 space-y-3">
+        <input
+          type="text"
+          value={option.label}
+          onChange={(e) => onUpdate(stepIndex, optionIndex, { ...option, label: e.target.value })}
+          placeholder="Option label"
+          className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm font-medium"
+        />
+        <textarea
+          value={option.description || ''}
+          onChange={(e) => onUpdate(stepIndex, optionIndex, { ...option, description: e.target.value })}
+          placeholder="Description (optional)"
+          rows={2}
+          className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs resize-none"
+        />
+
+        {/* Jump to step */}
+        <div className="space-y-1">
+          <input
+            type="number"
+            min={1}
+            max={999}
+            value={option.jump_to_step ?? ''}
+            onChange={(e) => onUpdate(stepIndex, optionIndex, {
+              ...option,
+              jump_to_step: e.target.value ? Number(e.target.value) : undefined
+            })}
+            placeholder="Jump to step"
+            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs"
+          />
+        </div>
+      </div>
+
+      {/* Delete button */}
+      <button
+        onClick={() => onDelete(stepIndex, optionIndex)}
+        className="absolute top-2 right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  )
+}
+
+// Sortable Multiple Choice Option Item Component
+interface SortableMultipleChoiceOptionItemProps {
+  option: Option
+  stepIndex: number
+  optionIndex: number
+  onUpdate: (stepIndex: number, optionIndex: number, updatedOption: Option) => void
+  onDelete: (stepIndex: number, optionIndex: number) => void
+}
+
+function SortableMultipleChoiceOptionItem({ 
+  option, 
+  stepIndex, 
+  optionIndex, 
+  onUpdate, 
+  onDelete 
+}: SortableMultipleChoiceOptionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `step-${stepIndex}-option-${optionIndex}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/10 transition-all duration-200 ${isDragging ? 'rotate-1 scale-105' : ''}`}
+    >
+      <div className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center space-x-3 flex-1">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 text-white/50 hover:text-white/80 transition-colors"
+              title="Drag to reorder"
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+            <div className="flex-1 space-y-3">
+              <input
+                type="text"
+                value={option.label}
+                onChange={(e) => onUpdate(stepIndex, optionIndex, { ...option, label: e.target.value })}
+                placeholder="Option label"
+                className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 font-medium"
+              />
+              <textarea
+                value={option.description || ''}
+                onChange={(e) => onUpdate(stepIndex, optionIndex, { ...option, description: e.target.value })}
+                placeholder="Option description"
+                rows={2}
+                className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm resize-none"
+              />
+            </div>
+          </div>
+          <div className="ml-4 space-y-3">
+            <button
+              onClick={() => onDelete(stepIndex, optionIndex)}
+              className="p-2 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 hover:scale-110"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2 mt-4">
+          <label className="block text-xs text-white/70">Jump to step (optional)</label>
+          <input
+            type="number"
+            min={1}
+            max={999}
+            value={option.jump_to_step ?? ''}
+            onChange={(e) => onUpdate(stepIndex, optionIndex, {
+              ...option,
+              jump_to_step: e.target.value ? Number(e.target.value) : undefined
+            })}
+            placeholder="Step number"
+            className="w-24 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Collapsible Section Component
 interface CollapsibleSectionProps {
   title: string
@@ -352,6 +579,32 @@ export default function FormBuilder() {
           setSelectedStepIndex(overIndex)
         } else if (selectedStepIndex === overIndex) {
           setSelectedStepIndex(activeIndex)
+        }
+      }
+    }
+  }
+
+  // Handle option drag end
+  const handleOptionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const activeId = active.id.toString()
+      const overId = over.id.toString()
+      
+      // Extract step index and option index from IDs like "step-0-option-1"
+      const activeMatch = activeId.match(/step-(\d+)-option-(\d+)/)
+      const overMatch = overId.match(/step-(\d+)-option-(\d+)/)
+      
+      if (activeMatch && overMatch) {
+        const stepIndex = parseInt(activeMatch[1])
+        const activeOptionIndex = parseInt(activeMatch[2])
+        const overOptionIndex = parseInt(overMatch[2])
+        
+        if (activeOptionIndex !== overOptionIndex) {
+          const step = steps[stepIndex]
+          const newOptions = arrayMove(step.options, activeOptionIndex, overOptionIndex)
+          updateStep(stepIndex, { ...step, options: newOptions })
         }
       }
     }
@@ -1519,151 +1772,66 @@ export default function FormBuilder() {
                       
                       {/* Grid layout for image selection options */}
                       {currentStep.question_type === 'image_selection' ? (
-                        <div className={`grid gap-4 ${
-                          currentStep.images_per_row === 1
-                            ? 'grid-cols-1'
-                            : currentStep.images_per_row === 2
-                            ? 'grid-cols-1 sm:grid-cols-2'
-                            : currentStep.images_per_row === 3
-                            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                            : currentStep.images_per_row === 4
-                            ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                            : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
-                        }`}>
-                          {currentStep.options.map((option, optIndex) => (
-                            <div key={optIndex} className="group relative bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:shadow-xl">
-                              {/* Image Upload Area */}
-                              <div className="aspect-square p-4">
-                                {option.image_url ? (
-                                  <div className="relative h-full w-full">
-                                    <img
-                                      src={option.image_url}
-                                      alt="Option preview"
-                                      className="h-full w-full object-cover rounded-lg border border-white/20 shadow-lg"
-                                    />
-                                    <button
-                                      onClick={() => updateOption(selectedStepIndex!, optIndex, { ...option, image_url: undefined, imageFile: null })}
-                                      className="absolute -top-2 -right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      const input = document.createElement('input')
-                                      input.type = 'file'
-                                      input.accept = 'image/*'
-                                      input.onchange = (e) => {
-                                        const file = (e.target as HTMLInputElement).files?.[0] || null
-                                        handleFileChange(selectedStepIndex!, optIndex, file)
-                                      }
-                                      input.click()
-                                    }}
-                                    className="h-full w-full border-2 border-dashed border-white/30 rounded-lg hover:border-cyan-400/50 hover:bg-cyan-500/10 transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105"
-                                  >
-                                    <Upload className="h-8 w-8 text-white/40 group-hover:text-cyan-300 transition-colors duration-200" />
-                                    <span className="text-xs text-white/50 group-hover:text-cyan-200 transition-colors duration-200">Upload Image</span>
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Label and Description */}
-                              <div className="p-4 space-y-3">
-                                <input
-                                  type="text"
-                                  value={option.label}
-                                  onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, label: e.target.value })}
-                                  placeholder="Option label"
-                                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm font-medium"
+                        <DndContext 
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleOptionDragEnd}
+                        >
+                          <SortableContext 
+                            items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className={`grid gap-4 ${
+                              currentStep.images_per_row === 1
+                                ? 'grid-cols-1'
+                                : currentStep.images_per_row === 2
+                                ? 'grid-cols-1 sm:grid-cols-2'
+                                : currentStep.images_per_row === 3
+                                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                : currentStep.images_per_row === 4
+                                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                                : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
+                            }`}>
+                              {currentStep.options.map((option, optIndex) => (
+                                <SortableImageOptionItem
+                                  key={`step-${selectedStepIndex}-option-${optIndex}`}
+                                  option={option}
+                                  stepIndex={selectedStepIndex!}
+                                  optionIndex={optIndex}
+                                  imagesPerRow={currentStep.images_per_row || 2}
+                                  onUpdate={updateOption}
+                                  onDelete={deleteOption}
+                                  onFileChange={handleFileChange}
                                 />
-                                <textarea
-                                  value={option.description || ''}
-                                  onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, description: e.target.value })}
-                                  placeholder="Description (optional)"
-                                  rows={2}
-                                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs resize-none"
-                                />
-
-                                {/* Jump to step */}
-                                <div className="space-y-1">
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={steps.length}
-                                    value={option.jump_to_step ?? ''}
-                                    onChange={(e) => updateOption(selectedStepIndex!, optIndex, {
-                                      ...option,
-                                      jump_to_step: e.target.value ? Number(e.target.value) : undefined
-                                    })}
-                                    placeholder="Jump to step"
-                                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Delete button */}
-                              <button
-                                onClick={() => deleteOption(selectedStepIndex!, optIndex)}
-                                className="absolute top-2 right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </SortableContext>
+                        </DndContext>
                       ) : (
-                        /* Original layout for non-image selection options */
-                        <div className="space-y-4">
-                          {currentStep.options.map((option, optIndex) => (
-                            <div key={optIndex} className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:bg-white/10 transition-all duration-200">
-                              <div className="space-y-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 space-y-3">
-                                    <input
-                                      type="text"
-                                      value={option.label}
-                                      onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, label: e.target.value })}
-                                      placeholder="Option label"
-                                      className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 font-medium"
-                                    />
-                                    <textarea
-                                      value={option.description || ''}
-                                      onChange={(e) => updateOption(selectedStepIndex!, optIndex, { ...option, description: e.target.value })}
-                                      placeholder="Option description"
-                                      rows={2}
-                                      className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm resize-none"
-                                    />
-                                  </div>
-                                  <div className="ml-4 space-y-3">
-                                    <button
-                                      onClick={() => deleteOption(selectedStepIndex!, optIndex)}
-                                      className="p-2 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 hover:scale-110"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2 mt-4">
-                                  <label className="block text-xs text-white/70">Jump to step (optional)</label>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={steps.length}
-                                    value={option.jump_to_step ?? ''}
-                                    onChange={(e) => updateOption(selectedStepIndex!, optIndex, {
-                                      ...option,
-                                      jump_to_step: e.target.value ? Number(e.target.value) : undefined
-                                    })}
-                                    placeholder="Step number"
-                                    className="w-24 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
-                                  />
-                                </div>
-                              </div>
+                        /* Sortable layout for multiple choice options */
+                        <DndContext 
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleOptionDragEnd}
+                        >
+                          <SortableContext 
+                            items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="space-y-4">
+                              {currentStep.options.map((option, optIndex) => (
+                                <SortableMultipleChoiceOptionItem
+                                  key={`step-${selectedStepIndex}-option-${optIndex}`}
+                                  option={option}
+                                  stepIndex={selectedStepIndex!}
+                                  optionIndex={optIndex}
+                                  onUpdate={updateOption}
+                                  onDelete={deleteOption}
+                                />
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </SortableContext>
+                        </DndContext>
                       )}
                     </div>
                   )}
