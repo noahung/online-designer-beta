@@ -48,7 +48,9 @@ BEGIN
       'contact_name', COALESCE(NEW.contact_name, ''),
       'contact_email', COALESCE(NEW.contact_email, ''),
       'contact_phone', COALESCE(NEW.contact_phone, ''),
-      'contact_postcode', COALESCE(NEW.contact_postcode, '')
+      'contact_postcode', COALESCE(NEW.contact_postcode, ''),
+      'preferred_contact', COALESCE(NEW.preferred_contact, ''),
+      'project_details', COALESCE(NEW.project_details, '')
     ) INTO contact_data;
 
     RAISE LOG '🔍 [WEBHOOK TRIGGER] Contact data built successfully';
@@ -99,6 +101,8 @@ BEGIN
       'contact__email', COALESCE(NEW.contact_email, ''),
       'contact__phone', COALESCE(NEW.contact_phone, ''),
       'contact__postcode', COALESCE(NEW.contact_postcode, ''),
+      'contact__preferred_contact', COALESCE(NEW.preferred_contact, ''),
+      'contact__project_details', COALESCE(NEW.project_details, ''),
       'answers', COALESCE(answers_data, '[]'::json),
       'answers__text_responses', COALESCE(text_answers, '[]'::json),
       'answers__multiple_choice', COALESCE(multiple_choice_answers, '[]'::json),

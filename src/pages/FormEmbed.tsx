@@ -351,6 +351,26 @@ export default function FormEmbed() {
     return () => clearTimeout(timeoutId);
   }, [currentStepIndex, steps, responses]);
 
+  // Initialize frames_count for frames_plan steps
+  useEffect(() => {
+    const currentStep = steps[currentStepIndex];
+    if (currentStep?.question_type === 'frames_plan' && !(responses[currentStepIndex] as any)?.frames_count) {
+      setResponses(r => ({
+        ...r,
+        [currentStepIndex]: {
+          ...(r[currentStepIndex] || {}),
+          frames_count: 1, // Default to 1 frame
+          frames: Array(1).fill(null).map((_, i) => ({
+            frame_number: i + 1,
+            image_url: '',
+            location_text: '',
+            measurements_text: ''
+          }))
+        }
+      }));
+    }
+  }, [currentStepIndex, steps]);
+
   useEffect(() => { if (id) loadForm(id) }, [id])
 
   const loadForm = async (formId: string) => {
@@ -627,6 +647,7 @@ export default function FormEmbed() {
             units?: string;
             dimension_type?: string;
           };
+          frames_count?: number;
         } = {
           question: step?.title || 'Unknown',
           question_type: step?.question_type || 'unknown',
@@ -672,6 +693,10 @@ export default function FormEmbed() {
             units: answer.units,
             dimension_type: step?.dimension_type || '2d'
           };
+        }
+
+        if (step?.question_type === 'frames_plan' && answer.frames_count) {
+          baseAnswer.frames_count = answer.frames_count;
         }
 
         return baseAnswer;
@@ -793,6 +818,8 @@ export default function FormEmbed() {
         contact__email: contactData.contact_email || null,
         contact__phone: contactData.contact_phone || null,
         contact__postcode: contactData.contact_postcode || null,
+        contact__preferred_contact: contactData.preferred_contact || null,
+        contact__project_details: contactData.project_details || null,
 
         // Complete structured data
         answers: JSON.stringify(allStructuredAnswers),
@@ -821,7 +848,15 @@ export default function FormEmbed() {
         clientName: formData.clients?.name,
         answersCount: allStructuredAnswers.length,
         framesCount: framesInfo.length,
-        hasFiles: fileAttachments.length > 0
+        hasFiles: fileAttachments.length > 0,
+        contactData: {
+          name: contactData.contact_name,
+          email: contactData.contact_email,
+          phone: contactData.contact_phone,
+          postcode: contactData.contact_postcode,
+          preferred_contact: contactData.preferred_contact,
+          project_details: contactData.project_details
+        }
       })
 
       // Send webhook via Supabase Edge Function (with CORS support)
@@ -886,8 +921,8 @@ export default function FormEmbed() {
     }
   }
 
-  const sendClientEmailNotification = async (responseId: string) => {
-    console.log('📧 [EMAIL] Starting email notification for response:', responseId)
+  const sendClientEmailNotification = async (responseData: any) => {
+    console.log('📧 [EMAIL] Starting email notification for response:', responseData.id)
 
     try {
       if (!formData || !formData.clients) {
@@ -972,14 +1007,73 @@ export default function FormEmbed() {
       }
 
       // Get the full response data for email template
-      const responseData = await getResponseDataForEmail(responseId);
-      if (!responseData) {
-        console.error('Could not fetch response data for email');
-        return;
+      // Build complete email data using the inserted response and additional data
+      const emailData = { 
+        ...responseData,
+        answers: [],
+        frames_data: []
       }
 
-      const emailHtml = generateEmailTemplate(responseData);
-      const emailText = generateEmailText(responseData);
+      // Get form name and client info
+      emailData.form_name = formData.name
+      emailData.client_name = formData.clients?.name
+
+      // Get answers data
+      const { data: answersData, error: answersError } = await supabase
+        .from('response_answers')
+        .select(`
+          answer_text,
+          selected_option_id,
+          file_url,
+          file_name,
+          file_size,
+          width,
+          height,
+          depth,
+          units,
+          scale_rating,
+          frames_count,
+          step_id,
+          form_steps (
+            title,
+            question_type,
+            step_order
+          ),
+          form_options (
+            label
+          )
+        `)
+        .eq('response_id', responseData.id)
+
+      if (answersError) {
+        console.error('Error fetching answers for email:', answersError)
+        emailData.answers = []
+      } else {
+        // Sort answers by step order
+        const sortedAnswers = (answersData || []).sort((a: any, b: any) => {
+          const aOrder = a.form_steps?.step_order || 0
+          const bOrder = b.form_steps?.step_order || 0
+          return aOrder - bOrder
+        })
+        emailData.answers = sortedAnswers
+      }
+
+      // Get frames data
+      const { data: framesData, error: framesError } = await supabase
+        .from('response_frames')
+        .select('*')
+        .eq('response_id', responseData.id)
+        .order('frame_number', { ascending: true })
+
+      if (framesError) {
+        console.error('Error fetching frames for email:', framesError)
+        emailData.frames_data = []
+      } else {
+        emailData.frames_data = framesData || []
+      }
+
+      const emailHtml = generateEmailTemplate(emailData);
+      const emailText = generateEmailText(emailData);
 
       // Build recipients array
       const recipients = [];
@@ -1050,16 +1144,37 @@ export default function FormEmbed() {
 
   const getResponseDataForEmail = async (responseId: string) => {
     try {
-      // Get the response with contact data
+      // Get the response with contact data (try to include additional fields if they exist)
       const { data: responseData, error: responseError } = await supabase
         .from('responses')
-        .select('id, contact_name, contact_email, contact_phone, contact_postcode, submitted_at')
+        .select('id, contact_name, contact_email, contact_phone, contact_postcode, submitted_at, preferred_contact, project_details')
         .eq('id', responseId)
         .single()
 
-      if (responseError || !responseData) {
-        console.error('Error fetching response for email:', responseError)
-        return null
+      console.log('📧 [EMAIL] Response data retrieved:', { responseData, responseError })
+
+      if (responseError) {
+        // If the query fails due to missing columns, retry with basic fields only
+        if (responseError.message.includes('preferred_contact') || responseError.message.includes('project_details')) {
+          const { data: basicResponseData, error: basicError } = await supabase
+            .from('responses')
+            .select('id, contact_name, contact_email, contact_phone, contact_postcode, submitted_at')
+            .eq('id', responseId)
+            .single()
+
+          if (basicError || !basicResponseData) {
+            console.error('Error fetching basic response for email:', basicError)
+            return null
+          }
+
+          // Add empty additional fields
+          (basicResponseData as any).preferred_contact = null;
+          (basicResponseData as any).project_details = null;
+          return basicResponseData;
+        } else {
+          console.error('Error fetching response for email:', responseError)
+          return null
+        }
       }
 
       // Get the response answers with step details
@@ -1077,6 +1192,7 @@ export default function FormEmbed() {
           depth,
           units,
           scale_rating,
+          frames_count,
           step_id
         `)
         .eq('response_id', responseId)
@@ -1093,7 +1209,13 @@ export default function FormEmbed() {
         .order('frame_number', { ascending: true })
 
       if (framesError) {
-        console.error('Error fetching frames for email:', framesError)
+        console.error('❌ [EMAIL] Error fetching frames for email:', framesError)
+      } else {
+        console.log('📧 [EMAIL] Frames data fetched for email:', {
+          responseId,
+          framesCount: framesData?.length || 0,
+          framesData
+        })
       }
 
       // Match answers with step information from current form data
@@ -1107,6 +1229,12 @@ export default function FormEmbed() {
           options: step?.options || []
         }
       }).sort((a, b) => a.step_order - b.step_order)
+
+      console.log('📧 [EMAIL] getResponseDataForEmail returning:', {
+        responseId: responseData.id,
+        framesDataCount: framesData?.length || 0,
+        framesData: framesData
+      })
 
       return {
         response_id: responseData.id,
@@ -1199,6 +1327,14 @@ export default function FormEmbed() {
             answerContent = 'No rating provided'
           }
           break
+
+        case 'frames_plan':
+          if (answer.frames_count) {
+            answerContent = `Requested ${answer.frames_count} frame${answer.frames_count === 1 ? '' : 's'}`
+          } else {
+            answerContent = 'No frame count specified'
+          }
+          break
         
         default:
           answerContent = answer.answer_text || 'No response'
@@ -1224,6 +1360,8 @@ export default function FormEmbed() {
     if (data.contact_email) contactInfo.push(`<strong>Email:</strong> <a href="mailto:${data.contact_email}" style="color: #3b82f6;">${data.contact_email}</a>`)
     if (data.contact_phone) contactInfo.push(`<strong>Phone:</strong> <a href="tel:${data.contact_phone}" style="color: #3b82f6;">${data.contact_phone}</a>`)
     if (data.contact_postcode) contactInfo.push(`<strong>Postcode:</strong> ${data.contact_postcode}`)
+    if (data.preferred_contact) contactInfo.push(`<strong>Preferred Contact:</strong> ${data.preferred_contact}`)
+    if (data.project_details) contactInfo.push(`<strong>Project Details:</strong> ${data.project_details}`)
 
     const contactHtml = contactInfo.length > 0 ? `
       <div style="margin: 30px 0; padding: 20px; background-color: #ecfdf5; border-radius: 10px; border-left: 4px solid #10b981;">
@@ -1235,13 +1373,32 @@ export default function FormEmbed() {
     ` : ''
 
     // Frames data section (if exists)
+    console.log('📧 [EMAIL] Generating frames HTML:', {
+      hasFramesData: !!data.frames_data,
+      framesDataLength: data.frames_data?.length || 0,
+      framesData: data.frames_data
+    })
+    
+    // Log each frame individually
+    if (data.frames_data && data.frames_data.length > 0) {
+      data.frames_data.forEach((frame: any, index: number) => {
+        console.log(`📧 [EMAIL] Frame ${index + 1} data:`, {
+          frame_number: frame.frame_number,
+          image_url: frame.image_url,
+          location_text: frame.location_text,
+          measurements_text: frame.measurements_text,
+          hasImageUrl: !!frame.image_url
+        })
+      })
+    }
+    
     const framesHtml = data.frames_data && data.frames_data.length > 0 ? `
       <div style="margin: 30px 0; padding: 20px; background-color: #fef3c7; border-radius: 10px; border-left: 4px solid #f59e0b;">
         <h2 style="margin: 0 0 15px 0; color: #92400e; font-size: 18px;">🖼️ Frame Data</h2>
         ${data.frames_data.map((frame: any) => `
           <div style="margin-bottom: 15px; padding: 15px; background-color: white; border-radius: 8px;">
             <h4 style="margin: 0 0 10px 0; color: #92400e;">Frame ${frame.frame_number}</h4>
-            ${frame.image_url ? `<img src="${frame.image_url}" alt="Frame ${frame.frame_number}" style="max-width: 200px; max-height: 150px; border-radius: 6px; margin-bottom: 10px;">` : ''}
+            ${frame.image_url ? `<img src="${frame.image_url}" alt="Frame ${frame.frame_number}" style="max-width: 200px; max-height: 150px; border-radius: 6px; margin-bottom: 10px;">` : '<p style="color: #ef4444;">No image uploaded</p>'}
             ${frame.location_text ? `<p><strong>Location:</strong> ${frame.location_text}</p>` : ''}
             ${frame.measurements_text ? `<p><strong>Measurements:</strong> ${frame.measurements_text}</p>` : ''}
           </div>
@@ -1327,12 +1484,14 @@ export default function FormEmbed() {
     text += `Client: ${data.client_name}\n`
     text += `Submitted: ${formatDate(data.submitted_at)}\n\n`
 
-    if (data.contact_name || data.contact_email || data.contact_phone || data.contact_postcode) {
+    if (data.contact_name || data.contact_email || data.contact_phone || data.contact_postcode || data.preferred_contact || data.project_details) {
       text += `CONTACT INFORMATION:\n`
       if (data.contact_name) text += `Name: ${data.contact_name}\n`
       if (data.contact_email) text += `Email: ${data.contact_email}\n`
       if (data.contact_phone) text += `Phone: ${data.contact_phone}\n`
       if (data.contact_postcode) text += `Postcode: ${data.contact_postcode}\n`
+      if (data.preferred_contact) text += `Preferred Contact Method: ${data.preferred_contact}\n`
+      if (data.project_details) text += `Project Details: ${data.project_details}\n`
       text += `\n`
     }
 
@@ -1459,19 +1618,26 @@ export default function FormEmbed() {
       console.log('📝 [FORM] Form data:', { formId: id, formName, clientId: formData?.client_id })
       console.log('📊 [FORM] Responses to submit:', responses)
 
-      // Find contact information from responses
-      let contactData = {}
-      for (const [stepIndexStr, ans] of Object.entries(responses)) {
-        const si = Number(stepIndexStr)
-        const stepObj = steps[si]
-        if (stepObj?.question_type === 'contact_fields' && ans) {
-          contactData = {
-            contact_name: ans.contact_name || null,
-            contact_email: ans.contact_email || null,
-            contact_phone: ans.contact_phone || null,
-            contact_postcode: ans.contact_postcode || null
-          }
-          break
+      // Find contact information from current step response
+      let contactData: {
+        contact_name?: string | null;
+        contact_email?: string | null;
+        contact_phone?: string | null;
+        contact_postcode?: string | null;
+        preferred_contact?: string | null;
+        project_details?: string | null;
+      } = {}
+
+      // Since contact fields are on the current step, get data directly from current response
+      const currentResponse = responses[currentStepIndex]
+      if (currentResponse) {
+        contactData = {
+          contact_name: currentResponse.contact_name || null,
+          contact_email: currentResponse.contact_email || null,
+          contact_phone: currentResponse.contact_phone || null,
+          contact_postcode: currentResponse.contact_postcode || null,
+          preferred_contact: currentResponse.preferred_contact || null,
+          project_details: currentResponse.project_details || null
         }
       }
 
@@ -1479,10 +1645,39 @@ export default function FormEmbed() {
 
       // submit: create responses row and response_answers
       console.log('💾 [FORM] Creating response record in database...')
-      const { data: inserted, error: resErr } = await supabase.from('responses').insert([{
+
+      // Try to insert with all contact fields first
+      let responseInsertData = {
         form_id: id,
         ...contactData
-      }]).select().single()
+      }
+
+      console.log('💾 [FORM] Inserting response data:', responseInsertData)
+
+      let { data: inserted, error: resErr } = await supabase.from('responses').insert([responseInsertData]).select().single()
+
+      console.log('💾 [FORM] Insert result:', { inserted, error: resErr })
+
+      // If the insert fails due to missing columns, retry with only basic contact fields
+      if (resErr && resErr.message.includes('preferred_contact')) {
+        console.log('⚠️ [FORM] preferred_contact column missing, retrying with basic fields only')
+        responseInsertData = {
+          form_id: id,
+          contact_name: contactData.contact_name,
+          contact_email: contactData.contact_email,
+          contact_phone: contactData.contact_phone,
+          contact_postcode: contactData.contact_postcode
+        }
+        const retryResult = await supabase.from('responses').insert([responseInsertData]).select().single()
+        inserted = retryResult.data
+        resErr = retryResult.error
+      }
+
+      if (resErr || !inserted) {
+        console.error('❌ [FORM] Error creating response:', resErr)
+        alert('Submission failed')
+        return
+      }
 
       if (resErr || !inserted) {
         console.error('❌ [FORM] Error creating response:', resErr)
@@ -1550,17 +1745,23 @@ export default function FormEmbed() {
         })
 
         // Collect frames_plan rows
-        if (stepObj.question_type === 'frames_plan' && (ans as any)?.frames?.length) {
-          const frames = (ans as any).frames as Array<any>
+        if (stepObj.question_type === 'frames_plan') {
+          const frames = (ans as any)?.frames || []
+          console.log('📊 [FRAMES] Collecting frames for step:', stepObj.title, 'frames array:', frames)
+          
+          // Only process frames that have some data
           frames.forEach((f: any, idx: number) => {
-            frameRows.push({
-              response_id: responseId,
-              step_id: stepObj.id,
-              frame_number: f.frame_number ?? idx + 1,
-              image_url: f.image_url ?? null,
-              location_text: f.location_text ?? null,
-              measurements_text: f.measurements_text ?? null
-            })
+            if (f && (f.image_url || f.location_text || f.measurements_text)) {
+              console.log('📊 [FRAMES] Adding frame data for frame', idx + 1, ':', f)
+              frameRows.push({
+                response_id: responseId,
+                step_id: stepObj.id,
+                frame_number: f.frame_number ?? idx + 1,
+                image_url: f.image_url ?? null,
+                location_text: f.location_text ?? null,
+                measurements_text: f.measurements_text ?? null
+              })
+            }
           })
         }
       }
@@ -1572,8 +1773,15 @@ export default function FormEmbed() {
 
       // Insert frames rows if present
       if (frameRows.length > 0) {
+        console.log('📊 [FRAMES] Inserting frames data:', frameRows)
         const { error: framesErr } = await supabase.from('response_frames').insert(frameRows)
-        if (framesErr) console.error('Error inserting response_frames', framesErr)
+        if (framesErr) {
+          console.error('❌ [FRAMES] Error inserting response_frames:', framesErr)
+        } else {
+          console.log('✅ [FRAMES] Frames data inserted successfully')
+        }
+      } else {
+        console.log('⚠️ [FRAMES] No frames data to insert')
       }
 
       // Webhook is now sent directly after all data is inserted
@@ -1589,7 +1797,7 @@ export default function FormEmbed() {
       // Send email notification to client
       console.log('📧 [EMAIL] Starting client email notification process...')
       try {
-        await sendClientEmailNotification(responseId)
+        await sendClientEmailNotification(inserted)
         console.log('✅ [EMAIL] Client email notification completed')
       } catch (error) {
         console.error('❌ [EMAIL] Email notification failed:', error)
@@ -1934,28 +2142,27 @@ export default function FormEmbed() {
                 </div>
 
                 <div>
-                  <label className={currentTheme.styles.text.label}>Preferred Contact Method</label>
-                  <div className="flex space-x-4">
-                    {['Phone Call', 'Email', 'Both'].map((method) => (
-                      <label key={method} className="flex items-center">
-                        <input
-                          type="radio"
-                          name="contactMethod"
-                          value={method}
-                          checked={responses[currentStepIndex]?.preferred_contact === method}
-                          onChange={(e) => setResponses(r => ({
-                            ...r,
-                            [currentStepIndex]: {
-                              ...(r[currentStepIndex] || {}),
-                              preferred_contact: e.target.value
-                            }
-                          }))}
-                          className="mr-2 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className={currentTheme.styles.text.body}>{method}</span>
-                      </label>
-                    ))}
-                  </div>
+                  <label htmlFor="preferredContact" className={currentTheme.styles.text.label}>
+                    Preferred Contact Method <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="preferredContact"
+                    value={responses[currentStepIndex]?.preferred_contact || ''}
+                    onChange={(e) => setResponses(r => ({
+                      ...r,
+                      [currentStepIndex]: {
+                        ...(r[currentStepIndex] || {}),
+                        preferred_contact: e.target.value
+                      }
+                    }))}
+                    className={currentTheme.styles.input}
+                    required
+                  >
+                    <option value="">Select preferred contact method</option>
+                    <option value="Phone Call">Phone Call</option>
+                    <option value="Email">Email</option>
+                    <option value="Both">Both</option>
+                  </select>
                 </div>
 
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"

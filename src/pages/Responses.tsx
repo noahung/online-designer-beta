@@ -19,6 +19,8 @@ interface ResponseAnswer {
   units: string | null
   // Opinion scale field
   scale_rating: number | null
+  // Frames plan field
+  frames_count: number | null
   step_id: string
   form_steps: {
     id: string
@@ -55,6 +57,8 @@ interface Response {
   contact_email: string | null
   contact_phone: string | null
   contact_postcode: string | null
+  preferred_contact: string | null
+  project_details: string | null
   submitted_at: string
   forms: {
     id: string
@@ -131,6 +135,8 @@ export default function Responses() {
               contact_email,
               contact_phone,
               contact_postcode,
+              preferred_contact,
+              project_details,
               submitted_at,
               form_id
             `)
@@ -196,6 +202,8 @@ export default function Responses() {
             contact_email,
             contact_phone,
             contact_postcode,
+            preferred_contact,
+            project_details,
             submitted_at,
             form_id
           `)
@@ -264,6 +272,8 @@ export default function Responses() {
           contact_email,
           contact_phone,
           contact_postcode,
+          preferred_contact,
+          project_details,
           submitted_at,
           form_id,
           response_answers (
@@ -278,6 +288,7 @@ export default function Responses() {
             depth,
             units,
             scale_rating,
+            frames_count,
             step_id,
             form_steps!step_id (
               id,
@@ -700,6 +711,14 @@ export default function Responses() {
                     <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Postcode</label>
                     <p className="text-gray-900 dark:text-white">{selectedResponse.contact_postcode || 'Not provided'}</p>
                   </div>
+                  <div className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Preferred Contact</label>
+                    <p className="text-gray-900 dark:text-white">{selectedResponse.preferred_contact || 'Not provided'}</p>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <label className="block text-sm font-medium text-gray-600 dark:text-white/70 mb-1">Project Details</label>
+                    <p className="text-gray-900 dark:text-white">{selectedResponse.project_details || 'Not provided'}</p>
+                  </div>
                 </div>
               </div>
 
@@ -918,29 +937,37 @@ export default function Responses() {
                             ) : answer.form_steps?.question_type === 'frames_plan' ? (
                               (() => {
                                 const framesForStep = (selectedResponse.response_frames || []).filter(fr => fr.step_id === (answer.step_id || answer.form_steps?.id))
-                                if (framesForStep.length === 0) {
+                                const requestedCount = answer.frames_count
+                                if (framesForStep.length === 0 && !requestedCount) {
                                   return (
                                     <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-400/20 text-blue-200 text-sm">No frames captured</div>
                                   )
                                 }
                                 return (
                                   <div className="bg-blue-500/10 rounded-lg p-3 border border-blue-400/20">
-                                    <div className="text-blue-100 text-sm mb-2">{framesForStep.length} frame{framesForStep.length>1?'s':''}</div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                      {framesForStep.map(fr => (
-                                        <div key={fr.id} className="bg-white/5 rounded border border-white/10 p-2">
-                                          {fr.image_url ? (
-                                            <img src={fr.image_url} alt={`Frame ${fr.frame_number}`} className="w-full h-24 object-cover rounded" />
-                                          ) : (
-                                            <div className="w-full h-24 flex items-center justify-center text-xs text-white/60 bg-white/5 rounded">No image</div>
-                                          )}
-                                          <div className="mt-2 text-xs text-white/80">
-                                            <div><span className="font-medium">#{fr.frame_number}</span> {fr.location_text || ''}</div>
-                                            {fr.measurements_text && <div className="text-white/60">{fr.measurements_text}</div>}
-                                          </div>
+                                    {requestedCount && (
+                                      <div className="text-blue-100 text-sm mb-2">Requested: {requestedCount} frame{requestedCount > 1 ? 's' : ''}</div>
+                                    )}
+                                    {framesForStep.length > 0 && (
+                                      <>
+                                        <div className="text-blue-100 text-sm mb-2">{framesForStep.length} frame{framesForStep.length > 1 ? 's' : ''} captured</div>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                          {framesForStep.map(fr => (
+                                            <div key={fr.id} className="bg-white/5 rounded border border-white/10 p-2">
+                                              {fr.image_url ? (
+                                                <img src={fr.image_url} alt={`Frame ${fr.frame_number}`} className="w-full h-24 object-cover rounded" />
+                                              ) : (
+                                                <div className="w-full h-24 flex items-center justify-center text-xs text-white/60 bg-white/5 rounded">No image</div>
+                                              )}
+                                              <div className="mt-2 text-xs text-white/80">
+                                                <div><span className="font-medium">#{fr.frame_number}</span> {fr.location_text || ''}</div>
+                                                {fr.measurements_text && <div className="text-white/60">{fr.measurements_text}</div>}
+                                              </div>
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
+                                      </>
+                                    )}
                                   </div>
                                 )
                               })()

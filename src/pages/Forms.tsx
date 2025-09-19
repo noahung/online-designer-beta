@@ -140,6 +140,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
       if (fetchError) throw fetchError
 
+      // Get all form steps with their options
+      const { data: originalSteps, error: stepsError } = await supabase
+        .from('form_steps')
+        .select(`
+          *,
+          form_options (*)
+        `)
+        .eq('form_id', formId)
+        .order('step_order')
+
+      if (stepsError) throw stepsError
+
       // Create a new form with the same data but new ID and name
       const { data: newForm, error: createError } = await supabase
         .from('forms')
@@ -152,12 +164,62 @@ document.addEventListener("DOMContentLoaded", function() {
           is_active: false, // Start as inactive
           primary_color: originalForm.primary_color,
           secondary_color: originalForm.secondary_color,
-          background_color: originalForm.background_color
+          background_color: originalForm.background_color,
+          welcome_message: originalForm.welcome_message,
+          form_theme: originalForm.form_theme,
+          primary_button_color: originalForm.primary_button_color,
+          primary_button_text_color: originalForm.primary_button_text_color,
+          secondary_button_color: originalForm.secondary_button_color,
+          secondary_button_text_color: originalForm.secondary_button_text_color,
+          internal_name: originalForm.internal_name
         })
         .select()
         .single()
 
       if (createError) throw createError
+
+      // Copy all form steps and their options
+      for (const step of originalSteps || []) {
+        const { data: newStep, error: stepError } = await supabase
+          .from('form_steps')
+          .insert({
+            form_id: newForm.id,
+            title: step.title,
+            question_type: step.question_type,
+            is_required: step.is_required,
+            step_order: step.step_order,
+            max_file_size: step.max_file_size,
+            allowed_file_types: step.allowed_file_types,
+            dimension_type: step.dimension_type,
+            scale_type: step.scale_type,
+            scale_min: step.scale_min,
+            scale_max: step.scale_max,
+            images_per_row: step.images_per_row,
+            frames_max_count: step.frames_max_count,
+            frames_require_image: step.frames_require_image,
+            frames_require_location: step.frames_require_location,
+            frames_require_measurements: step.frames_require_measurements
+          })
+          .select()
+          .single()
+
+        if (stepError) throw stepError
+
+        // Copy all options for this step
+        for (const option of step.form_options || []) {
+          const { error: optionError } = await supabase
+            .from('form_options')
+            .insert({
+              step_id: newStep.id,
+              label: option.label,
+              image_url: option.image_url,
+              option_order: option.option_order,
+              jump_to_step: option.jump_to_step
+            })
+
+          if (optionError) throw optionError
+        }
+      }
 
       fetchForms() // Refresh the forms list
       push({ type: 'success', message: 'Form duplicated successfully!' })
