@@ -671,7 +671,7 @@ export default function Responses() {
 
       {/* Response Details Modal */}
       {selectedResponse && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-start justify-center p-4 z-50 animate-fade-in pt-10">
           <div className="bg-white/95 dark:bg-white/10 backdrop-blur-xl border border-gray-200 dark:border-white/20 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-scale-in shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/20 flex-shrink-0">

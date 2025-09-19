@@ -1580,7 +1580,7 @@ export default function FormEmbed() {
           const missing: string[] = []
           if ((step.frames_require_image ?? true) && !f.image_url) missing.push('Image')
           if ((step.frames_require_location ?? true) && !(f.location_text || '').trim()) missing.push('Location')
-          if ((step.frames_require_measurements ?? false) && !(f.measurements_text || '').trim()) missing.push('Measurements')
+          // Measurements are now always optional - removed validation check
           if (missing.length > 0) {
             issues.push(`Frame ${i + 1}: ${missing.join(', ')} required`)
           }
@@ -2765,7 +2765,7 @@ export default function FormEmbed() {
                       {(step.frames_require_measurements ?? false) && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Measurements (optional) - width × height in mm{step.frames_require_measurements ? ' *' : ''}
+                            Measurements (optional) - width × height in mm
                           </label>
                           <input
                             type="text"
@@ -2790,7 +2790,7 @@ export default function FormEmbed() {
                             }}
                             placeholder="e.g., 1200 × 800"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            required={step.frames_require_measurements && step.is_required}
+                            required={false}
                           />
                         </div>
                       )}
