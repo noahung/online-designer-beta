@@ -186,7 +186,7 @@ export default function FormEmbed() {
       clearTimeout(window.heightUpdateTimeout);
       window.heightUpdateTimeout = setTimeout(() => {
         sendHeightToParent();
-      }, 100);
+      }, 100) as unknown as number;
     });
     observer.observe(document.body, { childList: true, subtree: true, attributes: true });
     
@@ -209,7 +209,7 @@ export default function FormEmbed() {
       });
     };
   }, []);
-  const { user } = useAuth()
+  const { } = useAuth()
   const { id } = useParams()
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
@@ -228,7 +228,7 @@ export default function FormEmbed() {
   
   // Animation state for morph transitions
   const [isAnimating, setIsAnimating] = useState(false)
-  const [previousStepIndex, setPreviousStepIndex] = useState<number | null>(null)
+  const [, setPreviousStepIndex] = useState<number | null>(null)
   const [animationDirection, setAnimationDirection] = useState<'forward' | 'backward'>('forward')
   const [responses, setResponses] = useState<Record<number, { 
     option_id?: string; 
@@ -714,6 +714,21 @@ export default function FormEmbed() {
       }
 
       console.log('📊 [WEBHOOK] Frames data:', framesData?.length || 0, 'frames found')
+      
+      // Also fetch the actual response data to ensure we have contact info
+      const { data: responseDetails, error: responseDetailsError } = await supabase
+        .from('responses')
+        .select('contact_name, contact_email, contact_phone, contact_postcode, submitted_at')
+        .eq('id', responseId)
+        .single()
+        
+      if (responseDetailsError) {
+        console.error('❌ [WEBHOOK] Error fetching response details:', responseDetailsError)
+      } else {
+        console.log('📧 [WEBHOOK] Response details fetched:', responseDetails)
+        // Update contactData with fresh data from database
+        Object.assign(contactData, responseDetails)
+      }
 
       // Add frames data to structured answers
       const framesAnswers = (framesData || []).map(frame => {
@@ -858,6 +873,9 @@ export default function FormEmbed() {
           project_details: contactData.project_details
         }
       })
+      
+      // Debug: Log the actual webhook data being sent
+      console.log('🔍 [WEBHOOK] Full webhook payload being sent:', JSON.stringify(webhookData, null, 2))
 
       // Send webhook via Supabase Edge Function (with CORS support)
       console.log('🌐 [WEBHOOK] Sending webhook via Supabase Edge Function...')
@@ -1018,7 +1036,9 @@ export default function FormEmbed() {
       emailData.form_name = formData.name
       emailData.client_name = formData.clients?.name
 
-      // Get answers data
+      console.log('📧 [EMAIL] Building email data for response:', responseData.id)
+
+      // Get answers data (basic query without broken joins)
       const { data: answersData, error: answersError } = await supabase
         .from('response_answers')
         .select(`
@@ -1033,15 +1053,7 @@ export default function FormEmbed() {
           units,
           scale_rating,
           frames_count,
-          step_id,
-          form_steps (
-            title,
-            question_type,
-            step_order
-          ),
-          form_options (
-            label
-          )
+          step_id
         `)
         .eq('response_id', responseData.id)
 
@@ -1049,13 +1061,31 @@ export default function FormEmbed() {
         console.error('Error fetching answers for email:', answersError)
         emailData.answers = []
       } else {
-        // Sort answers by step order
-        const sortedAnswers = (answersData || []).sort((a: any, b: any) => {
-          const aOrder = a.form_steps?.step_order || 0
-          const bOrder = b.form_steps?.step_order || 0
-          return aOrder - bOrder
-        })
-        emailData.answers = sortedAnswers
+        // Enrich answers with step data from local form data
+        const enrichedAnswers = (answersData || []).map(answer => {
+          const step = steps.find(s => s.id === answer.step_id)
+          const enrichedAnswer: any = {
+            ...answer,
+            question_title: step?.title || 'Unknown Question',
+            question_type: step?.question_type || 'unknown',
+            step_order: step?.step_order || 0,
+            options: step?.options || []
+          }
+          
+          // Add selected option label if available
+          if (answer.selected_option_id && step?.options) {
+            const selectedOption = step.options.find(opt => opt.id === answer.selected_option_id)
+            if (selectedOption) {
+              enrichedAnswer.selected_option_label = selectedOption.label
+              enrichedAnswer.selected_option_image = selectedOption.image_url
+            }
+          }
+          
+          return enrichedAnswer
+        }).sort((a: any, b: any) => a.step_order - b.step_order)
+        
+        emailData.answers = enrichedAnswers
+        console.log('📧 [EMAIL] Enriched answers prepared:', enrichedAnswers.length, 'answers')
       }
 
       // Get frames data
@@ -1070,6 +1100,7 @@ export default function FormEmbed() {
         emailData.frames_data = []
       } else {
         emailData.frames_data = framesData || []
+        console.log('📧 [EMAIL] Frames data prepared:', framesData?.length || 0, 'frames')
       }
 
       const emailHtml = generateEmailTemplate(emailData);
@@ -1142,119 +1173,6 @@ export default function FormEmbed() {
     }
   }
 
-  const getResponseDataForEmail = async (responseId: string) => {
-    try {
-      // Get the response with contact data (try to include additional fields if they exist)
-      const { data: responseData, error: responseError } = await supabase
-        .from('responses')
-        .select('id, contact_name, contact_email, contact_phone, contact_postcode, submitted_at, preferred_contact, project_details')
-        .eq('id', responseId)
-        .single()
-
-      console.log('📧 [EMAIL] Response data retrieved:', { responseData, responseError })
-
-      if (responseError) {
-        // If the query fails due to missing columns, retry with basic fields only
-        if (responseError.message.includes('preferred_contact') || responseError.message.includes('project_details')) {
-          const { data: basicResponseData, error: basicError } = await supabase
-            .from('responses')
-            .select('id, contact_name, contact_email, contact_phone, contact_postcode, submitted_at')
-            .eq('id', responseId)
-            .single()
-
-          if (basicError || !basicResponseData) {
-            console.error('Error fetching basic response for email:', basicError)
-            return null
-          }
-
-          // Add empty additional fields
-          (basicResponseData as any).preferred_contact = null;
-          (basicResponseData as any).project_details = null;
-          return basicResponseData;
-        } else {
-          console.error('Error fetching response for email:', responseError)
-          return null
-        }
-      }
-
-      // Get the response answers with step details
-      const { data: answers, error: answersError } = await supabase
-        .from('response_answers')
-        .select(`
-          id,
-          answer_text,
-          selected_option_id,
-          file_url,
-          file_name,
-          file_size,
-          width,
-          height,
-          depth,
-          units,
-          scale_rating,
-          frames_count,
-          step_id
-        `)
-        .eq('response_id', responseId)
-
-      if (answersError) {
-        console.error('Error fetching answers for email:', answersError)
-      }
-
-      // Get frames data if exists
-      const { data: framesData, error: framesError } = await supabase
-        .from('response_frames')
-        .select('*')
-        .eq('response_id', responseId)
-        .order('frame_number', { ascending: true })
-
-      if (framesError) {
-        console.error('❌ [EMAIL] Error fetching frames for email:', framesError)
-      } else {
-        console.log('📧 [EMAIL] Frames data fetched for email:', {
-          responseId,
-          framesCount: framesData?.length || 0,
-          framesData
-        })
-      }
-
-      // Match answers with step information from current form data
-      const enrichedAnswers = (answers || []).map(answer => {
-        const step = steps.find(s => s.id === answer.step_id)
-        return {
-          ...answer,
-          question_title: step?.title || 'Question',
-          question_type: step?.question_type || 'unknown',
-          step_order: step?.step_order || 0,
-          options: step?.options || []
-        }
-      }).sort((a, b) => a.step_order - b.step_order)
-
-      console.log('📧 [EMAIL] getResponseDataForEmail returning:', {
-        responseId: responseData.id,
-        framesDataCount: framesData?.length || 0,
-        framesData: framesData
-      })
-
-      return {
-        response_id: responseData.id,
-        form_name: formName,
-  client_name: formData?.clients?.name || 'Client',
-  contact_name: responseData.contact_name,
-        contact_email: responseData.contact_email,
-        contact_phone: responseData.contact_phone,
-        contact_postcode: responseData.contact_postcode,
-        submitted_at: responseData.submitted_at,
-        answers: enrichedAnswers,
-        frames_data: framesData || []
-      }
-
-    } catch (error) {
-      console.error('Error in getResponseDataForEmail:', error)
-      return null
-    }
-  }
-
   const generateEmailTemplate = (data: any): string => {
     const formatDate = (dateStr: string) => {
       return new Date(dateStr).toLocaleString('en-GB', {
@@ -1276,21 +1194,36 @@ export default function FormEmbed() {
           break
         
         case 'multiple_choice':
-          const selectedOption = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
-          answerContent = selectedOption?.label || answer.answer_text || 'No selection'
+          // First try the enriched selected_option_label, then fallback to finding in options
+          if (answer.selected_option_label) {
+            answerContent = answer.selected_option_label
+          } else {
+            const selectedOption = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
+            answerContent = selectedOption?.label || answer.answer_text || 'No selection'
+          }
           break
         
         case 'image_selection':
-          const selectedImage = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
-          if (selectedImage) {
+          // First try the enriched data, then fallback to finding in options
+          if (answer.selected_option_label) {
             answerContent = `
               <div style="margin: 10px 0;">
-                <img src="${selectedImage.image_url}" alt="${selectedImage.label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">
-                <p style="margin: 5px 0; font-weight: 600;">${selectedImage.label}</p>
+                ${answer.selected_option_image ? `<img src="${answer.selected_option_image}" alt="${answer.selected_option_label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">` : ''}
+                <p style="margin: 5px 0; font-weight: 600;">${answer.selected_option_label}</p>
               </div>
             `
           } else {
-            answerContent = 'No image selected'
+            const selectedImage = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
+            if (selectedImage) {
+              answerContent = `
+                <div style="margin: 10px 0;">
+                  <img src="${selectedImage.image_url}" alt="${selectedImage.label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">
+                  <p style="margin: 5px 0; font-weight: 600;">${selectedImage.label}</p>
+                </div>
+              `
+            } else {
+              answerContent = 'No image selected'
+            }
           }
           break
         
@@ -1506,8 +1439,13 @@ export default function FormEmbed() {
           answerText = answer.answer_text || 'No response'
           break
         case 'multiple_choice':
-          const selectedOption = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
-          answerText = selectedOption?.label || answer.answer_text || 'No selection'
+          // First try the enriched selected_option_label, then fallback to finding in options
+          if (answer.selected_option_label) {
+            answerText = answer.selected_option_label
+          } else {
+            const selectedOption = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
+            answerText = selectedOption?.label || answer.answer_text || 'No selection'
+          }
           break
         case 'file_upload':
           if (answer.file_url && answer.file_name) {
@@ -1784,13 +1722,17 @@ export default function FormEmbed() {
         console.log('⚠️ [FRAMES] No frames data to insert')
       }
 
-      // Webhook is now sent directly after all data is inserted
-      console.log('🚀 [WEBHOOK] Sending webhook directly after database operations...')
+      // Wait a brief moment to ensure data is fully persisted
+      console.log('⏱️ [WEBHOOK] Waiting briefly for data persistence...')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Now send webhook with fresh data
+      console.log('🚀 [WEBHOOK] Sending webhook after data persistence delay...')
       try {
         await sendWebhook(responseId, answers, contactData)
-        console.log('✅ [WEBHOOK] Direct webhook sent successfully')
+        console.log('✅ [WEBHOOK] Webhook sent successfully')
       } catch (error) {
-        console.error('❌ [WEBHOOK] Direct webhook failed:', error)
+        console.error('❌ [WEBHOOK] Webhook failed:', error)
         // Don't fail the form submission if webhook fails
       }
 
