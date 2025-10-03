@@ -88,9 +88,29 @@ export default function Responses() {
   const [clients, setClients] = useState<Client[]>([])
   const { push } = useToast()
 
+  // Date range filter state
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
   // Pagination state
   const [pageSize, setPageSize] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
+
+  // Calculate stats
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - 7)
+  const monthStart = new Date(now)
+  monthStart.setDate(now.getDate() - 30)
+
+  const stats = {
+    total: responses.length,
+    today: responses.filter(r => new Date(r.submitted_at) >= todayStart).length,
+    thisWeek: responses.filter(r => new Date(r.submitted_at) >= weekStart).length,
+    thisMonth: responses.filter(r => new Date(r.submitted_at) >= monthStart).length
+  }
+
   const totalPages = Math.ceil(responses.length / pageSize)
   const paginatedResponses = responses.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
@@ -412,7 +432,12 @@ export default function Responses() {
     const clientName = response.forms?.[0]?.clients?.name
     const matchesClient = selectedClient === '' || clientName === selectedClient
 
-    return matchesSearch && matchesForm && matchesClient
+    // Date range filtering
+    const submittedDate = new Date(response.submitted_at)
+    const matchesStartDate = !startDate || submittedDate >= new Date(startDate)
+    const matchesEndDate = !endDate || submittedDate <= new Date(endDate + 'T23:59:59')
+
+    return matchesSearch && matchesForm && matchesClient && matchesStartDate && matchesEndDate
   })
 
   const exportToCSV = () => {
@@ -470,9 +495,52 @@ export default function Responses() {
         </button>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in" style={{animationDelay: '0.2s'}}>
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium opacity-90">Total Responses</h3>
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <FileText className="w-5 h-5" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold">{stats.total}</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium opacity-90">Today</h3>
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold">{stats.today}</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium opacity-90">This Week</h3>
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold">{stats.thisWeek}</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-200 hover:scale-105">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium opacity-90">This Month</h3>
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold">{stats.thisMonth}</p>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white/80 dark:bg-white/10 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-white/20 p-6 mb-8 shadow-lg animate-fade-in" style={{animationDelay: '0.3s'}}>
-        <div className={`grid grid-cols-1 gap-4 ${userType === 'admin' ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
               Search
@@ -527,23 +595,47 @@ export default function Responses() {
             </div>
           )}
 
-          <div className="flex items-end space-x-4">
-            <span className="text-sm text-gray-600 dark:text-white/60 px-3 py-3 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-              {filteredResponses.length} of {responses.length} responses
-            </span>
-            <div>
-              <label className="text-sm text-gray-700 dark:text-white/90 mr-2">Page size:</label>
-              <select
-                value={pageSize}
-                onChange={e => setPageSize(Number(e.target.value))}
-                className="px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/10 backdrop-blur-md text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15 shadow-lg appearance-none"
-                style={{ minWidth: 70 }}
-              >
-                <option value={10} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">10</option>
-                <option value={20} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">20</option>
-                <option value={30} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">30</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
+              From Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-3 bg-white/90 dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
+              To Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-3 bg-white/90 dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+          <span className="text-sm text-gray-600 dark:text-white/60 px-3 py-2 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+            {filteredResponses.length} of {responses.length} responses
+          </span>
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-700 dark:text-white/90">Page size:</label>
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(Number(e.target.value))}
+              className="px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/10 backdrop-blur-md text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white dark:hover:bg-white/15 shadow-lg appearance-none"
+              style={{ minWidth: 70 }}
+            >
+              <option value={10} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">10</option>
+              <option value={20} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">20</option>
+              <option value={30} className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">30</option>
+            </select>
           </div>
         </div>
       </div>

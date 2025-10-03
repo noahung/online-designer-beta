@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code, Search, BarChart3 } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, Code, Search, BarChart3, MoreVertical, Copy as Duplicate, FileText } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import FolderSidebar from '../components/folders/FolderSidebar'
@@ -62,6 +62,9 @@ export default function Forms() {
   
   // Response counts state
   const [responseCounts, setResponseCounts] = useState<Record<string, number>>({})
+  
+  // Dropdown menu state
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchForms()
@@ -565,7 +568,7 @@ document.addEventListener("DOMContentLoaded", function() {
       ) : forms.length === 0 ? (
         <div className="text-center py-16 animate-fade-in">
           <div className="w-20 h-20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-blue-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <Sparkles className="w-10 h-10 text-blue-300" />
+            <FileText className="w-10 h-10 text-blue-300" />
           </div>
           <h3 className="text-2xl font-bold text-white mb-3">No forms yet</h3>
           <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
@@ -594,7 +597,7 @@ document.addEventListener("DOMContentLoaded", function() {
       ) : (
         <div className="space-y-6">
           {filteredForms.map((form, index) => (
-            <div key={form.id} className="group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in" style={{animationDelay: `${index * 0.1}s`}}>
+            <div key={form.id} className={`group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in ${openMenuId === form.id ? 'relative z-50' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
               <div className="flex items-start justify-between">
                 {/* Checkbox for bulk selection */}
                 <div className="flex items-start space-x-4">
@@ -647,6 +650,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
 
                 <div className="flex items-center space-x-2">
+                  {/* Responses Button */}
                   <button
                     onClick={() => navigate(`/forms/${form.id}/responses`)}
                     className="flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white hover:from-blue-500/30 hover:to-purple-600/30 hover:scale-105"
@@ -660,39 +664,7 @@ document.addEventListener("DOMContentLoaded", function() {
                       </span>
                     )}
                   </button>
-
-                  <button
-                    onClick={() => copyEmbedCode(form.id)}
-                    className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
-                    title="Copy embed code"
-                  >
-                    <Code className="w-5 h-5" />
-                  </button>
                   
-                  <button
-                    className="p-3 text-white/60 hover:text-green-300 hover:bg-green-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-green-400/30"
-                    title="Preview form"
-                    onClick={() => window.open(`/form/${form.id}`, '_blank')}
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
-                  
-                  <button
-                    className="p-3 text-white/60 hover:text-purple-300 hover:bg-purple-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-purple-400/30"
-                    title="Edit form"
-                    onClick={() => openEditModal(form.id)}
-                  >
-                    <Edit className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    onClick={() => duplicateForm(form.id)}
-                    className="p-3 text-white/60 hover:text-orange-300 hover:bg-orange-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-orange-400/30"
-                    title="Duplicate form"
-                  >
-                    <Duplicate className="w-5 h-5" />
-                  </button>
-
                   {/* Move to Folder dropdown */}
                   <select
                     value={form.folder_id || ''}
@@ -708,24 +680,108 @@ document.addEventListener("DOMContentLoaded", function() {
                     ))}
                   </select>
 
+                  {/* Embed Code Button */}
                   <button
-                    onClick={() => toggleFormStatus(form.id, form.is_active)}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border ${
-                      form.is_active
-                        ? 'bg-slate-500/20 text-slate-300 border-slate-400/30 hover:bg-slate-500/30'
-                        : 'bg-green-500/20 text-green-300 border-green-400/30 hover:bg-green-500/30'
-                    }`}
+                    onClick={() => copyEmbedCode(form.id)}
+                    className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
+                    title="Copy embed code"
                   >
-                    {form.is_active ? 'Deactivate' : 'Activate'}
+                    <Code className="w-5 h-5" />
                   </button>
 
-                  <button
-                    onClick={() => deleteForm(form.id)}
-                    className="p-3 text-white/60 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-red-400/30"
-                    title="Delete form"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  {/* More Actions Dropdown */}
+                  <div className="relative z-50">
+                    <button
+                      onClick={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
+                      className="p-3 text-white/60 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-white/30"
+                      title="More actions"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+
+                    {openMenuId === form.id && (
+                      <>
+                        {/* Backdrop to close menu */}
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setOpenMenuId(null)}
+                        />
+                        
+                        {/* Dropdown Menu */}
+                        <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-gray-800 border border-white/20 shadow-2xl overflow-hidden z-50 animate-scale-in">
+                          <button
+                            onClick={() => {
+                              window.open(`/form/${form.id}`, '_blank')
+                              setOpenMenuId(null)
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+                          >
+                            <Eye className="w-4 h-4 text-green-300" />
+                            <span>Preview</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              openEditModal(form.id)
+                              setOpenMenuId(null)
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+                          >
+                            <Edit className="w-4 h-4 text-purple-300" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              duplicateForm(form.id)
+                              setOpenMenuId(null)
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+                          >
+                            <Duplicate className="w-4 h-4 text-orange-300" />
+                            <span>Duplicate</span>
+                          </button>
+
+                          <div className="h-px bg-white/10 my-1" />
+
+                          <button
+                            onClick={() => {
+                              toggleFormStatus(form.id, form.is_active)
+                              setOpenMenuId(null)
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+                          >
+                            {form.is_active ? (
+                              <>
+                                <div className="w-4 h-4 flex items-center justify-center">
+                                  <div className="w-2 h-2 rounded-full bg-slate-400" />
+                                </div>
+                                <span>Deactivate</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-4 h-4 flex items-center justify-center">
+                                  <div className="w-2 h-2 rounded-full bg-green-400" />
+                                </div>
+                                <span>Activate</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              deleteForm(form.id)
+                              setOpenMenuId(null)
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
