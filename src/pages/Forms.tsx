@@ -5,6 +5,20 @@ import { useTheme } from '../contexts/ThemeContext'
 import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code, Search } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
+import FolderSidebar from '../components/folders/FolderSidebar'
+import FolderModal from '../components/folders/FolderModal'
+import FolderBadge from '../components/folders/FolderBadge'
+import BulkActions from '../components/folders/BulkActions'
+import { 
+  getFolders, 
+  createFolder, 
+  updateFolder, 
+  deleteFolder, 
+  updateFormFolder,
+  moveFormsToFolder,
+  getUncategorizedCount,
+  Folder as FolderType 
+} from '../api/folders'
 
 interface Form {
   id: string
@@ -14,9 +28,15 @@ interface Form {
   is_active: boolean
   created_at: string
   client_id: string
+  folder_id: string | null
   clients: {
     name: string
     primary_color: string
+  } | null
+  form_folders?: {
+    id: string
+    name: string
+    color: string
   } | null
 }
 
@@ -28,10 +48,45 @@ export default function Forms() {
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Folder state
+  const [folders, setFolders] = useState<FolderType[]>([])
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [uncategorizedCount, setUncategorizedCount] = useState(0)
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
+  const [editingFolder, setEditingFolder] = useState<FolderType | null>(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  
+  // Bulk selection state
+  const [selectedFormIds, setSelectedFormIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchForms()
+    if (user) {
+      fetchFolders()
+      fetchUncategorizedCount()
+    }
   }, [user])
+
+  const fetchFolders = async () => {
+    if (!user) return
+    const { data, error } = await getFolders(user.id)
+    if (error) {
+      console.error('Error fetching folders:', error)
+    } else {
+      setFolders(data || [])
+    }
+  }
+
+  const fetchUncategorizedCount = async () => {
+    if (!user) return
+    const { count, error } = await getUncategorizedCount(user.id)
+    if (error) {
+      console.error('Error fetching uncategorized count:', error)
+    } else {
+      setUncategorizedCount(count)
+    }
+  }
 
   const fetchForms = async () => {
     if (!user) return
@@ -45,6 +100,11 @@ export default function Forms() {
           clients (
             name,
             primary_color
+          ),
+          form_folders (
+            id,
+            name,
+            color
           )
         `)
         .eq('user_id', user.id)
@@ -230,35 +290,168 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // Filter forms based on search query
+  // Folder management handlers
+  const handleCreateFolder = async (data: { name: string; description: string; color: string }) => {
+    if (!user) return
+    const { error } = await createFolder(user.id, data)
+    if (error) {
+      push({ type: 'error', message: 'Failed to create folder' })
+    } else {
+      push({ type: 'success', message: 'Folder created successfully!' })
+      fetchFolders()
+    }
+  }
+
+  const handleUpdateFolder = async (data: { name: string; description: string; color: string }) => {
+    if (!editingFolder) return
+    const { error } = await updateFolder(editingFolder.id, data)
+    if (error) {
+      push({ type: 'error', message: 'Failed to update folder' })
+    } else {
+      push({ type: 'success', message: 'Folder updated successfully!' })
+      fetchFolders()
+      fetchForms() // Refresh to update folder badges
+    }
+  }
+
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!confirm('Delete this folder? Forms inside will be moved to Uncategorized.')) return
+    
+    const { error } = await deleteFolder(folderId)
+    if (error) {
+      push({ type: 'error', message: 'Failed to delete folder' })
+    } else {
+      push({ type: 'success', message: 'Folder deleted successfully!' })
+      if (selectedFolderId === folderId) {
+        setSelectedFolderId(null)
+      }
+      fetchFolders()
+      fetchForms()
+      fetchUncategorizedCount()
+    }
+  }
+
+  const handleMoveFormToFolder = async (formId: string, folderId: string | null) => {
+    const { error } = await updateFormFolder(formId, folderId)
+    if (error) {
+      push({ type: 'error', message: 'Failed to move form' })
+    } else {
+      push({ type: 'success', message: 'Form moved successfully!' })
+      fetchForms()
+      fetchFolders() // Update folder counts
+      fetchUncategorizedCount()
+    }
+  }
+
+  const handleBulkMoveToFolder = async (folderId: string | null) => {
+    const formIds = Array.from(selectedFormIds)
+    const { error } = await moveFormsToFolder(formIds, folderId)
+    if (error) {
+      push({ type: 'error', message: 'Failed to move forms' })
+    } else {
+      push({ type: 'success', message: `${formIds.length} form(s) moved successfully!` })
+      setSelectedFormIds(new Set())
+      fetchForms()
+      fetchFolders()
+      fetchUncategorizedCount()
+    }
+  }
+
+  const toggleFormSelection = (formId: string) => {
+    const newSelection = new Set(selectedFormIds)
+    if (newSelection.has(formId)) {
+      newSelection.delete(formId)
+    } else {
+      newSelection.add(formId)
+    }
+    setSelectedFormIds(newSelection)
+  }
+
+  // Filter forms based on search query and selected folder
   const filteredForms = forms.filter(form => {
+    // Filter by search query
     const query = searchQuery.toLowerCase()
-    return (
+    const matchesSearch = (
       form.name.toLowerCase().includes(query) ||
       form.internal_name?.toLowerCase().includes(query) ||
       form.description?.toLowerCase().includes(query) ||
       form.clients?.name.toLowerCase().includes(query)
     )
+    
+    if (!matchesSearch) return false
+    
+    // Filter by selected folder
+    if (selectedFolderId === null) {
+      return true // Show all forms
+    } else if (selectedFolderId === 'uncategorized') {
+      return form.folder_id === null
+    } else {
+      return form.folder_id === selectedFolderId
+    }
   })
 
   return (
-    <div className="p-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <div className="animate-slide-up">
-          <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-            theme === 'light' 
-              ? 'from-gray-800 via-orange-600 to-red-600' 
-              : 'from-white via-orange-100 to-red-200'
-          }`}>
-            Forms
-          </h1>
-          <p className={`mt-2 text-lg ${
-            theme === 'light' ? 'text-gray-600' : 'text-white/70'
-          }`}>Create and manage your client forms</p>
-        </div>
-        <button 
-          onClick={() => navigate('/forms/new')} 
-          className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
+    <>
+      {/* Folder Modal */}
+      <FolderModal
+        isOpen={isFolderModalOpen}
+        onClose={() => {
+          setIsFolderModalOpen(false)
+          setEditingFolder(null)
+        }}
+        onSave={editingFolder ? handleUpdateFolder : handleCreateFolder}
+        initialData={editingFolder ? {
+          name: editingFolder.name,
+          description: editingFolder.description || '',
+          color: editingFolder.color
+        } : undefined}
+        mode={editingFolder ? 'edit' : 'create'}
+      />
+
+      {/* Bulk Actions */}
+      <BulkActions
+        selectedCount={selectedFormIds.size}
+        folders={folders}
+        onMoveToFolder={handleBulkMoveToFolder}
+        onClearSelection={() => setSelectedFormIds(new Set())}
+      />
+
+      <div className="flex h-screen">
+        {/* Folder Sidebar */}
+        <FolderSidebar
+          folders={folders}
+          selectedFolderId={selectedFolderId}
+          uncategorizedCount={uncategorizedCount}
+          onSelectFolder={setSelectedFolderId}
+          onCreateFolder={() => setIsFolderModalOpen(true)}
+          onEditFolder={(folder) => {
+            setEditingFolder(folder)
+            setIsFolderModalOpen(true)
+          }}
+          onDeleteFolder={handleDeleteFolder}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-8 animate-fade-in">
+            <div className="flex items-center justify-between mb-8">
+              <div className="animate-slide-up">
+                <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+                  theme === 'light' 
+                    ? 'from-gray-800 via-orange-600 to-red-600' 
+                    : 'from-white via-orange-100 to-red-200'
+                }`}>
+                  Forms
+                </h1>
+                <p className={`mt-2 text-lg ${
+                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                }`}>Create and manage your client forms</p>
+              </div>
+              <button 
+                onClick={() => navigate('/forms/new')} 
+                className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
           style={{animationDelay: '0.2s'}}
         >
           <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-200" />
@@ -373,36 +566,53 @@ document.addEventListener("DOMContentLoaded", function() {
           {filteredForms.map((form, index) => (
             <div key={form.id} className="group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in" style={{animationDelay: `${index * 0.1}s`}}>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-4 mb-3">
-                    <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
-                      {form.name}
-                    </h3>
-                    {form.internal_name && (
-                      <span className="ml-2 px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-300 border border-orange-400/30">
-                        {form.internal_name}
+                {/* Checkbox for bulk selection */}
+                <div className="flex items-start space-x-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedFormIds.has(form.id)}
+                    onChange={() => toggleFormSelection(form.id)}
+                    className="mt-1 w-5 h-5 rounded border-2 border-white/30 bg-white/10 checked:bg-orange-500 checked:border-orange-500 cursor-pointer transition-all"
+                  />
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-3 flex-wrap">
+                      <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
+                        {form.name}
+                      </h3>
+                      {form.internal_name && (
+                        <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-300 border border-orange-400/30">
+                          {form.internal_name}
+                        </span>
+                      )}
+                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
+                        form.is_active 
+                          ? 'bg-green-500/20 text-green-300 border-green-400/30'
+                          : 'bg-slate-500/20 text-slate-300 border-slate-400/30'
+                      }`}>
+                        {form.is_active ? 'Active' : 'Inactive'}
                       </span>
+                      {form.form_folders && (
+                        <FolderBadge
+                          folderName={form.form_folders.name}
+                          folderColor={form.form_folders.color}
+                          size="sm"
+                        />
+                      )}
+                    </div>
+                    
+                    {form.description && (
+                      <p className="text-white/70 mb-4 text-base leading-relaxed">{form.description}</p>
                     )}
-                    <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
-                      form.is_active 
-                        ? 'bg-green-500/20 text-green-300 border-green-400/30'
-                        : 'bg-slate-500/20 text-slate-300 border-slate-400/30'
-                    }`}>
-                      {form.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  
-                  {form.description && (
-                    <p className="text-white/70 mb-4 text-base leading-relaxed">{form.description}</p>
-                  )}
-                  
-                  <div className="flex items-center space-x-4 text-sm text-white/60">
-                    <span className="flex items-center">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                      Client: {form.clients?.name}
-                    </span>
-                    <span>•</span>
-                    <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
+                    
+                    <div className="flex items-center space-x-4 text-sm text-white/60">
+                      <span className="flex items-center">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                        Client: {form.clients?.name}
+                      </span>
+                      <span>•</span>
+                      <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -439,6 +649,21 @@ document.addEventListener("DOMContentLoaded", function() {
                     <Duplicate className="w-5 h-5" />
                   </button>
 
+                  {/* Move to Folder dropdown */}
+                  <select
+                    value={form.folder_id || ''}
+                    onChange={(e) => handleMoveFormToFolder(form.id, e.target.value || null)}
+                    className="px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-white/10 text-white hover:bg-white/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    title="Move to folder"
+                  >
+                    <option value="" className="bg-gray-800">📭 Uncategorized</option>
+                    {folders.map((folder) => (
+                      <option key={folder.id} value={folder.id} className="bg-gray-800">
+                        📁 {folder.name}
+                      </option>
+                    ))}
+                  </select>
+
                   <button
                     onClick={() => toggleFormStatus(form.id, form.is_active)}
                     className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border ${
@@ -463,6 +688,9 @@ document.addEventListener("DOMContentLoaded", function() {
           ))}
         </div>
       )}
-    </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
