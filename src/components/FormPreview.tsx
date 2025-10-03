@@ -1,5 +1,6 @@
 import React from 'react'
 import { Button } from './ui/button'
+import { createPortal } from 'react-dom'
 
 interface FormPreviewProps {
   isOpen: boolean
@@ -27,7 +28,7 @@ export default function FormPreview({
   if (!isOpen) return null
 
   // Fallback modal if no formId is provided
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-md p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
@@ -69,4 +70,6 @@ export default function FormPreview({
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

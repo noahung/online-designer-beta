@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code, Search, BarChart3 } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import FolderSidebar from '../components/folders/FolderSidebar'
@@ -59,6 +59,9 @@ export default function Forms() {
   
   // Bulk selection state
   const [selectedFormIds, setSelectedFormIds] = useState<Set<string>>(new Set())
+  
+  // Response counts state
+  const [responseCounts, setResponseCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     fetchForms()
@@ -67,6 +70,12 @@ export default function Forms() {
       fetchUncategorizedCount()
     }
   }, [user])
+
+  useEffect(() => {
+    if (forms.length > 0) {
+      fetchResponseCounts()
+    }
+  }, [forms.length])
 
   const fetchFolders = async () => {
     if (!user) return
@@ -85,6 +94,27 @@ export default function Forms() {
       console.error('Error fetching uncategorized count:', error)
     } else {
       setUncategorizedCount(count)
+    }
+  }
+
+  const fetchResponseCounts = async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('responses')
+        .select('form_id')
+        .in('form_id', forms.map(f => f.id))
+
+      if (error) throw error
+
+      const counts: Record<string, number> = {}
+      data?.forEach(response => {
+        counts[response.form_id] = (counts[response.form_id] || 0) + 1
+      })
+
+      setResponseCounts(counts)
+    } catch (error) {
+      console.error('Error fetching response counts:', error)
     }
   }
 
@@ -617,6 +647,20 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
 
                 <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => navigate(`/forms/${form.id}/responses`)}
+                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white hover:from-blue-500/30 hover:to-purple-600/30 hover:scale-105"
+                    title="View responses"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Responses</span>
+                    {responseCounts[form.id] > 0 && (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-blue-400 text-white font-semibold">
+                        {responseCounts[form.id]}
+                      </span>
+                    )}
+                  </button>
+
                   <button
                     onClick={() => copyEmbedCode(form.id)}
                     className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"

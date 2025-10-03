@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { useTheme } from '../../contexts/ThemeContext'
+import { createPortal } from 'react-dom'
 
 interface FolderModalProps {
   isOpen: boolean
@@ -66,7 +67,7 @@ export default function FolderModal({ isOpen, onClose, onSave, initialData, mode
 
   if (!isOpen) return null
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div
         className={`w-full max-w-md rounded-2xl border shadow-2xl animate-scale-in ${
@@ -209,4 +210,6 @@ export default function FolderModal({ isOpen, onClose, onSave, initialData, mode
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }
