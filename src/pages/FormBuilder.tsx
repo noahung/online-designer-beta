@@ -214,7 +214,6 @@ interface SortableImageOptionItemProps {
   option: Option
   stepIndex: number
   optionIndex: number
-  imagesPerRow: number
   onUpdate: (stepIndex: number, optionIndex: number, updatedOption: Option) => void
   onDelete: (stepIndex: number, optionIndex: number) => void
   onFileChange: (stepIndex: number, optionIndex: number, file: File | null) => void
@@ -224,7 +223,6 @@ function SortableImageOptionItem({
   option, 
   stepIndex, 
   optionIndex, 
-  imagesPerRow,
   onUpdate, 
   onDelete, 
   onFileChange 
@@ -1798,7 +1796,6 @@ export default function FormBuilder() {
                                   option={option}
                                   stepIndex={selectedStepIndex!}
                                   optionIndex={optIndex}
-                                  imagesPerRow={currentStep.images_per_row || 2}
                                   onUpdate={updateOption}
                                   onDelete={deleteOption}
                                   onFileChange={handleFileChange}

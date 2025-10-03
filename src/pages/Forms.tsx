@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code } from 'lucide-react'
+import { Plus, Edit, Trash2, Copy, Eye, Sparkles, Zap, Copy as Duplicate, Code, Search } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -27,6 +27,7 @@ export default function Forms() {
   const navigate = useNavigate()
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     fetchForms()
@@ -229,6 +230,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
+  // Filter forms based on search query
+  const filteredForms = forms.filter(form => {
+    const query = searchQuery.toLowerCase()
+    return (
+      form.name.toLowerCase().includes(query) ||
+      form.internal_name?.toLowerCase().includes(query) ||
+      form.description?.toLowerCase().includes(query) ||
+      form.clients?.name.toLowerCase().includes(query)
+    )
+  })
+
   return (
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -253,6 +265,47 @@ document.addEventListener("DOMContentLoaded", function() {
           Create Form
         </button>
       </div>
+
+      {/* Search Bar */}
+      {forms.length > 0 && (
+        <div className="mb-6 animate-slide-up" style={{animationDelay: '0.3s'}}>
+          <div className="relative">
+            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
+              theme === 'light' ? 'text-gray-400' : 'text-white/40'
+            }`} />
+            <input
+              type="text"
+              placeholder="Search forms by name, internal name, description, or client..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all duration-200 ${
+                theme === 'light'
+                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                  : 'bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
+              } focus:outline-none`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className={`absolute right-4 top-1/2 transform -translate-y-1/2 text-sm font-medium transition-colors ${
+                  theme === 'light'
+                    ? 'text-gray-500 hover:text-gray-700'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className={`mt-2 text-sm ${
+              theme === 'light' ? 'text-gray-600' : 'text-white/60'
+            }`}>
+              Found {filteredForms.length} form{filteredForms.length !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-6">
@@ -301,9 +354,23 @@ document.addEventListener("DOMContentLoaded", function() {
             Create Your First Form
           </button>
         </div>
+      ) : filteredForms.length === 0 ? (
+        <div className="text-center py-16 animate-fade-in">
+          <div className="w-20 h-20 bg-gradient-to-r from-orange-500/20 to-red-600/20 backdrop-blur-xl rounded-2xl border border-orange-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
+            <Search className="w-10 h-10 text-orange-300" />
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-3">No forms found</h3>
+          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
+          <button 
+            onClick={() => setSearchQuery('')}
+            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105"
+          >
+            Clear Search
+          </button>
+        </div>
       ) : (
         <div className="space-y-6">
-          {forms.map((form, index) => (
+          {filteredForms.map((form, index) => (
             <div key={form.id} className="group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in" style={{animationDelay: `${index * 0.1}s`}}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
