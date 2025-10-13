@@ -1060,7 +1060,7 @@ export default function FormBuilder() {
       }
 
       push({ type: 'success', message: isEditing ? 'Form updated successfully' : 'Form created successfully' })
-      navigate('/forms')
+      // Stay on the same page after saving
     } catch (error) {
       console.error('Error saving form:', error)
       push({ type: 'error', message: 'Error saving form' })
