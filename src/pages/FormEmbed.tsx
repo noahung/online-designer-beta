@@ -73,6 +73,7 @@ type Step = {
   scale_min?: number;
   scale_max?: number;
   images_per_row?: number;
+  crop_images_to_square?: boolean;
   frames_count?: number;
   frames_max_count?: number;
   frames_require_image?: boolean;
@@ -105,7 +106,8 @@ export default function FormEmbed() {
     onClick, 
     isAnimating, 
     animationDirection,
-    index 
+    index,
+    cropImagesToSquare = true
   }: {
     option: Option;
     isSelected: boolean;
@@ -113,6 +115,7 @@ export default function FormEmbed() {
     isAnimating: boolean;
     animationDirection: 'forward' | 'backward';
     index: number;
+    cropImagesToSquare?: boolean;
   }) => {
     const animationDelay = index * 50; // Stagger animation by 50ms per card
     
@@ -120,7 +123,7 @@ export default function FormEmbed() {
       <button 
         onClick={onClick} 
         className={`
-          border rounded-lg p-4 text-left hover:shadow-md transition-all duration-300 ease-out
+          border rounded-lg p-4 text-left hover:shadow-md transition-all duration-300 ease-out flex flex-col h-full
           ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}
           ${isAnimating ? 
             animationDirection === 'forward' 
@@ -136,7 +139,7 @@ export default function FormEmbed() {
       >
         {option.image_url && (
           <div className={`
-            aspect-square w-full mb-3 rounded-lg overflow-hidden bg-gray-100 
+            ${cropImagesToSquare ? 'aspect-square' : 'flex-grow flex items-start'} w-full mb-3 rounded-lg overflow-hidden bg-gray-100 
             transition-all duration-300 ease-out
             ${isAnimating ? 'animate-scale-in' : ''}
           `}
@@ -148,34 +151,36 @@ export default function FormEmbed() {
             <img 
               src={option.image_url} 
               alt={option.label} 
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+              className={`w-full ${cropImagesToSquare ? 'h-full object-cover' : 'object-contain'} transition-transform duration-300 hover:scale-105`} 
             />
           </div>
         )}
-        <div className={`
-          font-medium text-gray-900 transition-all duration-200
-          ${isAnimating ? 'animate-slide-in' : ''}
-        `}
-        style={{
-          animationDelay: isAnimating ? `${animationDelay + 200}ms` : '0ms',
-          animationFillMode: 'both'
-        }}
-        >
-          {option.label}
-        </div>
-        {option.description && (
+        <div className="flex-shrink-0">
           <div className={`
-            text-sm text-gray-500 mt-1 transition-all duration-200
+            font-medium text-gray-900 transition-all duration-200
             ${isAnimating ? 'animate-slide-in' : ''}
           `}
           style={{
-            animationDelay: isAnimating ? `${animationDelay + 250}ms` : '0ms',
+            animationDelay: isAnimating ? `${animationDelay + 200}ms` : '0ms',
             animationFillMode: 'both'
           }}
           >
-            {option.description}
+            {option.label}
           </div>
-        )}
+          {option.description && (
+            <div className={`
+              text-sm text-gray-500 mt-1 transition-all duration-200
+              ${isAnimating ? 'animate-slide-in' : ''}
+            `}
+            style={{
+              animationDelay: isAnimating ? `${animationDelay + 250}ms` : '0ms',
+              animationFillMode: 'both'
+            }}
+            >
+              {option.description}
+            </div>
+          )}
+        </div>
       </button>
     );
   };
@@ -497,6 +502,7 @@ export default function FormEmbed() {
           scale_min: row.scale_min,
           scale_max: row.scale_max,
           images_per_row: row.images_per_row,
+          crop_images_to_square: row.crop_images_to_square ?? true,
           // Frames plan configuration (default when null/undefined)
           frames_max_count: row.frames_max_count ?? 10,
           frames_require_image: row.frames_require_image ?? true,
@@ -2748,7 +2754,7 @@ export default function FormEmbed() {
           </div>
         ) : (
           <div 
-            className={`grid gap-4 mt-6 ${
+            className={`grid gap-4 mt-6 grid-auto-rows-fr ${!step.crop_images_to_square ? 'items-start' : ''} ${
               step.images_per_row === 1 
                 ? 'grid-cols-1' 
                 : step.images_per_row === 2
@@ -2769,6 +2775,7 @@ export default function FormEmbed() {
                 isAnimating={isAnimating}
                 animationDirection={animationDirection}
                 index={index}
+                cropImagesToSquare={step.crop_images_to_square ?? true}
               />
             ))}
           </div>

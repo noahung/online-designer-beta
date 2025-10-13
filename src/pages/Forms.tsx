@@ -289,6 +289,7 @@ document.addEventListener("DOMContentLoaded", function() {
             scale_min: step.scale_min,
             scale_max: step.scale_max,
             images_per_row: step.images_per_row,
+            crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,

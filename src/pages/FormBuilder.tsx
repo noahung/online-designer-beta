@@ -70,6 +70,7 @@ type Step = {
   scale_min?: number // minimum scale value (default 1)
   scale_max?: number // maximum scale value (default 10 for number, 5 for star)
   images_per_row?: number // for image_selection step layout (default 2)
+  crop_images_to_square?: boolean // whether to crop images to square aspect ratio (default true)
   // Frames plan specific fields
   frames_max_count?: number // maximum number of frames allowed (default 10)
   frames_require_image?: boolean // whether image upload is required for each frame
@@ -217,6 +218,7 @@ interface SortableImageOptionItemProps {
   onUpdate: (stepIndex: number, optionIndex: number, updatedOption: Option) => void
   onDelete: (stepIndex: number, optionIndex: number) => void
   onFileChange: (stepIndex: number, optionIndex: number, file: File | null) => void
+  cropImagesToSquare?: boolean
 }
 
 function SortableImageOptionItem({ 
@@ -225,7 +227,8 @@ function SortableImageOptionItem({
   optionIndex, 
   onUpdate, 
   onDelete, 
-  onFileChange 
+  onFileChange,
+  cropImagesToSquare = true
 }: SortableImageOptionItemProps) {
   const {
     attributes,
@@ -246,7 +249,7 @@ function SortableImageOptionItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:shadow-xl ${isDragging ? 'rotate-2 scale-105' : ''}`}
+      className={`group relative bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 hover:scale-105 hover:shadow-xl flex flex-col ${isDragging ? 'rotate-2 scale-105' : ''}`}
     >
       {/* Drag handle */}
       <div
@@ -259,13 +262,17 @@ function SortableImageOptionItem({
       </div>
 
       {/* Image Upload Area */}
-      <div className="aspect-square p-4">
+      <div className={`p-4 flex-grow flex ${cropImagesToSquare ? 'aspect-square' : 'items-start'}`}>
         {option.image_url ? (
-          <div className="relative h-full w-full group/image">
+          <div className={`relative ${cropImagesToSquare ? 'h-full w-full' : 'w-full'}`}>
             <img
               src={option.image_url}
               alt="Option preview"
-              className="h-full w-full object-cover rounded-lg border border-white/20 shadow-lg"
+              className={`rounded-lg border border-white/20 shadow-lg ${
+                cropImagesToSquare 
+                  ? 'h-full w-full object-cover' 
+                  : 'w-full object-contain'
+              }`}
             />
             <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-all duration-200 rounded-lg flex items-center justify-center">
               <div className="flex space-x-2 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200">
@@ -318,7 +325,7 @@ function SortableImageOptionItem({
       </div>
 
       {/* Label and Description */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-3 flex-shrink-0">
         <input
           type="text"
           value={option.label}
@@ -763,6 +770,7 @@ export default function FormBuilder() {
         scale_min: step.scale_min,
         scale_max: step.scale_max,
         images_per_row: step.images_per_row,
+        crop_images_to_square: step.crop_images_to_square ?? true,
         frames_max_count: step.frames_max_count,
         frames_require_image: step.frames_require_image,
         frames_require_location: step.frames_require_location,
@@ -851,6 +859,7 @@ export default function FormBuilder() {
       scale_min: type === 'opinion_scale' ? 1 : undefined,
       scale_max: type === 'opinion_scale' ? 10 : undefined,
       images_per_row: type === 'image_selection' ? 2 : undefined, // Default 2 images per row
+      crop_images_to_square: type === 'image_selection' ? true : undefined, // Default to crop images to square
       // Frames plan defaults
       frames_max_count: type === 'frames_plan' ? 10 : undefined,
       frames_require_image: type === 'frames_plan' ? true : undefined,
@@ -993,6 +1002,7 @@ export default function FormBuilder() {
           scale_min: step.scale_min,
           scale_max: step.scale_max,
           images_per_row: step.images_per_row,
+          crop_images_to_square: step.crop_images_to_square ?? true,
           frames_max_count: step.frames_max_count,
           frames_require_image: step.frames_require_image,
           frames_require_location: step.frames_require_location,
@@ -1105,6 +1115,7 @@ export default function FormBuilder() {
             scale_max: step.scale_max,
             dimension_type: step.dimension_type,
             images_per_row: step.images_per_row,
+            crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,
@@ -1138,6 +1149,7 @@ export default function FormBuilder() {
             scale_max: step.scale_max,
             dimension_type: step.dimension_type,
             images_per_row: step.images_per_row,
+            crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,
@@ -1775,6 +1787,23 @@ export default function FormBuilder() {
                           Controls how many image cards display per row. Use fewer for larger cards on mobile.
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-white/70">Crop images to square</label>
+                        <select
+                          value={currentStep.crop_images_to_square ? 'true' : 'false'}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            crop_images_to_square: e.target.value === 'true' 
+                          })}
+                          className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white text-sm focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                        >
+                          <option value="true" className="bg-gray-800">Yes (Default)</option>
+                          <option value="false" className="bg-gray-800">No - Show full image ratio</option>
+                        </select>
+                        <div className="text-xs text-white/60">
+                          When "No", images display in their original aspect ratio with top alignment.
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1802,7 +1831,7 @@ export default function FormBuilder() {
                             items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
                             strategy={verticalListSortingStrategy}
                           >
-                            <div className={`grid gap-4 ${
+                            <div className={`grid gap-4 grid-auto-rows-fr ${!currentStep.crop_images_to_square ? 'items-start' : ''} ${
                               currentStep.images_per_row === 1
                                 ? 'grid-cols-1'
                                 : currentStep.images_per_row === 2
@@ -1822,6 +1851,7 @@ export default function FormBuilder() {
                                   onUpdate={updateOption}
                                   onDelete={deleteOption}
                                   onFileChange={handleFileChange}
+                                  cropImagesToSquare={currentStep.crop_images_to_square ?? true}
                                 />
                               ))}
                             </div>
