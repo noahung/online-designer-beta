@@ -124,7 +124,7 @@ export default function FormEmbed() {
         onClick={onClick} 
         className={`
           border rounded-lg p-4 text-left hover:shadow-md transition-all duration-300 ease-out flex flex-col h-full
-          ${isSelected ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}
+          ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200 hover:border-gray-300'}
           ${isAnimating ? 
             animationDirection === 'forward' 
               ? 'animate-fade-in-up' 
@@ -139,7 +139,7 @@ export default function FormEmbed() {
       >
         {option.image_url && (
           <div className={`
-            ${cropImagesToSquare ? 'aspect-square' : 'flex-grow flex items-start'} w-full mb-3 rounded-lg overflow-hidden bg-gray-100 
+            ${cropImagesToSquare ? 'aspect-square' : 'flex-grow flex items-start'} w-full mb-3 rounded-lg overflow-hidden 
             transition-all duration-300 ease-out
             ${isAnimating ? 'animate-scale-in' : ''}
           `}
@@ -1826,7 +1826,7 @@ export default function FormEmbed() {
   if (loading) {
     return (
       <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
-        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
+        <div className={`${currentTheme.styles.card} w-full text-center`}>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold">Loading form...</h2>
           <p className={currentTheme.styles.text.body}>Please wait while we load your form.</p>
@@ -1838,7 +1838,7 @@ export default function FormEmbed() {
   if (error) {
     return (
       <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
-        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
+        <div className={`${currentTheme.styles.card} w-full text-center`}>
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-red-600">Error Loading Form</h2>
           <p className={`${currentTheme.styles.text.body} mb-4`}>{error}</p>
@@ -1860,7 +1860,7 @@ export default function FormEmbed() {
   if (!steps || steps.length === 0) {
     return (
       <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
-        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
+        <div className={`${currentTheme.styles.card} w-full text-center`}>
           <h2 className="text-xl font-semibold">Form not available</h2>
           <p className={currentTheme.styles.text.body}>This form isn't published or contains no steps.</p>
         </div>
@@ -1871,7 +1871,7 @@ export default function FormEmbed() {
   if (currentStepIndex >= steps.length) {
     return (
       <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
-        <div className={`${currentTheme.styles.card} w-full max-w-2xl text-center`}>
+        <div className={`${currentTheme.styles.card} w-full text-center`}>
           <h2 className="text-xl font-semibold">Thank you</h2>
           <p className={currentTheme.styles.text.body}>Your submission has been received.</p>
         </div>
@@ -1892,8 +1892,8 @@ export default function FormEmbed() {
         </div>
       )}
       
-      <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0' }}>
-        <div className={currentTheme.styles.card} style={{ marginBottom: '0' }}>
+  <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
+  <div className={currentTheme.styles.card} style={{ marginBottom: '0', background: 'none' }}>
         {/* Client Header */}
   {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
