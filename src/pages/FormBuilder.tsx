@@ -261,18 +261,41 @@ function SortableImageOptionItem({
       {/* Image Upload Area */}
       <div className="aspect-square p-4">
         {option.image_url ? (
-          <div className="relative h-full w-full">
+          <div className="relative h-full w-full group/image">
             <img
               src={option.image_url}
               alt="Option preview"
               className="h-full w-full object-cover rounded-lg border border-white/20 shadow-lg"
             />
-            <button
-              onClick={() => onUpdate(stepIndex, optionIndex, { ...option, image_url: undefined, imageFile: null })}
-              className="absolute -top-2 -right-2 p-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-full transition-all duration-200 hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100"
-            >
-              <X className="h-3 w-3" />
-            </button>
+            <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-all duration-200 rounded-lg flex items-center justify-center">
+              <div className="flex space-x-2 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200">
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.accept = 'image/*'
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0] || null
+                      onFileChange(stepIndex, optionIndex, file)
+                    }
+                    input.click()
+                  }}
+                  className="p-2 bg-blue-500/80 hover:bg-blue-500 text-white rounded-full transition-all duration-200 hover:scale-110 shadow-lg"
+                  title="Replace image"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => onUpdate(stepIndex, optionIndex, { ...option, image_url: undefined, imageFile: null })}
+                  className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all duration-200 hover:scale-110 shadow-lg"
+                  title="Remove image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <button

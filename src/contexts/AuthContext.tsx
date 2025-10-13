@@ -91,7 +91,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('AuthContext: Simple signIn called')
     
     try {
-      // First, quickly check if this might be a client login
+      // First, try standard Supabase admin authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      if (data?.user && !error) {
+        console.log('AuthContext: Admin login successful')
+        // State will be updated by the auth state listener
+        return { data, error }
+      }
+
+      // If Supabase auth fails, check if this might be a client login
+      console.log('AuthContext: Admin login failed, trying client login')
       const { data: clientRecord } = await supabase
         .from('clients')
         .select('*')
@@ -152,19 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // If not a client, try standard Supabase admin authentication
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      
-      if (data?.user && !error) {
-        console.log('AuthContext: Admin login successful')
-        // State will be updated by the auth state listener
-      } else {
-        console.log('AuthContext: Login failed', error)
-      }
-      
+      // If neither admin nor client login works
+      console.log('AuthContext: Login failed', error)
       return { data, error }
     } catch (error) {
       console.error('AuthContext: SignIn error:', error)
