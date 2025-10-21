@@ -500,7 +500,7 @@ function CollapsibleSection({
   
   return (
     <div 
-      className={`backdrop-blur-xl rounded-2xl animate-fade-in overflow-hidden transition-all duration-200 ${
+      className={`backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-200 ${
         theme === 'light' 
           ? 'bg-white/80 border border-gray-200 shadow-lg' 
           : 'bg-white/10 border border-white/20'
@@ -1429,7 +1429,7 @@ export default function FormBuilder() {
         : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
     }`}>
       {/* Header */}
-      <div className={`border-b backdrop-blur-xl px-6 py-4 animate-fade-in ${
+      <div className={`border-b backdrop-blur-xl px-6 py-4 ${
         theme === 'light'
           ? 'border-gray-200 bg-white/80'
           : 'border-white/10 bg-white/10'
@@ -1517,7 +1517,7 @@ export default function FormBuilder() {
 
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar */}
-        <div className={`w-[400px] border-r overflow-y-auto animate-slide-in-left ${
+        <div className={`w-[400px] border-r overflow-y-auto ${
           theme === 'light'
             ? 'border-gray-200 bg-white/60 backdrop-blur-sm'
             : 'border-white/10 bg-white/5 backdrop-blur-sm'
@@ -1921,7 +1921,7 @@ export default function FormBuilder() {
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             {currentStep ? (
-              <div className={`backdrop-blur-xl rounded-2xl p-6 animate-fade-in ${
+              <div className={`backdrop-blur-xl rounded-2xl p-6 ${
                 theme === 'light'
                   ? 'bg-white/90 border border-gray-200 shadow-lg'
                   : 'bg-white/10 border border-white/20'
@@ -2698,7 +2698,7 @@ export default function FormBuilder() {
                 </div>
               </div>
             ) : (
-              <div className={`backdrop-blur-xl rounded-2xl p-12 text-center animate-fade-in ${
+              <div className={`backdrop-blur-xl rounded-2xl p-12 text-center ${
                 theme === 'light'
                   ? 'bg-white/90 border border-gray-200 shadow-lg'
                   : 'bg-white/10 border border-white/20'

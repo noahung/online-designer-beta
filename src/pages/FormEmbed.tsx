@@ -123,60 +123,32 @@ export default function FormEmbed() {
       <button 
         onClick={onClick} 
         className={`
-          border rounded-lg p-4 text-left hover:shadow-md transition-all duration-300 ease-out flex flex-col h-full
+          border rounded-lg p-4 text-left hover:shadow-md transition-all duration-200 ease-out flex flex-col h-full
           ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200 hover:border-gray-300'}
-          ${isAnimating ? 
-            animationDirection === 'forward' 
-              ? 'animate-fade-in-up' 
-              : 'animate-fade-in-down'
-            : ''
-          }
         `}
-        style={{
-          animationDelay: isAnimating ? `${animationDelay}ms` : '0ms',
-          animationFillMode: 'both'
-        }}
       >
         {option.image_url && (
           <div className={`
             ${cropImagesToSquare ? 'aspect-square' : 'flex-grow flex items-start'} w-full mb-3 rounded-lg overflow-hidden 
-            transition-all duration-300 ease-out
-            ${isAnimating ? 'animate-scale-in' : ''}
-          `}
-          style={{
-            animationDelay: isAnimating ? `${animationDelay + 100}ms` : '0ms',
-            animationFillMode: 'both'
-          }}
-          >
+            transition-all duration-200 ease-out
+          `}>
             <img 
               src={option.image_url} 
               alt={option.label} 
-              className={`w-full ${cropImagesToSquare ? 'h-full object-cover' : 'object-contain'} transition-transform duration-300 hover:scale-105`} 
+              className={`w-full ${cropImagesToSquare ? 'h-full object-cover' : 'object-contain'} transition-transform duration-200 hover:scale-105`} 
             />
           </div>
         )}
         <div className="flex-shrink-0">
           <div className={`
             font-medium text-gray-900 transition-all duration-200
-            ${isAnimating ? 'animate-slide-in' : ''}
-          `}
-          style={{
-            animationDelay: isAnimating ? `${animationDelay + 200}ms` : '0ms',
-            animationFillMode: 'both'
-          }}
-          >
+          `}>
             {option.label}
           </div>
           {option.description && (
             <div className={`
               text-sm text-gray-500 mt-1 transition-all duration-200
-              ${isAnimating ? 'animate-slide-in' : ''}
-            `}
-            style={{
-              animationDelay: isAnimating ? `${animationDelay + 250}ms` : '0ms',
-              animationFillMode: 'both'
-            }}
-            >
+            `}>
               {option.description}
             </div>
           )}
@@ -524,31 +496,55 @@ export default function FormEmbed() {
 
   const selectOption = (option: Option) => {
     setResponses(r => ({ ...r, [currentStepIndex]: { ...(r[currentStepIndex] || {}), option_id: option.id } }))
-    // branching: jump to step if defined (1-based step indexes stored in DB)
-    if (option.jump_to_step) {
-      // find index for jump_to_step
-      const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
-      if (idx >= 0) {
-        // Check if both current and target steps are image selection steps
+    
+    // Auto-advance to next step after a brief delay for better UX
+    setTimeout(() => {
+      // branching: jump to step if defined (1-based step indexes stored in DB)
+      if (option.jump_to_step) {
+        // find index for jump_to_step
+        const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
+        if (idx >= 0) {
+          // Check if both current and target steps are image selection steps
+          const currentStep = steps[currentStepIndex]
+          const targetStep = steps[idx]
+          if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+            setPreviousStepIndex(currentStepIndex)
+            setAnimationDirection('forward')
+            setIsAnimating(true)
+            setTimeout(() => {
+              setNavigationHistory(prev => [...prev, currentStepIndex])
+              setCurrentStepIndex(idx)
+              setTimeout(() => setIsAnimating(false), 300)
+            }, 150)
+          } else {
+            // Add current step to history before jumping
+            setNavigationHistory(prev => [...prev, currentStepIndex])
+            setCurrentStepIndex(idx)
+          }
+        }
+        return
+      }
+
+      // Auto-advance to next step if not the last step
+      if (currentStepIndex < steps.length - 1) {
+        setNavigationHistory(prev => [...prev, currentStepIndex])
+        
+        // Trigger animation for image selection steps
         const currentStep = steps[currentStepIndex]
-        const targetStep = steps[idx]
-        if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+        const nextStep = steps[currentStepIndex + 1]
+        if (currentStep?.question_type === 'image_selection' && nextStep?.question_type === 'image_selection') {
           setPreviousStepIndex(currentStepIndex)
           setAnimationDirection('forward')
           setIsAnimating(true)
           setTimeout(() => {
-            setNavigationHistory(prev => [...prev, currentStepIndex])
-            setCurrentStepIndex(idx)
+            setCurrentStepIndex(currentStepIndex + 1)
             setTimeout(() => setIsAnimating(false), 300)
           }, 150)
         } else {
-          // Add current step to history before jumping
-          setNavigationHistory(prev => [...prev, currentStepIndex])
-          setCurrentStepIndex(idx)
+          setCurrentStepIndex(currentStepIndex + 1)
         }
       }
-      return
-    }
+    }, 300) // Small delay for visual feedback
   }
 
   const handleFileUpload = (file: File) => {
