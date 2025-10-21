@@ -26,7 +26,9 @@ import {
   ChevronUp,
   Palette,
   Frame,
-  Copy
+  Copy,
+  Undo,
+  Redo
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -574,6 +576,14 @@ export default function FormBuilder() {
   const addStepButtonRef = useRef<HTMLButtonElement>(null)
   const [buttonPosition, setButtonPosition] = useState<{ top: number; right: number } | null>(null)
 
+  // Undo/Redo state
+  const [history, setHistory] = useState<{ past: any[]; present: any; future: any[] }>({
+    past: [],
+    present: null,
+    future: []
+  })
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
   // Collapsible sections state
   const [collapsedSections, setCollapsedSections] = useState({
     formSettings: true,  // Collapsed by default
@@ -620,6 +630,8 @@ export default function FormBuilder() {
         } else if (selectedStepIndex === overIndex) {
           setSelectedStepIndex(activeIndex)
         }
+        
+        saveToHistory()
       }
     }
   }
@@ -670,9 +682,35 @@ export default function FormBuilder() {
       fetchClients()
       if (formId) {
         loadExistingForm()
+      } else {
+        // For new forms, set initial load to false after a short delay to allow state to settle
+        setTimeout(() => setIsInitialLoad(false), 100)
       }
     }
   }, [user, formId])
+
+  // Initialize history present state after initial load
+  useEffect(() => {
+    if (!isInitialLoad && history.present === null) {
+      setHistory(prev => ({
+        ...prev,
+        present: {
+          steps,
+          selectedStepIndex,
+          name,
+          internalName,
+          description,
+          welcomeMessage,
+          clientId,
+          formTheme,
+          primaryButtonColor,
+          primaryButtonTextColor,
+          secondaryButtonColor,
+          secondaryButtonTextColor
+        }
+      }))
+    }
+  }, [isInitialLoad, steps, selectedStepIndex, name, internalName, description, welcomeMessage, clientId, formTheme, primaryButtonColor, primaryButtonTextColor, secondaryButtonColor, secondaryButtonTextColor, history.present])
 
   // Close dropdown when clicking outside and handle scroll updates
   useEffect(() => {
@@ -787,7 +825,9 @@ export default function FormBuilder() {
         frames_require_image: step.frames_require_image,
         frames_require_location: step.frames_require_location,
         frames_require_measurements: step.frames_require_measurements,
-        options: (step.form_options || []).map((option: any) => ({
+        options: (step.form_options || [])
+          .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
+          .map((option: any) => ({
           id: option.id,
           label: option.label,
           description: '',
@@ -798,6 +838,7 @@ export default function FormBuilder() {
 
       setSteps(convertedSteps)
       push({ type: 'success', message: 'Form loaded successfully' })
+      setIsInitialLoad(false)
     } catch (error) {
       console.error('Error loading form:', error)
       push({ type: 'error', message: 'Error loading form for editing' })
@@ -881,12 +922,14 @@ export default function FormBuilder() {
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
     setSelectedStepIndex(newSteps.length - 1)
+    saveToHistory()
   }
 
   const updateStep = (index: number, updatedStep: Step) => {
     const newSteps = [...steps]
     newSteps[index] = updatedStep
     setSteps(newSteps)
+    saveToHistory()
   }
 
   const deleteStep = (index: number) => {
@@ -896,6 +939,7 @@ export default function FormBuilder() {
     if (selectedStepIndex === index) {
       setSelectedStepIndex(Math.max(0, Math.min(index, newSteps.length - 1)))
     }
+    saveToHistory()
   }
 
   const duplicateStep = (index: number) => {
@@ -917,6 +961,92 @@ export default function FormBuilder() {
     ].map((st, i) => ({ ...st, step_order: i + 1 }))
     setSteps(newSteps)
     setSelectedStepIndex(index + 1) // Select the duplicated step
+    saveToHistory()
+  }
+
+  // Undo/Redo functions
+  const saveToHistory = () => {
+    if (isInitialLoad) return
+    setHistory(prev => ({
+      past: prev.present ? [...prev.past, prev.present] : prev.past,
+      present: {
+        steps,
+        selectedStepIndex,
+        name,
+        internalName,
+        description,
+        welcomeMessage,
+        clientId,
+        formTheme,
+        primaryButtonColor,
+        primaryButtonTextColor,
+        secondaryButtonColor,
+        secondaryButtonTextColor
+      },
+      future: []
+    }))
+  }
+
+  const undo = () => {
+    setHistory(prev => {
+      if (prev.past.length === 0) return prev
+      
+      const previous = prev.past[prev.past.length - 1]
+      if (!previous) return prev
+      
+      const newPast = prev.past.slice(0, -1)
+      
+      // Restore state
+      setSteps(previous.steps || [])
+      setSelectedStepIndex(previous.selectedStepIndex || null)
+      setName(previous.name || '')
+      setInternalName(previous.internalName || '')
+      setDescription(previous.description || '')
+      setWelcomeMessage(previous.welcomeMessage || '')
+      setClientId(previous.clientId || null)
+      setFormTheme(previous.formTheme || 'generic')
+      setPrimaryButtonColor(previous.primaryButtonColor || '#3B82F6')
+      setPrimaryButtonTextColor(previous.primaryButtonTextColor || '#FFFFFF')
+      setSecondaryButtonColor(previous.secondaryButtonColor || '#E5E7EB')
+      setSecondaryButtonTextColor(previous.secondaryButtonTextColor || '#374151')
+      
+      return {
+        past: newPast,
+        present: previous,
+        future: prev.present ? [prev.present, ...prev.future] : prev.future
+      }
+    })
+  }
+
+  const redo = () => {
+    setHistory(prev => {
+      if (prev.future.length === 0) return prev
+      
+      const next = prev.future[0]
+      if (!next) return prev
+      
+      const newFuture = prev.future.slice(1)
+      
+      // Restore state
+      setSteps(next.steps || [])
+      setSelectedStepIndex(next.selectedStepIndex || null)
+      setName(next.name || '')
+      setInternalName(next.internalName || '')
+      setDescription(next.description || '')
+      setWelcomeMessage(next.welcomeMessage || '')
+      setClientId(next.clientId || null)
+      setFormTheme(next.formTheme || 'generic')
+      setPrimaryButtonColor(next.primaryButtonColor || '#3B82F6')
+      setPrimaryButtonTextColor(next.primaryButtonTextColor || '#FFFFFF')
+      setSecondaryButtonColor(next.secondaryButtonColor || '#E5E7EB')
+      setSecondaryButtonTextColor(next.secondaryButtonTextColor || '#374151')
+      
+      return {
+        past: prev.present ? [...prev.past, prev.present] : prev.past,
+        present: next,
+        future: newFuture
+      }
+    })
   }
 
   const addOption = (stepIndex: number) => {
@@ -1334,6 +1464,30 @@ export default function FormBuilder() {
             </div>
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={undo}
+              disabled={history.past.length === 0}
+              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
+                  : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
+              }`}
+              title="Undo last action"
+            >
+              <Undo className="h-4 w-4" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={history.future.length === 0}
+              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
+                  : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
+              }`}
+              title="Redo last undone action"
+            >
+              <Redo className="h-4 w-4" />
+            </button>
             <button
               onClick={() => setShowPreview(true)}
               className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
