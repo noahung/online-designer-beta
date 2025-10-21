@@ -25,7 +25,8 @@ import {
   ChevronDown,
   ChevronUp,
   Palette,
-  Frame
+  Frame,
+  Copy
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -143,10 +144,11 @@ interface SortableStepItemProps {
   isSelected: boolean
   onClick: () => void
   onDelete: () => void
+  onDuplicate: () => void
   canDelete: boolean
 }
 
-function SortableStepItem({ step, index, isSelected, onClick, onDelete, canDelete }: SortableStepItemProps) {
+function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, canDelete }: SortableStepItemProps) {
   const {
     attributes,
     listeners,
@@ -193,6 +195,16 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, canDelet
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDuplicate()
+            }}
+            className="p-1 text-white/40 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            title="Duplicate step"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
           {canDelete && (
             <button
               onClick={(e) => {
@@ -884,6 +896,27 @@ export default function FormBuilder() {
     if (selectedStepIndex === index) {
       setSelectedStepIndex(Math.max(0, Math.min(index, newSteps.length - 1)))
     }
+  }
+
+  const duplicateStep = (index: number) => {
+    const stepToDuplicate = steps[index]
+    const duplicatedStep: Step = {
+      ...stepToDuplicate,
+      id: undefined, // Remove id so it's treated as new
+      title: `${stepToDuplicate.title} (Copy)`,
+      step_order: index + 2, // Insert after the current step
+      options: stepToDuplicate.options.map(option => ({
+        ...option,
+        id: undefined // Remove option ids
+      }))
+    }
+    const newSteps = [
+      ...steps.slice(0, index + 1),
+      duplicatedStep,
+      ...steps.slice(index + 1)
+    ].map((st, i) => ({ ...st, step_order: i + 1 }))
+    setSteps(newSteps)
+    setSelectedStepIndex(index + 1) // Select the duplicated step
   }
 
   const addOption = (stepIndex: number) => {
@@ -1697,6 +1730,7 @@ export default function FormBuilder() {
                         isSelected={selectedStepIndex === index}
                         onClick={() => setSelectedStepIndex(index)}
                         onDelete={() => deleteStep(index)}
+                        onDuplicate={() => duplicateStep(index)}
                         canDelete={steps.length > 1}
                       />
                     ))}
