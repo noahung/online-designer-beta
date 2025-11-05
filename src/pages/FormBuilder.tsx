@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { useTheme } from '../contexts/ThemeContext'
 import FormPreview from '../components/FormPreview'
+import SaveTemplateModal from '../components/templates/SaveTemplateModal'
+import LoadTemplateModal from '../components/templates/LoadTemplateModal'
 import { formThemes } from '../lib/formThemes'
 import { 
   ArrowLeft, 
@@ -28,7 +30,9 @@ import {
   Frame,
   Copy,
   Undo,
-  Redo
+  Redo,
+  BookmarkPlus,
+  FolderOpen
 } from 'lucide-react'
 import { 
   DndContext, 
@@ -576,6 +580,10 @@ export default function FormBuilder() {
   const addStepButtonRef = useRef<HTMLButtonElement>(null)
   const [buttonPosition, setButtonPosition] = useState<{ top: number; right: number } | null>(null)
 
+  // Template modal states
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false)
+  const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false)
+
   // Undo/Redo state
   const [history, setHistory] = useState<{ past: any[]; present: any; future: any[] }>({
     past: [],
@@ -1078,6 +1086,156 @@ export default function FormBuilder() {
     if (step.options.length <= 1) return
     const newOptions = step.options.filter((_, i) => i !== optionIndex)
     updateStep(stepIndex, { ...step, options: newOptions })
+  }
+
+  // Template functions
+  const saveStepAsTemplate = async (name: string, description: string) => {
+    if (!user || selectedStepIndex === null) {
+      push({ type: 'error', message: 'Please select a step to save as template' })
+      return
+    }
+
+    const step = steps[selectedStepIndex]
+    if (!step) return
+
+    try {
+      // Insert the template
+      const { data: templateData, error: templateError } = await supabase
+        .from('step_templates')
+        .insert({
+          user_id: user.id,
+          name,
+          description: description || null,
+          question_type: step.question_type,
+          title: step.title,
+          is_required: step.is_required ?? true,
+          max_file_size: step.max_file_size,
+          allowed_file_types: step.allowed_file_types,
+          dimension_type: step.dimension_type,
+          scale_type: step.scale_type,
+          scale_min: step.scale_min,
+          scale_max: step.scale_max,
+          images_per_row: step.images_per_row,
+          crop_images_to_square: step.crop_images_to_square,
+          frames_max_count: step.frames_max_count,
+          frames_require_image: step.frames_require_image,
+          frames_require_location: step.frames_require_location,
+          frames_require_measurements: step.frames_require_measurements
+        })
+        .select()
+        .single()
+
+      if (templateError) throw templateError
+
+      // Insert template options if any
+      if (step.options && step.options.length > 0) {
+        const optionsToInsert = step.options.map((option, index) => ({
+          template_id: templateData.id,
+          label: option.label,
+          description: option.description || null,
+          image_url: option.image_url || null,
+          jump_to_step: option.jump_to_step || null,
+          option_order: index + 1
+        }))
+
+        const { error: optionsError } = await supabase
+          .from('step_template_options')
+          .insert(optionsToInsert)
+
+        if (optionsError) throw optionsError
+      }
+
+      push({ type: 'success', message: `Template "${name}" saved successfully!` })
+    } catch (error) {
+      console.error('Error saving template:', error)
+      push({ type: 'error', message: 'Failed to save template' })
+      throw error
+    }
+  }
+
+  const loadTemplateToStep = async (template: any) => {
+    if (selectedStepIndex === null) {
+      push({ type: 'error', message: 'Please select a step first' })
+      return
+    }
+
+    try {
+      const currentStep = steps[selectedStepIndex]
+      
+      // Create updated step with template data
+      const updatedStep: Step = {
+        ...currentStep,
+        title: template.title,
+        question_type: template.question_type,
+        is_required: template.is_required ?? true,
+        max_file_size: template.max_file_size,
+        allowed_file_types: template.allowed_file_types,
+        dimension_type: template.dimension_type,
+        scale_type: template.scale_type,
+        scale_min: template.scale_min,
+        scale_max: template.scale_max,
+        images_per_row: template.images_per_row,
+        crop_images_to_square: template.crop_images_to_square ?? true,
+        frames_max_count: template.frames_max_count,
+        frames_require_image: template.frames_require_image,
+        frames_require_location: template.frames_require_location,
+        frames_require_measurements: template.frames_require_measurements,
+        options: (template.options || []).map((opt: any) => ({
+          label: opt.label,
+          description: opt.description || '',
+          image_url: opt.image_url || undefined,
+          jump_to_step: opt.jump_to_step || undefined,
+          imageFile: null
+        }))
+      }
+
+      updateStep(selectedStepIndex, updatedStep)
+      push({ type: 'success', message: `Template "${template.name}" applied successfully!` })
+    } catch (error) {
+      console.error('Error loading template:', error)
+      push({ type: 'error', message: 'Failed to apply template' })
+      throw error
+    }
+  }
+
+  const createStepFromTemplate = async (template: any) => {
+    try {
+      const newStep: Step = {
+        title: template.title,
+        question_type: template.question_type,
+        is_required: template.is_required ?? true,
+        step_order: steps.length + 1,
+        max_file_size: template.max_file_size,
+        allowed_file_types: template.allowed_file_types,
+        dimension_type: template.dimension_type,
+        scale_type: template.scale_type,
+        scale_min: template.scale_min,
+        scale_max: template.scale_max,
+        images_per_row: template.images_per_row,
+        crop_images_to_square: template.crop_images_to_square ?? true,
+        frames_max_count: template.frames_max_count,
+        frames_require_image: template.frames_require_image,
+        frames_require_location: template.frames_require_location,
+        frames_require_measurements: template.frames_require_measurements,
+        options: (template.options || []).map((opt: any) => ({
+          label: opt.label,
+          description: opt.description || '',
+          image_url: opt.image_url || undefined,
+          jump_to_step: opt.jump_to_step || undefined,
+          imageFile: null
+        }))
+      }
+
+      const newSteps = [...steps, newStep]
+      setSteps(newSteps)
+      setSelectedStepIndex(newSteps.length - 1)
+      saveToHistory()
+      push({ type: 'success', message: `Step created from template "${template.name}"!` })
+    } catch (error) {
+      console.error('Error creating step from template:', error)
+      push({ type: 'error', message: 'Failed to create step from template' })
+      throw error
+    }
   }
 
   const handleFileChange = (stepIndex: number, optionIndex: number, file: File | null) => {
@@ -1926,7 +2084,7 @@ export default function FormBuilder() {
                   ? 'bg-white/90 border border-gray-200 shadow-lg'
                   : 'bg-white/10 border border-white/20'
               }`}>
-                <div className="mb-6">
+                <div className="mb-6 flex items-center justify-between">
                   <h2 className={`text-xl font-semibold bg-gradient-to-r bg-clip-text text-transparent ${
                     theme === 'light'
                       ? 'from-gray-800 to-blue-600'
@@ -1934,6 +2092,32 @@ export default function FormBuilder() {
                   }`}>
                     Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}
                   </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowLoadTemplateModal(true)}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                          : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30'
+                      }`}
+                      title="Load from template"
+                    >
+                      <FolderOpen className="w-4 h-4 mr-1.5" />
+                      Load Template
+                    </button>
+                    <button
+                      onClick={() => setShowSaveTemplateModal(true)}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                          : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/30'
+                      }`}
+                      title="Save as template"
+                    >
+                      <BookmarkPlus className="w-4 h-4 mr-1.5" />
+                      Save Template
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
@@ -2718,7 +2902,7 @@ export default function FormBuilder() {
                 <p className={`mb-8 text-lg ${
                   theme === 'light' ? 'text-gray-600' : 'text-white/70'
                 }`}>Create a step to start building your form</p>
-                <div className="flex flex-wrap justify-center gap-4">
+                <div className="flex flex-wrap justify-center gap-4 mb-6">
                   {stepTypes.map((stepType) => (
                     <button
                       key={stepType.type}
@@ -2729,6 +2913,19 @@ export default function FormBuilder() {
                       <span className="ml-3">{stepType.title}</span>
                     </button>
                   ))}
+                </div>
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setShowLoadTemplateModal(true)}
+                    className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                        : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
+                    }`}
+                  >
+                    <FolderOpen className="w-5 h-5 mr-2" />
+                    Create from Template
+                  </button>
                 </div>
               </div>
             )}
@@ -2788,6 +2985,21 @@ export default function FormBuilder() {
         onClose={() => setShowPreview(false)}
         formId={formId}
         formName={name}
+      />
+
+      {/* Save Template Modal */}
+      <SaveTemplateModal
+        isOpen={showSaveTemplateModal}
+        onClose={() => setShowSaveTemplateModal(false)}
+        onSave={saveStepAsTemplate}
+        stepType={currentStep?.question_type || ''}
+      />
+
+      {/* Load Template Modal */}
+      <LoadTemplateModal
+        isOpen={showLoadTemplateModal}
+        onClose={() => setShowLoadTemplateModal(false)}
+        onSelect={selectedStepIndex !== null ? loadTemplateToStep : createStepFromTemplate}
       />
     </div>
   )
