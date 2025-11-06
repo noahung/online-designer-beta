@@ -263,6 +263,45 @@ function SortableImageOptionItem({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  // Drag and drop state for image uploads
+  const [isDraggingOver, setIsDraggingOver] = React.useState(false)
+
+  const handleImageDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(true)
+  }
+
+  const handleImageDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+  }
+
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingOver(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    const imageFile = files.find(file => file.type.startsWith('image/'))
+    
+    if (imageFile) {
+      onFileChange(stepIndex, optionIndex, imageFile)
+    }
+  }
+
+  const handleFileInputChange = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0] || null
+      onFileChange(stepIndex, optionIndex, file)
+    }
+    input.click()
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -282,7 +321,12 @@ function SortableImageOptionItem({
       {/* Image Upload Area */}
       <div className={`p-4 flex-grow flex ${cropImagesToSquare ? 'aspect-square' : 'items-start'}`}>
         {option.image_url ? (
-          <div className={`relative ${cropImagesToSquare ? 'h-full w-full' : 'w-full'}`}>
+          <div 
+            className={`relative ${cropImagesToSquare ? 'h-full w-full' : 'w-full'} group/image`}
+            onDragOver={handleImageDragOver}
+            onDragLeave={handleImageDragLeave}
+            onDrop={handleImageDrop}
+          >
             <img
               src={option.image_url}
               alt="Option preview"
@@ -290,21 +334,20 @@ function SortableImageOptionItem({
                 cropImagesToSquare 
                   ? 'h-full w-full object-cover' 
                   : 'w-full object-contain'
-              }`}
+              } ${isDraggingOver ? 'opacity-50' : ''}`}
             />
+            {isDraggingOver && (
+              <div className="absolute inset-0 bg-blue-500/20 border-2 border-dashed border-blue-400 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <Upload className="h-8 w-8 text-blue-300 mx-auto mb-2" />
+                  <p className="text-sm text-blue-200 font-medium">Drop to replace image</p>
+                </div>
+              </div>
+            )}
             <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-all duration-200 rounded-lg flex items-center justify-center">
               <div className="flex space-x-2 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200">
                 <button
-                  onClick={() => {
-                    const input = document.createElement('input')
-                    input.type = 'file'
-                    input.accept = 'image/*'
-                    input.onchange = (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0] || null
-                      onFileChange(stepIndex, optionIndex, file)
-                    }
-                    input.click()
-                  }}
+                  onClick={handleFileInputChange}
                   className="p-2 bg-blue-500/80 hover:bg-blue-500 text-white rounded-full transition-all duration-200 hover:scale-110 shadow-lg"
                   title="Replace image"
                 >
@@ -324,20 +367,28 @@ function SortableImageOptionItem({
           </div>
         ) : (
           <button
-            onClick={() => {
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.accept = 'image/*'
-              input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0] || null
-                onFileChange(stepIndex, optionIndex, file)
-              }
-              input.click()
-            }}
-            className="h-full w-full border-2 border-dashed border-white/30 rounded-lg hover:border-cyan-400/50 hover:bg-cyan-500/10 transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105"
+            onClick={handleFileInputChange}
+            onDragOver={handleImageDragOver}
+            onDragLeave={handleImageDragLeave}
+            onDrop={handleImageDrop}
+            className={`h-full w-full border-2 border-dashed rounded-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105 ${
+              isDraggingOver
+                ? 'border-blue-400 bg-blue-500/20 scale-105'
+                : 'border-white/30 hover:border-cyan-400/50 hover:bg-cyan-500/10'
+            }`}
           >
-            <Upload className="h-8 w-8 text-white/40 group-hover:text-cyan-300 transition-colors duration-200" />
-            <span className="text-xs text-white/50 group-hover:text-cyan-200 transition-colors duration-200">Upload Image</span>
+            <Upload className={`h-8 w-8 transition-colors duration-200 ${
+              isDraggingOver
+                ? 'text-blue-300'
+                : 'text-white/40 group-hover:text-cyan-300'
+            }`} />
+            <span className={`text-xs transition-colors duration-200 ${
+              isDraggingOver
+                ? 'text-blue-200 font-medium'
+                : 'text-white/50 group-hover:text-cyan-200'
+            }`}>
+              {isDraggingOver ? 'Drop image here' : 'Upload or drag image'}
+            </span>
           </button>
         )}
       </div>
