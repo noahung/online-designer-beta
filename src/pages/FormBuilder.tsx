@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -628,12 +627,15 @@ export default function FormBuilder() {
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
-  const addStepButtonRef = useRef<HTMLButtonElement>(null)
-  const [buttonPosition, setButtonPosition] = useState<{ top: number; right: number } | null>(null)
 
   // Template modal states
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false)
   const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false)
+  
+  // Settings modal states
+  const [showFormSettingsModal, setShowFormSettingsModal] = useState(false)
+  const [showFormThemeModal, setShowFormThemeModal] = useState(false)
+  const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
 
   // Undo/Redo state
   const [history, setHistory] = useState<{ past: any[]; present: any; future: any[] }>({
@@ -645,9 +647,6 @@ export default function FormBuilder() {
 
   // Collapsible sections state
   const [collapsedSections, setCollapsedSections] = useState({
-    formSettings: true,  // Collapsed by default
-    formTheme: true,     // Collapsed by default
-    buttonColors: true,  // Collapsed by default
     formSteps: false,    // Keep expanded for easy access to add steps
   })
 
@@ -721,21 +720,6 @@ export default function FormBuilder() {
     }
   }
 
-  const handleAddStepClick = () => {
-    setShowStepTypeDropdown(!showStepTypeDropdown)
-    updateButtonPosition()
-  }
-
-  const updateButtonPosition = () => {
-    if (addStepButtonRef.current) {
-      const rect = addStepButtonRef.current.getBoundingClientRect()
-      setButtonPosition({
-        top: rect.top,
-        right: window.innerWidth - rect.right
-      })
-    }
-  }
-
   useEffect(() => { 
     if (user) {
       fetchClients()
@@ -770,42 +754,6 @@ export default function FormBuilder() {
       }))
     }
   }, [isInitialLoad, steps, selectedStepIndex, name, internalName, description, welcomeMessage, clientId, formTheme, primaryButtonColor, primaryButtonTextColor, secondaryButtonColor, secondaryButtonTextColor, history.present])
-
-  // Close dropdown when clicking outside and handle scroll updates
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showStepTypeDropdown && event.target instanceof Element) {
-        const dropdown = document.querySelector('.step-type-dropdown')
-        const button = addStepButtonRef.current
-        if (dropdown && !dropdown.contains(event.target) && button && !button.contains(event.target)) {
-          setShowStepTypeDropdown(false)
-          setButtonPosition(null)
-        }
-      }
-    }
-
-    const handleScroll = () => {
-      if (showStepTypeDropdown) {
-        updateButtonPosition()
-      }
-    }
-
-    const handleResize = () => {
-      if (showStepTypeDropdown) {
-        updateButtonPosition()
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    window.addEventListener('scroll', handleScroll, true) // Use capture to catch all scroll events
-    window.addEventListener('resize', handleResize)
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      window.removeEventListener('scroll', handleScroll, true)
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [showStepTypeDropdown])
 
   const fetchClients = async () => {
     if (!user) return
@@ -1678,6 +1626,49 @@ export default function FormBuilder() {
           </div>
           <div className="flex space-x-3">
             <button
+              onClick={() => setShowStepTypeDropdown(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Step
+            </button>
+            <button
+              onClick={() => setShowFormSettingsModal(true)}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 border border-blue-200'
+                  : 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 text-blue-200 border border-blue-400/30'
+              }`}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Form Settings
+            </button>
+            <button
+              onClick={() => setShowFormThemeModal(true)}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200'
+                  : 'bg-gradient-to-r from-purple-500/20 to-purple-600/20 hover:from-purple-500/30 hover:to-purple-600/30 text-purple-200 border border-purple-400/30'
+              }`}
+            >
+              <Palette className="h-4 w-4 mr-2" />
+              Form Theme
+            </button>
+            <button
+              onClick={() => setShowButtonColoursModal(true)}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-200'
+                  : 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 text-yellow-200 border border-yellow-400/30'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>
+              Button Colours
+            </button>
+            <button
               onClick={undo}
               disabled={history.past.length === 0}
               className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -1736,349 +1727,15 @@ export default function FormBuilder() {
             : 'border-white/10 bg-white/5 backdrop-blur-sm'
         }`}>
           <div className="p-6 space-y-6">
-            {/* Form Settings */}
-            <CollapsibleSection
-              title="Form Settings"
-              icon={<FileText className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />}
-              isCollapsed={collapsedSections.formSettings}
-              onToggle={() => toggleSection('formSettings')}
-              animationDelay="0.1s"
-            >
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Form Title</label>
-                  <input
-                    type="text"
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter form title"
-                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                      theme === 'light'
-                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Internal Name (Admin Only)</label>
-                  <input
-                    type="text"
-                    value={internalName}
-                    onChange={e => setInternalName(e.target.value)}
-                    placeholder="Internal name for admin use only"
-                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                      theme === 'light'
-                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-orange-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-orange-400'
-                    }`}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Description</label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Brief description of your form"
-                    rows={3}
-                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
-                      theme === 'light'
-                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Welcome Message</label>
-                  <textarea
-                    value={welcomeMessage}
-                    onChange={(e) => setWelcomeMessage(e.target.value)}
-                    placeholder="Welcome message for form users"
-                    rows={3}
-                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
-                      theme === 'light'
-                        ? 'bg-white/80 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Client</label>
-                  <select 
-                    value={clientId ?? ''} 
-                    onChange={e => setClientId(e.target.value)}
-                    className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                      theme === 'light'
-                        ? 'bg-white/80 border-gray-200 text-gray-900 hover:bg-white focus:ring-blue-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                  >
-                    <option value="" className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>Select client</option>
-                    {clients.map(c => <option key={c.id} value={c.id} className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>{c.name}</option>)}
-                  </select>
-                </div>
-              </div>
-            </CollapsibleSection>
-
-            {/* Theme Selection */}
-            <CollapsibleSection
-              title="Form Theme"
-              icon={<Palette className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />}
-              isCollapsed={collapsedSections.formTheme}
-              onToggle={() => toggleSection('formTheme')}
-              animationDelay="0.125s"
-            >
-              <div className="space-y-4">
-                <p className="text-sm text-white/70 mb-4">Choose how your form appears to users</p>
-                <div className="grid grid-cols-1 gap-3">
-                  {Object.entries(formThemes).map(([themeKey, theme]) => (
-                    <button
-                      key={themeKey}
-                      onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
-                      className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${
-                        formTheme === themeKey
-                          ? 'border-purple-400 bg-purple-400/20'
-                          : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
-                      }`}
-                    >
-                      {/* Theme Background Effect */}
-                      {themeKey === 'soft-ui' && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/10 to-purple-100/10 pointer-events-none" />
-                      )}
-                      
-                      <div className="relative flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-white mb-1">{theme.name}</h4>
-                          <p className="text-sm text-white/70 mb-4">{theme.description}</p>
-                          
-                          {/* Enhanced Theme Preview */}
-                          <div className="space-y-3">
-                            {/* Form Card Preview */}
-                            <div className={`p-3 ${
-                              themeKey === 'soft-ui' 
-                                ? 'bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20' 
-                                : 'bg-white/90 rounded-lg border border-gray-200'
-                            }`}>
-                              {/* Input Field Preview */}
-                              <div className={`h-3 mb-2 ${
-                                themeKey === 'soft-ui' 
-                                  ? 'bg-white/60 backdrop-blur-sm rounded-xl border border-white/30' 
-                                  : 'bg-gray-100 border border-gray-300 rounded-md'
-                              }`} />
-                              
-                              {/* Button Preview */}
-                              <div className="flex gap-2 mt-3">
-                                <div className={`h-2.5 w-16 ${
-                                  themeKey === 'soft-ui' 
-                                    ? 'bg-white/70 backdrop-blur-sm rounded-full border border-white/40' 
-                                    : 'bg-gray-300 rounded-md'
-                                }`} />
-                                <div className={`h-2.5 w-12 ${
-                                  themeKey === 'soft-ui' 
-                                    ? 'bg-gradient-to-r from-blue-400/80 to-purple-500/80 rounded-full shadow-sm' 
-                                    : theme.preview.primaryColor + ' rounded-md'
-                                }`} />
-                              </div>
-                            </div>
-                            
-                            {/* Typography Preview */}
-                            <div className="space-y-1">
-                              <div className={`h-2 rounded ${
-                                themeKey === 'soft-ui' 
-                                  ? 'bg-gradient-to-r from-slate-700/40 to-slate-500/40' 
-                                  : 'bg-gray-700/60'
-                              }`} style={{width: '70%'}} />
-                              <div className={`h-1.5 rounded ${
-                                themeKey === 'soft-ui' 
-                                  ? 'bg-slate-400/40' 
-                                  : 'bg-gray-500/60'
-                              }`} style={{width: '50%'}} />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {formTheme === themeKey && (
-                          <div className="flex-shrink-0 ml-4">
-                            <div className="w-6 h-6 bg-purple-400 rounded-full flex items-center justify-center">
-                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CollapsibleSection>
-
-            {/* Color Customization */}
-            <CollapsibleSection
-              title="Button Colours"
-              icon={<svg className="w-5 h-5 mr-2 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
-                <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-              </svg>}
-              isCollapsed={collapsedSections.buttonColors}
-              onToggle={() => toggleSection('buttonColors')}
-              animationDelay="0.15s"
-            >
-              <div className="space-y-6">
-                {/* Primary Button Colors */}
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-white/80">Next Button</div>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-white/70">Background Color</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={primaryButtonColor}
-                          onChange={(e) => setPrimaryButtonColor(e.target.value)}
-                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={primaryButtonColor}
-                          onChange={(e) => setPrimaryButtonColor(e.target.value)}
-                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
-                          placeholder="#3B82F6"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-white/70">Text Color</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={primaryButtonTextColor}
-                          onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
-                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={primaryButtonTextColor}
-                          onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
-                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
-                          placeholder="#FFFFFF"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Secondary Button Colors */}
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-white/80">Previous Button</div>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-white/70">Background Color</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={secondaryButtonColor}
-                          onChange={(e) => setSecondaryButtonColor(e.target.value)}
-                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={secondaryButtonColor}
-                          onChange={(e) => setSecondaryButtonColor(e.target.value)}
-                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
-                          placeholder="#E5E7EB"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="block text-xs font-medium text-white/70">Text Color</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={secondaryButtonTextColor}
-                          onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
-                          className="w-8 h-8 rounded border border-white/20 cursor-pointer flex-shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={secondaryButtonTextColor}
-                          onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
-                          className="flex-1 px-2 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded text-white text-xs focus:ring-1 focus:ring-blue-400 focus:border-transparent"
-                          placeholder="#374151"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Color Preview */}
-                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                  <div className="text-xs text-white/70 mb-3">Button Preview:</div>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      style={{
-                        backgroundColor: secondaryButtonColor,
-                        color: secondaryButtonTextColor
-                      }}
-                      className={`px-3 py-2 text-xs font-medium transition-colors duration-200 ${
-                        formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
-                      }`}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      style={{
-                        backgroundColor: primaryButtonColor,
-                        color: primaryButtonTextColor
-                      }}
-                      className={`px-3 py-2 text-xs font-medium transition-colors duration-200 ${
-                        formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleSection>
-
             {/* Form Steps */}
             <CollapsibleSection
               title="Form Steps"
               icon={<MessageSquare className="w-5 h-5 mr-2 text-purple-400" />}
               isCollapsed={collapsedSections.formSteps}
               onToggle={() => toggleSection('formSteps')}
-              animationDelay="0.2s"
+              animationDelay="0.1s"
             >
               <div className="space-y-4">
-                <div className="flex items-center justify-between overflow-visible">
-                  <div className="relative overflow-visible">
-                    <button
-                      ref={addStepButtonRef}
-                      onClick={handleAddStepClick}
-                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Step
-                      <ChevronDown className={`w-4 h-4 ml-2 transition-transform duration-200 ${showStepTypeDropdown ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    {/* Dropdown is now rendered via portal at the end of component */}
-                  </div>
-                </div>
               <DndContext 
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -2988,50 +2645,102 @@ export default function FormBuilder() {
         </div>
       </div>
 
-      {/* Portal-based dropdown to avoid container clipping */}
-      {showStepTypeDropdown && buttonPosition && createPortal(
-        <div 
-          className={`step-type-dropdown fixed w-64 backdrop-blur-xl border rounded-xl shadow-xl z-[100] max-h-80 overflow-y-auto ${
+      {/* Add Step Type Modal */}
+      {showStepTypeDropdown && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
             theme === 'light'
-              ? 'bg-white/95 border-gray-200 text-gray-900'
-              : 'bg-slate-800/95 border-white/20 text-white'
-          }`}
-          style={{
-            top: buttonPosition.top - 320, // Position above button (adjust based on dropdown height)
-            right: buttonPosition.right,
-          }}
-        >
-          {stepTypes.map((stepType) => (
-            <button
-              key={stepType.type}
-              onClick={() => {
-                addStep(stepType.type)
-                setShowStepTypeDropdown(false)
-                setButtonPosition(null)
-              }}
-              className={`w-full flex items-center px-4 py-3 transition-colors text-left border-b last:border-b-0 ${
-                theme === 'light'
-                  ? 'hover:bg-gray-50 border-gray-200'
-                  : 'hover:bg-white/10 border-white/10'
-              }`}
-            >
-              <div className={`flex items-center justify-center w-8 h-8 rounded-lg mr-3 flex-shrink-0 ${
-                theme === 'light' ? 'bg-gray-100' : 'bg-white/10'
-              }`}>
-                {stepType.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`font-medium text-sm ${
+              ? 'bg-white border border-gray-200'
+              : 'bg-slate-800 border border-white/20'
+          }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
+              theme === 'light'
+                ? 'bg-white/95 border-gray-200'
+                : 'bg-slate-800/95 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <h2 className={`text-xl font-semibold ${
                   theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>{stepType.title}</p>
-                <p className={`text-xs truncate ${
-                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                }`}>{stepType.description}</p>
+                }`}>
+                  Choose Step Type
+                </h2>
+                <button
+                  onClick={() => setShowStepTypeDropdown(false)}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-            </button>
-          ))}
-        </div>,
-        document.body
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {stepTypes.map((stepType) => (
+                  <button
+                    key={stepType.type}
+                    onClick={() => {
+                      addStep(stepType.type)
+                      setShowStepTypeDropdown(false)
+                    }}
+                    className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${
+                      theme === 'light'
+                        ? 'bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 hover:shadow-md'
+                        : 'bg-white/5 hover:bg-white/10 border-white/20 hover:border-blue-400/50'
+                    }`}
+                  >
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${
+                      theme === 'light' ? 'bg-blue-50' : 'bg-blue-500/20'
+                    }`}>
+                      <div className={theme === 'light' ? 'text-blue-600' : 'text-blue-300'}>
+                        {stepType.icon}
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-semibold text-base mb-1 ${
+                        theme === 'light' ? 'text-gray-900' : 'text-white'
+                      }`}>{stepType.title}</p>
+                      <p className={`text-sm ${
+                        theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                      }`}>{stepType.description}</p>
+                    </div>
+                  </button>
+                ))}
+                
+                {/* Create from Template Option */}
+                <button
+                  onClick={() => {
+                    setShowStepTypeDropdown(false)
+                    setShowLoadTemplateModal(true)
+                  }}
+                  className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${
+                    theme === 'light'
+                      ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300 hover:shadow-md'
+                      : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-400/30 hover:border-purple-400/50'
+                  }`}
+                >
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${
+                    theme === 'light' ? 'bg-purple-100' : 'bg-purple-500/20'
+                  }`}>
+                    <FolderOpen className={`w-6 h-6 ${
+                      theme === 'light' ? 'text-purple-600' : 'text-purple-300'
+                    }`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-base mb-1 ${
+                      theme === 'light' ? 'text-gray-900' : 'text-white'
+                    }`}>Create from Template</p>
+                    <p className={`text-sm ${
+                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                    }`}>Use a saved template to create a new step</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Form Preview Modal */}
@@ -3056,6 +2765,451 @@ export default function FormBuilder() {
         onClose={() => setShowLoadTemplateModal(false)}
         onSelect={selectedStepIndex !== null ? loadTemplateToStep : createStepFromTemplate}
       />
+
+      {/* Form Settings Modal */}
+      {showFormSettingsModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
+            theme === 'light'
+              ? 'bg-white border border-gray-200'
+              : 'bg-slate-800 border border-white/20'
+          }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
+              theme === 'light'
+                ? 'bg-white/95 border-gray-200'
+                : 'bg-slate-800/95 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <h2 className={`text-xl font-semibold flex items-center ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  <FileText className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
+                  Form Settings
+                </h2>
+                <button
+                  onClick={() => setShowFormSettingsModal(false)}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className={`block text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>Form Title</label>
+                <input
+                  type="text"
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter form title"
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                  }`}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className={`block text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>Internal Name (Admin Only)</label>
+                <input
+                  type="text"
+                  value={internalName}
+                  onChange={e => setInternalName(e.target.value)}
+                  placeholder="Internal name for admin use only"
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-orange-500 shadow-sm'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-orange-400'
+                  }`}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className={`block text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of your form"
+                  rows={3}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                  }`}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className={`block text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>Welcome Message</label>
+                <textarea
+                  value={welcomeMessage}
+                  onChange={(e) => setWelcomeMessage(e.target.value)}
+                  placeholder="Welcome message for form users"
+                  rows={3}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                  }`}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className={`block text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>Client</label>
+                <select 
+                  value={clientId ?? ''} 
+                  onChange={e => setClientId(e.target.value)}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                      : 'bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-blue-400'
+                  }`}
+                >
+                  <option value="" className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>Select client</option>
+                  {clients.map(c => <option key={c.id} value={c.id} className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Form Theme Modal */}
+      {showFormThemeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
+            theme === 'light'
+              ? 'bg-white border border-gray-200'
+              : 'bg-slate-800 border border-white/20'
+          }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
+              theme === 'light'
+                ? 'bg-white/95 border-gray-200'
+                : 'bg-slate-800/95 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <h2 className={`text-xl font-semibold flex items-center ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  <Palette className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />
+                  Form Theme
+                </h2>
+                <button
+                  onClick={() => setShowFormThemeModal(false)}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className={`text-sm mb-4 ${
+                theme === 'light' ? 'text-gray-600' : 'text-white/70'
+              }`}>Choose how your form appears to users</p>
+              <div className="grid grid-cols-1 gap-3">
+                {Object.entries(formThemes).map(([themeKey, themeData]) => (
+                  <button
+                    key={themeKey}
+                    onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
+                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${
+                      formTheme === themeKey
+                        ? theme === 'light'
+                          ? 'border-purple-500 bg-purple-50'
+                          : 'border-purple-400 bg-purple-400/20'
+                        : theme === 'light'
+                          ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
+                          : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                    }`}
+                  >
+                    {themeKey === 'soft-ui' && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/10 to-purple-100/10 pointer-events-none" />
+                    )}
+                    
+                    <div className="relative flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className={`font-semibold mb-1 ${
+                          theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>{themeData.name}</h4>
+                        <p className={`text-sm mb-4 ${
+                          theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                        }`}>{themeData.description}</p>
+                        
+                        <div className="space-y-3">
+                          <div className={`p-3 ${
+                            themeKey === 'soft-ui' 
+                              ? 'bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20' 
+                              : 'bg-white/90 rounded-lg border border-gray-200'
+                          }`}>
+                            <div className={`h-3 mb-2 ${
+                              themeKey === 'soft-ui' 
+                                ? 'bg-white/60 backdrop-blur-sm rounded-xl border border-white/30' 
+                                : 'bg-gray-100 border border-gray-300 rounded-md'
+                            }`} />
+                            
+                            <div className="flex gap-2 mt-3">
+                              <div className={`h-2.5 w-16 ${
+                                themeKey === 'soft-ui' 
+                                  ? 'bg-white/70 backdrop-blur-sm rounded-full border border-white/40' 
+                                  : 'bg-gray-300 rounded-md'
+                              }`} />
+                              <div className={`h-2.5 w-12 ${
+                                themeKey === 'soft-ui' 
+                                  ? 'bg-gradient-to-r from-blue-400/80 to-purple-500/80 rounded-full shadow-sm' 
+                                  : themeData.preview.primaryColor + ' rounded-md'
+                              }`} />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <div className={`h-2 rounded ${
+                              themeKey === 'soft-ui' 
+                                ? 'bg-gradient-to-r from-slate-700/40 to-slate-500/40' 
+                                : 'bg-gray-700/60'
+                            }`} style={{width: '70%'}} />
+                            <div className={`h-1.5 rounded ${
+                              themeKey === 'soft-ui' 
+                                ? 'bg-slate-400/40' 
+                                : 'bg-gray-500/60'
+                            }`} style={{width: '50%'}} />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {formTheme === themeKey && (
+                        <div className="flex-shrink-0 ml-4">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                            theme === 'light' ? 'bg-purple-600' : 'bg-purple-400'
+                          }`}>
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Button Colours Modal */}
+      {showButtonColoursModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
+            theme === 'light'
+              ? 'bg-white border border-gray-200'
+              : 'bg-slate-800 border border-white/20'
+          }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
+              theme === 'light'
+                ? 'bg-white/95 border-gray-200'
+                : 'bg-slate-800/95 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <h2 className={`text-xl font-semibold flex items-center ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  <svg className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-yellow-600' : 'text-yellow-400'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  Button Colours
+                </h2>
+                <button
+                  onClick={() => setShowButtonColoursModal(false)}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+                    theme === 'light'
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Primary Button Colors */}
+              <div className="space-y-3">
+                <div className={`text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/80'
+                }`}>Next Button</div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className={`block text-xs font-medium ${
+                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                    }`}>Background Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={primaryButtonColor}
+                        onChange={(e) => setPrimaryButtonColor(e.target.value)}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
+                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                        }`}
+                      />
+                      <input
+                        type="text"
+                        value={primaryButtonColor}
+                        onChange={(e) => setPrimaryButtonColor(e.target.value)}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                        }`}
+                        placeholder="#3B82F6"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className={`block text-xs font-medium ${
+                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                    }`}>Text Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={primaryButtonTextColor}
+                        onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
+                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                        }`}
+                      />
+                      <input
+                        type="text"
+                        value={primaryButtonTextColor}
+                        onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                        }`}
+                        placeholder="#FFFFFF"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary Button Colors */}
+              <div className="space-y-3">
+                <div className={`text-sm font-medium ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/80'
+                }`}>Previous Button</div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className={`block text-xs font-medium ${
+                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                    }`}>Background Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={secondaryButtonColor}
+                        onChange={(e) => setSecondaryButtonColor(e.target.value)}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
+                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                        }`}
+                      />
+                      <input
+                        type="text"
+                        value={secondaryButtonColor}
+                        onChange={(e) => setSecondaryButtonColor(e.target.value)}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                        }`}
+                        placeholder="#E5E7EB"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className={`block text-xs font-medium ${
+                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                    }`}>Text Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={secondaryButtonTextColor}
+                        onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
+                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                        }`}
+                      />
+                      <input
+                        type="text"
+                        value={secondaryButtonTextColor}
+                        onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
+                          theme === 'light'
+                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                        }`}
+                        placeholder="#374151"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Color Preview */}
+              <div className={`p-4 rounded-lg border ${
+                theme === 'light'
+                  ? 'bg-gray-50 border-gray-200'
+                  : 'bg-white/5 border-white/10'
+              }`}>
+                <div className={`text-xs mb-3 ${
+                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                }`}>Button Preview:</div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    style={{
+                      backgroundColor: secondaryButtonColor,
+                      color: secondaryButtonTextColor
+                    }}
+                    className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+                      formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      backgroundColor: primaryButtonColor,
+                      color: primaryButtonTextColor
+                    }}
+                    className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+                      formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
