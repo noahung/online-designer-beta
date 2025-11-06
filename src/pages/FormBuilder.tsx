@@ -1296,10 +1296,22 @@ export default function FormBuilder() {
     if (!option) return
     
     const preview = file ? URL.createObjectURL(file) : undefined
+    
+    // Auto-generate label from filename if current label is default/empty
+    let newLabel = option.label
+    if (file && (!option.label || option.label.match(/^Option \d+$/))) {
+      // Extract filename without extension and clean it up
+      const fileName = file.name.replace(/\.[^/.]+$/, '') // Remove extension
+      newLabel = fileName
+        .replace(/[-_]/g, ' ') // Replace dashes and underscores with spaces
+        .replace(/\b\w/g, c => c.toUpperCase()) // Capitalize first letter of each word
+    }
+    
     const updatedOption = {
       ...option,
       imageFile: file,
-      image_url: preview ?? option.image_url
+      image_url: preview ?? option.image_url,
+      label: newLabel
     }
     updateOption(stepIndex, optionIndex, updatedOption)
   }
