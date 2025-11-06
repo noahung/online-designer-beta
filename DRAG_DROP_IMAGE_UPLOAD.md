@@ -10,6 +10,7 @@ Image selection steps in the Form Builder now support **drag and drop** function
 - Drag image files from your computer directly onto image option cards
 - Works for both empty cards (to add images) and existing images (to replace them)
 - Visual feedback shows when you're dragging over a drop zone
+- **Auto-naming**: Option labels are automatically populated from file names (e.g., "casement-window.jpg" → "Casement Window")
 
 ### 2. Visual Indicators
 - **Empty Cards**: 
@@ -26,6 +27,7 @@ Image selection steps in the Form Builder now support **drag and drop** function
 - Still works as before
 - Click on any image card to open file picker
 - Supports both empty and existing image cards
+- Also benefits from auto-naming feature
 
 ## How to Use
 
@@ -230,6 +232,7 @@ Potential improvements for future versions:
 
 ## Related Documentation
 
+- [Auto-Naming Image Options](./AUTO_NAMING_IMAGE_OPTIONS.md) - Automatic label generation from file names
 - [Step Templates Guide](./STEP_TEMPLATES_GUIDE.md) - Save and reuse step configurations
 - [Form Builder Guide](./README.md) - General form building instructions
 - Main README for project setup
@@ -239,4 +242,5 @@ Potential improvements for future versions:
 **Feature Added**: November 6, 2025
 **Status**: ✅ Live and Working
 **Browser Support**: All modern browsers
+**Build Status**: ✅ Passing
 **Build Status**: ✅ Passing

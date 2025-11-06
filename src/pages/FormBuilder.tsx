@@ -1620,11 +1620,7 @@ export default function FormBuilder() {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${
-        theme === 'light' 
-          ? 'bg-gradient-to-br from-gray-50 via-blue-50 to-gray-50' 
-          : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
-      }`}>
+      <div className="min-h-screen flex items-center justify-center bg-[#1c1f3b]">
         <div className={`backdrop-blur-xl rounded-2xl p-8 text-center animate-pulse ${
           theme === 'light'
             ? 'bg-white/80 border border-gray-200 shadow-lg'
@@ -1644,11 +1640,7 @@ export default function FormBuilder() {
   }
 
   return (
-    <div className={`min-h-screen ${
-      theme === 'light' 
-        ? 'bg-gradient-to-br from-gray-50 via-blue-50 to-gray-50' 
-        : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900'
-    }`}>
+    <div className="min-h-screen bg-[#1c1f3b]">
       {/* Header */}
       <div className={`border-b backdrop-blur-xl px-6 py-4 ${
         theme === 'light'

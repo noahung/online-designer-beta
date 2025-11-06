@@ -25,7 +25,7 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900 flex items-center justify-center">
+        <div className="min-h-screen bg-[#1c1f3b] flex items-center justify-center">
           <div className="text-center animate-fade-in max-w-md mx-auto p-8">
             <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="text-white text-2xl">⚠️</span>
