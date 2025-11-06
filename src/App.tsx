@@ -23,7 +23,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center bg-[#1c1f3b]`}>
+      <div className={`min-h-screen flex items-center justify-center bg-[#111111]`}>
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
             <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
@@ -83,7 +83,7 @@ function AppRoutes() {
   if (loading) {
     console.log('AppRoutes: Still loading')
     return (
-      <div className={`min-h-screen flex items-center justify-center bg-[#1c1f3b]`}>
+      <div className={`min-h-screen flex items-center justify-center bg-[#111111]`}>
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
             <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
@@ -158,7 +158,7 @@ function AppContent() {
   const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
   
   return (
-    <div className={`min-h-screen bg-[#1c1f3b]`}>
+    <div className={`min-h-screen bg-[#111111]`}>
       <div className={`min-h-screen backdrop-blur-sm ${
         theme === 'light' ? 'bg-white/30' : 'bg-black/20'
       }`}>
