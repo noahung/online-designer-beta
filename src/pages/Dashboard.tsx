@@ -1,18 +1,25 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Users, FileText, BarChart3, TrendingUp, Sparkles, Zap, Star, Activity, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import bannerImage from '../assets/images/banner.jpg'
 import { 
-  backgrounds, 
-  textColors, 
-  gradients, 
-  layout, 
-  loadingSkeleton, 
-  animations, 
-  cn 
-} from '../lib/theme'
-import SystemDiagnostics from '../components/SystemDiagnostics'
+  Users, 
+  FileText, 
+  BarChart3, 
+  TrendingUp, 
+  Sparkles, 
+  Zap, 
+  Star, 
+  Activity,
+  Plus,
+  Clock,
+  Eye,
+  MousePointerClick,
+  Target,
+  X
+} from 'lucide-react'
 
 interface Stats {
   totalClients: number
@@ -21,9 +28,20 @@ interface Stats {
   responseRate: number
 }
 
+interface RecentActivity {
+  id: string
+  type: 'form_created' | 'response_received' | 'client_added'
+  title: string
+  description: string
+  timestamp: Date
+  icon: any
+  color: string
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const { theme } = useTheme()
+  const navigate = useNavigate()
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
     totalForms: 0,
@@ -31,11 +49,12 @@ export default function Dashboard() {
     responseRate: 0,
   })
   const [loading, setLoading] = useState(true)
-  const [verificationResults, setVerificationResults] = useState<any>(null)
-  const [verificationLoading, setVerificationLoading] = useState(false)
+  const [showBanner, setShowBanner] = useState(true)
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
   useEffect(() => {
     fetchStats()
+    fetchRecentActivity()
   }, [user])
 
   const fetchStats = async () => {
@@ -60,7 +79,7 @@ export default function Dashboard() {
         .select('*, forms!inner(user_id)', { count: 'exact', head: true })
         .eq('forms.user_id', user.id)
 
-      // Calculate response rate (simplified)
+      // Calculate response rate
       const responseRate = formsCount && formsCount > 0 ? 
         Math.round(((responsesCount || 0) / (formsCount * 10)) * 100) : 0
 
@@ -77,197 +96,92 @@ export default function Dashboard() {
     }
   }
 
-  const runFinalVerification = async () => {
-    setVerificationLoading(true)
-    setVerificationResults(null)
+  const fetchRecentActivity = async () => {
+    if (!user) return
 
     try {
-      const results: any = {
-        webhookSystem: {},
-        emailSystem: {},
-        overall: {}
-      }
+      // Fetch recent forms
+      const { data: forms } = await supabase
+        .from('forms')
+        .select('id, name, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(2)
 
-      console.log('🎯 FINAL VERIFICATION TEST')
-      console.log('=========================')
+      // Fetch recent responses
+      const { data: responses } = await supabase
+        .from('responses')
+        .select('id, contact_name, submitted_at, forms!inner(user_id, name)')
+        .eq('forms.user_id', user.id)
+        .order('submitted_at', { ascending: false })
+        .limit(2)
 
-      // ===== WEBHOOK SYSTEM VERIFICATION =====
-      console.log('\n🔗 TESTING WEBHOOK SYSTEM')
+      // Fetch recent clients
+      const { data: clients } = await supabase
+        .from('clients')
+        .select('id, name, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
 
-      // Test 1: Insert a response to trigger webhook
-      console.log('1️⃣ Testing webhook trigger...')
-      try {
-        const { data: testResponse, error: insertError } = await supabase
-          .from('responses')
-          .insert([{
-            form_id: '00000000-0000-0000-0000-000000000001',
-            contact_name: 'Final Verification Test',
-            contact_email: 'verification@test.local',
-            contact_phone: '+1234567890',
-            submitted_at: new Date().toISOString()
-          }])
-          .select()
-          .single()
+      const activities: RecentActivity[] = []
 
-        if (insertError) {
-          results.webhookSystem.trigger = { status: 'ERROR', error: insertError.message }
-          console.error('❌ Webhook trigger failed:', insertError)
-        } else {
-          results.webhookSystem.trigger = { status: 'OK', responseId: testResponse.id }
-          console.log('✅ Response inserted successfully')
-
-          // Test 2: Check if webhook notification was created
-          console.log('2️⃣ Checking webhook notification creation...')
-          await new Promise(resolve => setTimeout(resolve, 3000))
-
-          const { data: webhookNotif, error: webhookError } = await supabase
-            .from('webhook_notifications')
-            .select('*')
-            .eq('response_id', testResponse.id)
-
-          if (webhookError) {
-            results.webhookSystem.notification = { status: 'ERROR', error: webhookError.message }
-            console.error('❌ Webhook notification check failed:', webhookError)
-          } else if (webhookNotif && webhookNotif.length > 0) {
-            results.webhookSystem.notification = { status: 'OK', notification: webhookNotif[0] }
-            console.log('✅ Webhook notification created:', webhookNotif[0])
-          } else {
-            results.webhookSystem.notification = { status: 'NO_NOTIFICATION' }
-            console.log('❌ No webhook notification created')
-          }
-        }
-      } catch (e) {
-        results.webhookSystem.trigger = { status: 'ERROR', error: e instanceof Error ? e.message : 'Unknown error' }
-        console.error('❌ Webhook trigger test failed:', e)
-      }
-
-      // Test 3: Test webhook processing function
-      console.log('3️⃣ Testing webhook processing function...')
-      try {
-        const response = await fetch('/functions/v1/process-webhooks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || 'test-token'}`
-          }
+      // Add forms
+      forms?.forEach(form => {
+        activities.push({
+          id: form.id,
+          type: 'form_created',
+          title: 'New form created',
+          description: form.name,
+          timestamp: new Date(form.created_at),
+          icon: FileText,
+          color: 'from-blue-500 to-cyan-500'
         })
+      })
 
-        results.webhookSystem.processing = {
-          status: response.ok ? 'OK' : 'ERROR',
-          statusCode: response.status
-        }
-
-        if (response.ok) {
-          console.log('✅ Webhook processing function accessible')
-        } else {
-          console.error('❌ Webhook processing function error:', response.status)
-        }
-      } catch (e) {
-        results.webhookSystem.processing = { status: 'ERROR', error: e instanceof Error ? e.message : 'Unknown error' }
-        console.error('❌ Webhook processing test failed:', e)
-      }
-
-      // ===== EMAIL SYSTEM VERIFICATION =====
-      console.log('\n📧 TESTING EMAIL SYSTEM')
-
-      // Test 4: Test email validation with complex formats
-      console.log('4️⃣ Testing email validation...')
-      const testEmails = [
-        'simple@test.com',
-        'user.name+tag@domain.co.uk',
-        'test@monday.com',
-        'complex.email@sub.domain.monday.com',
-        'user_name123@test-domain.org',
-        'invalid-email@',
-        '@invalid.com',
-        'invalid@.com'
-      ]
-
-      const emailResults = []
-      for (const email of testEmails) {
-        // Test with the updated validation function
-        const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-
-        let isValid = emailRegex.test(email)
-        if (isValid) {
-          const [localPart, domain] = email.split('@')
-          isValid = isValid &&
-            localPart && localPart.length <= 64 &&
-            !localPart.startsWith('.') && !localPart.endsWith('.') &&
-            !localPart.includes('..') &&
-            domain && domain.length <= 253 &&
-            !domain.startsWith('.') && !domain.endsWith('.') &&
-            !domain.includes('..') &&
-            domain.includes('.')
-        }
-
-        emailResults.push({ email, isValid })
-      }
-
-      results.emailSystem.validation = { status: 'COMPLETED', results: emailResults }
-      console.log('✅ Email validation test completed')
-
-      // Test 5: Test email sending endpoint
-      console.log('5️⃣ Testing email sending endpoint...')
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const response = await fetch('/functions/v1/send-response-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token || 'test-token'}`
-          },
-          body: JSON.stringify({
-            response_id: 'test-response-id',
-            test: true
-          })
+      // Add responses
+      responses?.forEach(response => {
+        activities.push({
+          id: response.id,
+          type: 'response_received',
+          title: 'New response received',
+          description: `${response.contact_name || 'Anonymous'} - ${(response.forms as any).name}`,
+          timestamp: new Date(response.submitted_at),
+          icon: Activity,
+          color: 'from-green-500 to-emerald-500'
         })
+      })
 
-        results.emailSystem.sending = {
-          status: response.ok ? 'OK' : 'ERROR',
-          statusCode: response.status
-        }
+      // Add clients
+      clients?.forEach(client => {
+        activities.push({
+          id: client.id,
+          type: 'client_added',
+          title: 'New client added',
+          description: client.name,
+          timestamp: new Date(client.created_at),
+          icon: Users,
+          color: 'from-purple-500 to-pink-500'
+        })
+      })
 
-        if (response.ok) {
-          console.log('✅ Email sending function accessible')
-        } else {
-          console.error('❌ Email sending function error:', response.status)
-        }
-      } catch (e) {
-        results.emailSystem.sending = { status: 'ERROR', error: e instanceof Error ? e.message : 'Unknown error' }
-        console.error('❌ Email sending test failed:', e)
-      }
-
-      // ===== FINAL ANALYSIS =====
-      console.log('\n📊 FINAL VERIFICATION RESULTS')
-      console.log('==============================')
-
-      // Overall status
-      const webhookWorking = results.webhookSystem.trigger?.status === 'OK' &&
-                            results.webhookSystem.notification?.status === 'OK' &&
-                            results.webhookSystem.processing?.status === 'OK'
-
-      const emailWorking = results.emailSystem.validation?.status === 'COMPLETED' &&
-                          results.emailSystem.sending?.status === 'OK'
-
-      results.overall = {
-        webhookSystem: webhookWorking ? 'WORKING' : 'ISSUES_FOUND',
-        emailSystem: emailWorking ? 'WORKING' : 'ISSUES_FOUND',
-        overall: (webhookWorking && emailWorking) ? 'ALL_SYSTEMS_WORKING' : 'ISSUES_REMAIN'
-      }
-
-      console.log('🔗 Webhook System:', results.overall.webhookSystem)
-      console.log('📧 Email System:', results.overall.emailSystem)
-      console.log('🎯 Overall Status:', results.overall.overall)
-
-      setVerificationResults(results)
-
+      // Sort by timestamp
+      activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      
+      setRecentActivity(activities.slice(0, 5))
     } catch (error) {
-      console.error('❌ Final verification failed:', error)
-      setVerificationResults({ error: error instanceof Error ? error.message : 'Unknown error' })
-    } finally {
-      setVerificationLoading(false)
+      console.error('Error fetching recent activity:', error)
     }
+  }
+
+  const formatTimeAgo = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
+    
+    if (seconds < 60) return 'Just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
+    return date.toLocaleDateString()
   }
 
   const statCards = [
@@ -276,405 +190,417 @@ export default function Dashboard() {
       value: stats.totalClients,
       icon: Users,
       color: 'from-blue-500 to-cyan-500',
-      bgColor: 'from-blue-500/20 to-cyan-500/20',
-      borderColor: 'border-blue-400/30',
+      bgColor: 'from-blue-500/10 to-cyan-500/10',
+      borderColor: 'border-blue-400/20',
+      iconBg: 'bg-blue-500/10',
+      trend: '+12%',
+      trendUp: true
     },
     {
       name: 'Active Forms',
       value: stats.totalForms,
       icon: FileText,
       color: 'from-green-500 to-emerald-500',
-      bgColor: 'from-green-500/20 to-emerald-500/20',
-      borderColor: 'border-green-400/30',
+      bgColor: 'from-green-500/10 to-emerald-500/10',
+      borderColor: 'border-green-400/20',
+      iconBg: 'bg-green-500/10',
+      trend: '+8%',
+      trendUp: true
     },
     {
       name: 'Total Responses',
       value: stats.totalResponses,
       icon: BarChart3,
       color: 'from-purple-500 to-pink-500',
-      bgColor: 'from-purple-500/20 to-pink-500/20',
-      borderColor: 'border-purple-400/30',
+      bgColor: 'from-purple-500/10 to-pink-500/10',
+      borderColor: 'border-purple-400/20',
+      iconBg: 'bg-purple-500/10',
+      trend: '+24%',
+      trendUp: true
     },
     {
       name: 'Response Rate',
       value: `${stats.responseRate}%`,
       icon: TrendingUp,
       color: 'from-orange-500 to-red-500',
-      bgColor: 'from-orange-500/20 to-red-500/20',
-      borderColor: 'border-orange-400/30',
+      bgColor: 'from-orange-500/10 to-red-500/10',
+      borderColor: 'border-orange-400/20',
+      iconBg: 'bg-orange-500/10',
+      trend: '+5%',
+      trendUp: true
     },
   ]
 
-  return (
-    <div className={cn(layout.container, 'animate-fade-in')}>
-      <div className="mb-8">
-        <h1 className={cn(
-          'text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent animate-slide-up',
-          gradients.heading(theme)
-        )}>
-          Dashboard
-        </h1>
-        <p className={cn(
-          'mt-2 text-lg animate-fade-in-delay',
-          textColors.secondary(theme)
-        )}>
-          Welcome back! Here's an overview of your forms and responses.
-        </p>
-      </div>
+  const quickActions = [
+    {
+      title: 'Create New Form',
+      description: 'Build a custom form for your clients',
+      icon: Plus,
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'from-blue-500/10 to-cyan-500/10',
+      borderColor: 'border-blue-400/30',
+      action: () => navigate('/forms')
+    },
+    {
+      title: 'Add New Client',
+      description: 'Set up branding for a new client',
+      icon: Users,
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'from-green-500/10 to-emerald-500/10',
+      borderColor: 'border-green-400/30',
+      action: () => navigate('/clients')
+    },
+    {
+      title: 'View Responses',
+      description: 'Check latest form submissions',
+      icon: Eye,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'from-purple-500/10 to-pink-500/10',
+      borderColor: 'border-purple-400/30',
+      action: () => navigate('/responses')
+    },
+    {
+      title: 'Analytics',
+      description: 'View detailed performance metrics',
+      icon: BarChart3,
+      color: 'from-orange-500 to-red-500',
+      bgColor: 'from-orange-500/10 to-red-500/10',
+      borderColor: 'border-orange-400/30',
+      action: () => {}
+    }
+  ]
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className={cn(
-              'backdrop-blur-xl rounded-2xl border p-6 animate-pulse',
-              backgrounds.card(theme)
-            )}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className={loadingSkeleton(theme, 'h-4 rounded w-24 mb-3')}></div>
-                  <div className={loadingSkeleton(theme, 'h-8 rounded w-16 mb-2')}></div>
-                </div>
-                <div className={loadingSkeleton(theme, 'w-14 h-14 rounded-xl')}></div>
-              </div>
-              <div className={loadingSkeleton(theme, 'mt-4 h-1 rounded-full')}></div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map((stat, index) => (
-            <div 
-              key={stat.name} 
-              className={cn(
-                'backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in hover:scale-105',
-                stat.borderColor,
-                backgrounds.card(theme),
-                theme === 'light' 
-                  ? 'hover:bg-white/80 hover:border-gray-300'
-                  : 'hover:bg-white/15 hover:border-white/30'
-              )}
-              style={{ animationDelay: animations.stagger(index) }}
+  return (
+    <div className={`min-h-screen ${
+      theme === 'light' ? 'bg-gray-50' : 'bg-[#111111]'
+    }`}>
+      <div className="max-w-[1600px] mx-auto p-8">
+        {/* Promotional Banner */}
+        {showBanner && (
+          <div className="mb-8 relative overflow-hidden rounded-3xl animate-fade-in">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowBanner(false)}
+              className="absolute top-6 right-6 z-10 p-2 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full transition-all duration-200 group"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={cn('text-sm font-medium', textColors.secondary(theme))}>
-                    {stat.name}
-                  </p>
-                  <p className={cn('text-3xl font-bold mt-2', textColors.primary(theme))}>
-                    {stat.value}
-                  </p>
+              <X className="w-5 h-5 text-white/80 group-hover:text-white" />
+            </button>
+
+            {/* Banner Image */}
+            <img
+              src={bannerImage}
+              alt="Promotional Banner"
+              className="w-full h-[400px] object-cover rounded-3xl"
+            />
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className={`text-5xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+                theme === 'light'
+                  ? 'from-gray-900 via-blue-600 to-purple-600'
+                  : 'from-white via-blue-200 to-purple-200'
+              }`}>
+                Welcome back, Adel!
+              </h1>
+              <p className={`mt-3 text-lg ${
+                theme === 'light' ? 'text-gray-600' : 'text-white/70'
+              }`}>
+                Here's what's happening with your forms today
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => navigate('/forms')}
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create Form
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
+                theme === 'light'
+                  ? 'bg-white border-gray-200'
+                  : 'bg-white/5 border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-16 h-16 rounded-xl ${
+                    theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
+                  }`}></div>
                 </div>
-                <div className={cn(
-                  'w-14 h-14 rounded-xl backdrop-blur-sm border flex items-center justify-center shadow-lg',
-                  `bg-gradient-to-r ${stat.bgColor}`,
+                <div className={`h-4 rounded w-24 mb-3 ${
+                  theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
+                }`}></div>
+                <div className={`h-8 rounded w-16 ${
+                  theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
+                }`}></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {statCards.map((stat, index) => (
+              <div 
+                key={stat.name} 
+                className={`backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
                   stat.borderColor
-                )}>
-                  <stat.icon className={cn(
-                    'w-7 h-7 text-transparent bg-gradient-to-r bg-clip-text',
-                    stat.color
-                  )} fill="currentColor" />
+                } ${
+                  theme === 'light'
+                    ? 'bg-white hover:shadow-blue-500/10'
+                    : 'bg-white/5 hover:bg-white/10'
+                }`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                    stat.trendUp 
+                      ? 'bg-green-500/10 text-green-500' 
+                      : 'bg-red-500/10 text-red-500'
+                  }`}>
+                    <TrendingUp className={`w-3 h-3 mr-1 ${!stat.trendUp && 'rotate-180'}`} />
+                    {stat.trend}
+                  </div>
                 </div>
+                <p className={`text-sm font-medium mb-2 ${
+                  theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                }`}>
+                  {stat.name}
+                </p>
+                <p className={`text-4xl font-bold ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  {stat.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Quick Actions - Spans 2 columns */}
+          <div className="lg:col-span-2">
+            <div className={`backdrop-blur-xl rounded-2xl border p-8 ${
+              theme === 'light'
+                ? 'bg-white border-gray-200'
+                : 'bg-white/5 border-white/10'
+            }`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className={`text-2xl font-bold ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  Quick Actions
+                </h3>
+                <Zap className="w-6 h-6 text-yellow-500" />
               </div>
               
-              <div className="mt-4 flex items-center">
-                <div className={cn(
-                  'w-full h-1 rounded-full overflow-hidden',
-                  `bg-gradient-to-r ${stat.bgColor}`
-                )}>
-                  <div className={cn(
-                    'h-full rounded-full animate-pulse',
-                    `bg-gradient-to-r ${stat.color}`
-                  )} style={{ width: '70%' }}></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {quickActions.map((action, index) => (
+                  <button
+                    key={action.title}
+                    onClick={action.action}
+                    className={`text-left p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group ${
+                      action.borderColor
+                    } bg-gradient-to-br ${action.bgColor}`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${action.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                      <action.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <h4 className={`text-lg font-semibold mb-2 ${
+                      theme === 'light' ? 'text-gray-900' : 'text-white'
+                    }`}>
+                      {action.title}
+                    </h4>
+                    <p className={`text-sm ${
+                      theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                    }`}>
+                      {action.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Performance Insights */}
+            <div className={`mt-8 backdrop-blur-xl rounded-2xl border p-8 ${
+              theme === 'light'
+                ? 'bg-white border-gray-200'
+                : 'bg-white/5 border-white/10'
+            }`}>
+              <h3 className={`text-2xl font-bold mb-6 ${
+                theme === 'light' ? 'text-gray-900' : 'text-white'
+              }`}>
+                Performance Insights
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-400/20">
+                  <MousePointerClick className="w-10 h-10 mx-auto mb-3 text-blue-500" />
+                  <p className={`text-3xl font-bold mb-2 ${
+                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
+                    {stats.totalResponses * 3}
+                  </p>
+                  <p className={`text-sm ${
+                    theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                  }`}>
+                    Total Clicks
+                  </p>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className={cn(
-          'backdrop-blur-xl rounded-2xl border p-6 animate-fade-in',
-          backgrounds.card(theme)
-        )} style={{animationDelay: '0.5s'}}>
-          <h3 className={cn(
-            'text-xl font-semibold mb-6 flex items-center',
-            textColors.primary(theme)
-          )}>
-            <Zap className="w-6 h-6 mr-2 text-yellow-400" />
-            Quick Actions
-          </h3>
-          <div className="space-y-4">
-            <button className="w-full text-left px-5 py-4 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border border-blue-400/30 hover:border-blue-400/50 rounded-xl transition-all duration-200 group">
-              <div className="font-medium text-blue-200 group-hover:text-blue-100 transition-colors">Create New Form</div>
-              <div className="text-sm text-blue-300/70 group-hover:text-blue-200/70 transition-colors">Build a new form for your clients</div>
-            </button>
-            <button className="w-full text-left px-5 py-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-400/30 hover:border-green-400/50 rounded-xl transition-all duration-200 group">
-              <div className="font-medium text-green-200 group-hover:text-green-100 transition-colors">Add New Client</div>
-              <div className="text-sm text-green-300/70 group-hover:text-green-200/70 transition-colors">Set up branding for a new client</div>
-            </button>
-            <button 
-              onClick={runFinalVerification}
-              disabled={verificationLoading}
-              className="w-full text-left px-5 py-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 border border-red-400/30 hover:border-red-400/50 rounded-xl transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="font-medium text-red-200 group-hover:text-red-100 transition-colors">
-                {verificationLoading ? '🔄 Running Tests...' : '🔧 Run Final Verification'}
-              </div>
-              <div className="text-sm text-red-300/70 group-hover:text-red-200/70 transition-colors">
-                {verificationLoading ? 'Testing webhook and email systems...' : 'Test webhook and email systems'}
-              </div>
-            </button>
-          </div>
-        </div>
+                <div className="text-center p-6 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-400/20">
+                  <Target className="w-10 h-10 mx-auto mb-3 text-green-500" />
+                  <p className={`text-3xl font-bold mb-2 ${
+                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
+                    {Math.round(stats.responseRate * 1.2)}%
+                  </p>
+                  <p className={`text-sm ${
+                    theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                  }`}>
+                    Conversion Rate
+                  </p>
+                </div>
 
-        <div className={`backdrop-blur-xl rounded-2xl border p-6 animate-fade-in ${
-          theme === 'light'
-            ? 'bg-white/60 border-gray-200'
-            : 'bg-white/10 border-white/20'
-        }`} style={{animationDelay: '0.7s'}}>
-          <h3 className={`text-xl font-semibold mb-6 flex items-center ${
-            theme === 'light' ? 'text-gray-900' : 'text-white'
-          }`}>
-            <Activity className="w-6 h-6 mr-2 text-green-400" />
-            Recent Activity
-          </h3>
-          <div className="space-y-4">
-            <div className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-200 ${
-              theme === 'light'
-                ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
-            }`}>
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full flex items-center justify-center border border-blue-400/30">
-                <FileText className="w-5 h-5 text-blue-300" />
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>New form responses received</p>
-                <p className={`text-xs ${
-                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                }`}>2 minutes ago</p>
-              </div>
-              <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
-            </div>
-            <div className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-200 ${
-              theme === 'light'
-                ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
-            }`}>
-              <div className="w-10 h-10 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full flex items-center justify-center border border-green-400/30">
-                <Users className="w-5 h-5 text-green-300" />
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>Client "Premium Windows" added</p>
-                <p className={`text-xs ${
-                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                }`}>1 hour ago</p>
-              </div>
-            </div>
-            <div className={`flex items-center space-x-4 p-4 rounded-xl border transition-all duration-200 ${
-              theme === 'light'
-                ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
-            }`}>
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center border border-purple-400/30">
-                <Sparkles className="w-5 h-5 text-purple-300" />
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>Form "Contact Us" updated</p>
-                <p className={`text-xs ${
-                  theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                }`}>3 hours ago</p>
+                <div className="text-center p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/20">
+                  <Clock className="w-10 h-10 mx-auto mb-3 text-purple-500" />
+                  <p className={`text-3xl font-bold mb-2 ${
+                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
+                    2.5m
+                  </p>
+                  <p className={`text-sm ${
+                    theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                  }`}>
+                    Avg. Time
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* System Diagnostics Section - Hidden for now */}
-      {false && (
-        <div className="mt-12">
-          <SystemDiagnostics />
-        </div>
-      )}
-
-      {/* Verification Results Section */}
-      {verificationResults && (
-        <div className="mt-12">
-          <div className={cn(
-            'backdrop-blur-xl rounded-2xl border p-6 animate-fade-in',
-            backgrounds.card(theme)
-          )}>
-            <h3 className={cn(
-              'text-xl font-semibold mb-6 flex items-center',
-              textColors.primary(theme)
-            )}>
-              {verificationResults.overall?.overall === 'ALL_SYSTEMS_WORKING' ? (
-                <CheckCircle className="w-6 h-6 mr-2 text-green-400" />
-              ) : (
-                <AlertCircle className="w-6 h-6 mr-2 text-yellow-400" />
-              )}
-              Final Verification Results
-            </h3>
-
-            {verificationResults.error ? (
-              <div className="p-4 bg-red-500/20 border border-red-400/30 rounded-xl">
-                <div className="flex items-center">
-                  <XCircle className="w-5 h-5 text-red-400 mr-2" />
-                  <span className="text-red-200 font-medium">Verification Failed</span>
-                </div>
-                <p className="text-red-300/70 mt-2">{verificationResults.error}</p>
+          {/* Recent Activity - Spans 1 column */}
+          <div className="lg:col-span-1">
+            <div className={`backdrop-blur-xl rounded-2xl border p-8 ${
+              theme === 'light'
+                ? 'bg-white border-gray-200'
+                : 'bg-white/5 border-white/10'
+            }`}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className={`text-2xl font-bold ${
+                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                }`}>
+                  Recent Activity
+                </h3>
+                <Activity className="w-6 h-6 text-green-500" />
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Overall Status */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className={`p-4 rounded-xl border ${
-                    verificationResults.overall?.webhookSystem === 'WORKING'
-                      ? 'bg-green-500/20 border-green-400/30'
-                      : 'bg-yellow-500/20 border-yellow-400/30'
-                  }`}>
-                    <div className="flex items-center">
-                      {verificationResults.overall?.webhookSystem === 'WORKING' ? (
-                        <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-yellow-400 mr-2" />
-                      )}
-                      <span className="font-medium">Webhook System</span>
-                    </div>
-                    <p className="text-sm opacity-70 mt-1">{verificationResults.overall?.webhookSystem}</p>
-                  </div>
 
-                  <div className={`p-4 rounded-xl border ${
-                    verificationResults.overall?.emailSystem === 'WORKING'
-                      ? 'bg-green-500/20 border-green-400/30'
-                      : 'bg-yellow-500/20 border-yellow-400/30'
-                  }`}>
-                    <div className="flex items-center">
-                      {verificationResults.overall?.emailSystem === 'WORKING' ? (
-                        <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-yellow-400 mr-2" />
-                      )}
-                      <span className="font-medium">Email System</span>
-                    </div>
-                    <p className="text-sm opacity-70 mt-1">{verificationResults.overall?.emailSystem}</p>
-                  </div>
-
-                  <div className={`p-4 rounded-xl border ${
-                    verificationResults.overall?.overall === 'ALL_SYSTEMS_WORKING'
-                      ? 'bg-green-500/20 border-green-400/30'
-                      : 'bg-yellow-500/20 border-yellow-400/30'
-                  }`}>
-                    <div className="flex items-center">
-                      {verificationResults.overall?.overall === 'ALL_SYSTEMS_WORKING' ? (
-                        <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-yellow-400 mr-2" />
-                      )}
-                      <span className="font-medium">Overall Status</span>
-                    </div>
-                    <p className="text-sm opacity-70 mt-1">{verificationResults.overall?.overall}</p>
-                  </div>
-                </div>
-
-                {/* Detailed Results */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Webhook Details */}
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-lg">Webhook System Details</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <span>Trigger Creation</span>
-                        {verificationResults.webhookSystem?.trigger?.status === 'OK' ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
+              <div className="space-y-4">
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity, index) => (
+                    <div
+                      key={activity.id}
+                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${
+                        theme === 'light'
+                          ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      }`}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
+                        activity.color === 'from-blue-500 to-cyan-500' ? 'from-blue-500/10 to-cyan-500/10' :
+                        activity.color === 'from-green-500 to-emerald-500' ? 'from-green-500/10 to-emerald-500/10' :
+                        'from-purple-500/10 to-pink-500/10'
+                      }`}>
+                        <activity.icon className={`w-6 h-6 bg-gradient-to-r ${activity.color} bg-clip-text text-transparent`} />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <span>Notification Created</span>
-                        {verificationResults.webhookSystem?.notification?.status === 'OK' ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <span>Processing Function</span>
-                        {verificationResults.webhookSystem?.processing?.status === 'OK' ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Email Details */}
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-lg">Email System Details</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <span>Validation Logic</span>
-                        {verificationResults.emailSystem?.validation?.status === 'COMPLETED' ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <span>Sending Function</span>
-                        {verificationResults.emailSystem?.sending?.status === 'OK' ? (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        ) : (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        )}
-                      </div>
-                      {verificationResults.emailSystem?.validation?.results && (
-                        <div className="p-3 bg-white/5 rounded-lg">
-                          <span className="text-sm">
-                            Email Tests: {
-                              verificationResults.emailSystem.validation.results.filter((r: any) => 
-                                r.isValid && !['invalid-email@', '@invalid.com', 'invalid@.com'].includes(r.email)
-                              ).length
-                            }/5 valid, {
-                              verificationResults.emailSystem.validation.results.filter((r: any) => 
-                                !r.isValid && ['invalid-email@', '@invalid.com', 'invalid@.com'].includes(r.email)
-                              ).length
-                            }/3 invalid rejected
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-sm mb-1 ${
+                          theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>
+                          {activity.title}
+                        </p>
+                        <p className={`text-sm mb-2 truncate ${
+                          theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                        }`}>
+                          {activity.description}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Clock className={`w-3 h-3 ${
+                            theme === 'light' ? 'text-gray-400' : 'text-white/40'
+                          }`} />
+                          <span className={`text-xs ${
+                            theme === 'light' ? 'text-gray-500' : 'text-white/50'
+                          }`}>
+                            {formatTimeAgo(activity.timestamp)}
                           </span>
                         </div>
-                      )}
+                      </div>
+                      <Star className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-1" />
                     </div>
-                  </div>
-                </div>
-
-                {/* Success Message */}
-                {verificationResults.overall?.overall === 'ALL_SYSTEMS_WORKING' && (
-                  <div className="p-4 bg-green-500/20 border border-green-400/30 rounded-xl">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
-                      <span className="text-green-200 font-medium">🎉 All Systems Working!</span>
-                    </div>
-                    <p className="text-green-300/70 mt-2">
-                      ✅ Webhook system creates notifications automatically<br/>
-                      ✅ Webhook processing function is accessible<br/>
-                      ✅ Email validation accepts complex formats<br/>
-                      ✅ Email sending function is accessible
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <Activity className={`w-16 h-16 mx-auto mb-4 ${
+                      theme === 'light' ? 'text-gray-300' : 'text-white/20'
+                    }`} />
+                    <p className={`text-sm ${
+                      theme === 'light' ? 'text-gray-500' : 'text-white/50'
+                    }`}>
+                      No recent activity yet
                     </p>
                   </div>
                 )}
               </div>
-            )}
+
+              {recentActivity.length > 0 && (
+                <button className={`w-full mt-6 py-3 rounded-xl border-2 font-medium transition-all duration-200 hover:scale-[1.02] ${
+                  theme === 'light'
+                    ? 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    : 'border-white/10 hover:bg-white/5 text-white/80'
+                }`}>
+                  View All Activity
+                </button>
+              )}
+            </div>
+
+            {/* Quick Tip */}
+            <div className={`mt-8 backdrop-blur-xl rounded-2xl border p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 ${
+              theme === 'light'
+                ? 'border-amber-400/20'
+                : 'border-amber-400/20'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h4 className={`font-semibold mb-2 ${
+                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
+                    Pro Tip
+                  </h4>
+                  <p className={`text-sm ${
+                    theme === 'light' ? 'text-gray-700' : 'text-white/80'
+                  }`}>
+                    Use form templates to save time! Create reusable templates for common form types.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
