@@ -173,6 +173,7 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
     <div
       ref={setNodeRef}
       style={style}
+      data-step-index={index}
       className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${
         isSelected
           ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
@@ -588,10 +589,10 @@ function CollapsibleSection({
         </div>
       </button>
       
-      <div className={`transition-all duration-300 ease-in-out ${
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
         isCollapsed 
           ? 'max-h-0 opacity-0' 
-          : 'max-h-[2000px] opacity-100'
+          : 'max-h-[5000px] opacity-100'
       }`}>
         <div className="px-6 pb-6">
           {children}
@@ -930,6 +931,14 @@ export default function FormBuilder() {
     setSteps(newSteps)
     setSelectedStepIndex(newSteps.length - 1)
     saveToHistory()
+    
+    // Scroll to the newly added step after a short delay to ensure DOM is updated
+    setTimeout(() => {
+      const stepElement = document.querySelector(`[data-step-index="${newSteps.length - 1}"]`)
+      if (stepElement) {
+        stepElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }, 100)
   }
 
   const updateStep = (index: number, updatedStep: Step) => {
@@ -1726,7 +1735,7 @@ export default function FormBuilder() {
             ? 'border-gray-200 bg-white/60 backdrop-blur-sm'
             : 'border-white/10 bg-white/5 backdrop-blur-sm'
         }`}>
-          <div className="p-6 space-y-6">
+          <div className="p-6 pb-24 space-y-6">
             {/* Form Steps */}
             <CollapsibleSection
               title="Form Steps"
@@ -1782,6 +1791,17 @@ export default function FormBuilder() {
                   )}
                 </div>
               </DndContext>
+              
+              {/* Add Step Button at bottom of list */}
+              {steps.length > 0 && (
+                <button
+                  onClick={() => setShowStepTypeDropdown(true)}
+                  className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border-2 border-dashed border-blue-400/30 hover:border-blue-400/50 text-blue-200 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-sm mt-3"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Step
+                </button>
+              )}
               </div>
             </CollapsibleSection>
           </div>
