@@ -1,0 +1,814 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Modern CSS Performance Optimizations */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-synthesis: none;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Critical rendering optimizations */
+img, video {
+  content-visibility: auto;
+}
+
+/* Intersection Observer optimizations */
+[data-animate] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-animate].visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Modern Performance Optimizations - Like Monday.com/Typeform */
+* {
+  will-change: auto;
+}
+
+/* Use GPU acceleration for smooth animations */
+.animate-fade-in,
+.animate-slide-up,
+.animate-slide-in-left,
+.animate-slide-in-right,
+.animate-scale-in {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize rendering layers */
+.glass-card,
+.custom-button,
+.custom-input {
+  transform: translateZ(0);
+  will-change: transform;
+  /* isolation: isolate; */
+}
+
+/* Advanced animation utilities */
+.stagger-children > * {
+  animation-delay: calc(var(--stagger) * var(--index, 0));
+}
+
+/* Micro-interactions */
+.micro-bounce:hover {
+  animation: microBounce 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes microBounce {
+  0% { transform: scale(1) translateZ(0); }
+  50% { transform: scale(1.05) translateZ(0); }
+  100% { transform: scale(1) translateZ(0); }
+}
+
+/* Smooth focus states */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  transition: box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Re-enable smooth transforms with GPU acceleration */
+.hover\:scale-105:hover {
+  transform: scale(1.05) translateZ(0) !important;
+}
+
+.hover\:scale-110:hover {
+  transform: scale(1.1) translateZ(0) !important;
+}
+
+.hover\:-translate-y-1:hover {
+  transform: translateY(-4px) translateZ(0) !important;
+}
+
+.hover\:-translate-y-0\.5:hover {
+  transform: translateY(-2px) translateZ(0) !important;
+}
+
+/* Smooth high-performance transitions */
+.transition-all {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Professional easing curves */
+.duration-200 {
+  transition-duration: 0.2s !important;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.duration-300 {
+  transition-duration: 0.3s !important;
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Re-enable optimized backdrop filters with containment */
+.backdrop-blur-xl,
+.backdrop-blur-lg,
+.backdrop-blur-2xl {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  /* contain: layout style paint !important; */
+  /* transform: translateZ(0) !important; */
+}
+
+.backdrop-blur-sm,
+.backdrop-blur {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  /* contain: layout style paint !important; */
+  /* transform: translateZ(0) !important; */
+}
+
+/* Optimize rendering for transform elements */
+.animate-slide-up,
+.animate-slide-in-left,
+.animate-slide-in-right,
+.animate-fade-in,
+.animate-scale-in {
+  will-change: transform, opacity;
+}
+
+.animate-slide-up:not(.animating),
+.animate-slide-in-left:not(.animating),
+.animate-slide-in-right:not(.animating),
+.animate-fade-in:not(.animating),
+.animate-scale-in:not(.animating) {
+  will-change: auto;
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  .animate-slide-in-left {
+    animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .animate-fade-in-delay {
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/* Auto-apply theme-aware styles to common elements - Temporarily disabled */
+/* 
+.light .text-white {
+  color: #111827 !important;
+}
+
+.light .text-white\/70 {
+  color: #4b5563 !important;
+}
+
+.light .text-white\/60 {
+  color: #6b7280 !important;
+}
+
+.light .text-white\/50 {
+  color: #9ca3af !important;
+}
+*/
+
+.light .text-white\/40 {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+.light .border-white\/20 {
+  border-color: #e5e7eb !important; /* gray-200 */
+}
+
+.light .border-white\/30 {
+  border-color: #d1d5db !important; /* gray-300 */
+}
+
+.light .border-white\/10 {
+  border-color: #f3f4f6 !important; /* gray-100 */
+}
+
+.light .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.light .bg-white\/15 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.light .bg-white\/5 {
+  background-color: #f9fafb !important; /* gray-50 */
+}
+
+.light .placeholder-white\/50::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+.light .placeholder-white\/40::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Button fixes for light mode */
+.light button {
+  color: #111827 !important;
+}
+
+/* Fix transparent button backgrounds to be solid in light mode */
+.light button.bg-blue-500\/20,
+.light button.bg-blue-600\/20,
+.light .bg-blue-500\/20,
+.light .bg-blue-600\/20 {
+  background-color: #3b82f6 !important; /* solid blue-500 */
+  color: white !important;
+  border-color: #2563eb !important;
+}
+
+.light button.bg-green-500\/20,
+.light button.bg-green-600\/20,
+.light .bg-green-500\/20,
+.light .bg-green-600\/20 {
+  background-color: #10b981 !important; /* solid emerald-500 */
+  color: white !important;
+  border-color: #059669 !important;
+}
+
+.light button.bg-purple-500\/20,
+.light button.bg-purple-600\/20,
+.light .bg-purple-500\/20,
+.light .bg-purple-600\/20 {
+  background-color: #8b5cf6 !important; /* solid purple-500 */
+  color: white !important;
+  border-color: #7c3aed !important;
+}
+
+.light button.bg-gray-500\/20,
+.light button.bg-gray-600\/20,
+.light .bg-gray-500\/20,
+.light .bg-gray-600\/20 {
+  background-color: #6b7280 !important; /* solid gray-500 */
+  color: white !important;
+  border-color: #4b5563 !important;
+}
+
+.light button.bg-red-500\/20,
+.light button.bg-red-600\/20,
+.light .bg-red-500\/20,
+.light .bg-red-600\/20 {
+  background-color: #ef4444 !important; /* solid red-500 */
+  color: white !important;
+  border-color: #dc2626 !important;
+}
+
+.light button.bg-cyan-500\/20,
+.light button.bg-cyan-600\/20,
+.light .bg-cyan-500\/20,
+.light .bg-cyan-600\/20 {
+  background-color: #06b6d4 !important; /* solid cyan-500 */
+  color: white !important;
+  border-color: #0891b2 !important;
+}
+
+.light button.bg-orange-500\/20,
+.light button.bg-orange-600\/20,
+.light .bg-orange-500\/20,
+.light .bg-orange-600\/20 {
+  background-color: #f97316 !important; /* solid orange-500 */
+  color: white !important;
+  border-color: #ea580c !important;
+}
+
+.light button.bg-pink-500\/20,
+.light button.bg-pink-600\/20,
+.light .bg-pink-500\/20,
+.light .bg-pink-600\/20 {
+  background-color: #ec4899 !important; /* solid pink-500 */
+  color: white !important;
+  border-color: #db2777 !important;
+}
+
+.light button.bg-yellow-500\/20,
+.light button.bg-yellow-600\/20,
+.light .bg-yellow-500\/20,
+.light .bg-yellow-600\/20 {
+  background-color: #eab308 !important; /* solid yellow-500 */
+  color: white !important;
+  border-color: #ca8a04 !important;
+}
+
+.light button.bg-indigo-500\/20,
+.light button.bg-indigo-600\/20,
+.light .bg-indigo-500\/20,
+.light .bg-indigo-600\/20 {
+  background-color: #6366f1 !important; /* solid indigo-500 */
+  color: white !important;
+  border-color: #4f46e5 !important;
+}
+
+/* Fix for gradient buttons that might be too faded */
+.light button[class*="bg-gradient"] {
+  opacity: 1 !important;
+}
+
+/* Ensure button text is visible */
+.light button .text-blue-200,
+.light .text-blue-200 {
+  color: white !important;
+}
+
+.light button .text-green-200,
+.light .text-green-200 {
+  color: white !important;
+}
+
+.light button .text-purple-200,
+.light .text-purple-200 {
+  color: white !important;
+}
+
+.light button .text-gray-200,
+.light .text-gray-200 {
+  color: white !important;
+}
+
+.light button .text-cyan-200,
+.light .text-cyan-200 {
+  color: white !important;
+}
+
+.light button .text-orange-200,
+.light .text-orange-200 {
+  color: white !important;
+}
+
+.light button .text-pink-200,
+.light .text-pink-200 {
+  color: white !important;
+}
+
+.light button .text-yellow-200,
+.light .text-yellow-200 {
+  color: white !important;
+}
+
+/* Fix for any buttons with background color and transparency */
+.light button[class*="bg-"][class*="\/"] {
+  background-color: var(--fallback-button-bg, #3b82f6) !important;
+  color: white !important;
+}
+
+/* Special fix for form embed buttons */
+.light .form-embed button,
+.light [id*="form-embed"] button,
+.light iframe button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+}
+
+/* File upload button visibility fixes */
+.light input[type="file"] + label,
+.light .file-upload-button,
+.light [class*="upload"] button,
+.light .upload-area button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+  padding: 8px 16px !important;
+  border-radius: 8px !important;
+}
+
+/* Form step navigation buttons */
+.light .step-navigation button,
+.light [class*="step"] button,
+.light .form-step button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+}
+
+/* Ensure all form buttons are visible */
+.light form button:not([class*="ghost"]):not([class*="link"]) {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: 1px solid #2563eb !important;
+  opacity: 1 !important;
+}
+
+/* Secondary button styles */
+.light form button.secondary,
+.light button[class*="secondary"] {
+  background-color: #e5e7eb !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Hover states for light mode buttons */
+.light button:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateZ(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateZ(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateZ(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* Apple-Inspired Premium Glassmorphism */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 8px 40px rgba(0, 0, 0, 0.12),
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  contain: layout style paint;
+  transform: translateZ(0);
+  position: relative;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+  pointer-events: none;
+}
+
+.custom-input {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 8px 25px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  contain: layout style;
+  transform: translateZ(0);
+}
+
+.custom-input:focus {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 
+    0 0 0 4px rgba(59, 130, 246, 0.08),
+    0 4px 20px rgba(59, 130, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  outline: none;
+  transform: translateZ(0);
+}
+
+.custom-input::placeholder {
+  color: rgba(100, 116, 139, 0.6);
+  font-weight: 400;
+}
+
+.custom-button {
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    0 8px 30px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  contain: layout style;
+  transform: translateZ(0);
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.custom-button:hover {
+  transform: translateY(-1px) scale(1.02) translateZ(0);
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.custom-button:active {
+  transform: translateY(0) scale(0.98) translateZ(0);
+  transition-duration: 0.1s;
+}
+
+.progress-glow {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  contain: layout style;
+  transform: translateZ(0);
+}
+
+.progress-glow .progress-bar {
+  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%);
+  background-size: 200% 100%;
+  animation: appleShimmer 2s ease-in-out infinite;
+  box-shadow: 
+    0 0 15px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+@keyframes appleShimmer {
+  0%, 100% { background-position: 0% 0%; }
+  50% { background-position: 100% 0%; }
+}
+
+/* Custom scrollbar for step type dropdown */
+.step-type-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.step-type-dropdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  margin: 8px 0; /* Add some margin from top/bottom */
+}
+
+.step-type-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.step-type-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox scrollbar styling */
+.step-type-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+}
+
+/* Ensure dropdown is scrollable and positioned correctly */
+.step-type-dropdown {
+  scrollbar-gutter: stable;
+}
+
+/* Light Theme Form Builder Support */
+.light .form-builder-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #f8fafc 100%);
+}
+
+/* Theme-aware form inputs */
+.light .theme-input {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #d1d5db;
+  color: #111827;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.light .theme-input:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.light .theme-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f6;
+  border-color: #3b82f6;
+}
+
+.light .theme-input::placeholder {
+  color: #6b7280;
+}
+
+.dark .theme-input {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.dark .theme-input:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark .theme-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #60a5fa;
+  border-color: transparent;
+}
+
+.dark .theme-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Theme-aware labels */
+.light .theme-label {
+  color: #374151;
+}
+
+.dark .theme-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Theme-aware text */
+.light .theme-text {
+  color: #4b5563;
+}
+
+.dark .theme-text {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Theme-aware section backgrounds */
+.light .theme-section {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .theme-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Theme-aware dropdown */
+.light .step-type-dropdown {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #e5e7eb;
+  color: #111827;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.light .step-type-dropdown button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark .step-type-dropdown {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.dark .step-type-dropdown button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Light theme scrollbar */
+.light .step-type-dropdown::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.light .step-type-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.light .step-type-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.light .step-type-dropdown {
+  scrollbar-color: rgba(0, 0, 0, 0.2) rgba(0, 0, 0, 0.05);
+}
+
+/* Morph Animation Keyframes for Image Cards */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Animation Classes */
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

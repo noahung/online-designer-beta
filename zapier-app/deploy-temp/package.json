@@ -1,0 +1,30 @@
+{
+  "name": "zapier-online-designer-forms",
+  "description": "Adverto Online Designer is a form builder platform that helps you create professional forms and automate responses through Zapier integrations.",
+  "version": "1.0.0",
+  "main": "index.js",
+  "zapier": {
+    "platformVersion": "15.0.0"
+  },
+  "homepage": "https://designer.advertomedia.co.uk",
+  "repository": "https://github.com/noahung/online-designer-beta",
+  "author": {
+    "name": "Online Designer",
+    "email": "support@onlinedesigner.com"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "zapier-platform-core": "15.0.0"
+  },
+  "devDependencies": {
+    "zapier-platform-cli": "^14.0.0"
+  },
+  "private": true,
+  "scripts": {
+    "test": "zapier test",
+    "validate": "zapier validate"
+  }
+}

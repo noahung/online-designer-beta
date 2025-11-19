@@ -1,0 +1,29 @@
+
+[functions.webhook-subscribe]
+enabled = true
+verify_jwt = true
+import_map = "./functions/webhook-subscribe/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/webhook-subscribe/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/webhook-subscribe/*.html" ]
+
+[functions.webhook-unsubscribe]
+enabled = true
+verify_jwt = true
+import_map = "./functions/webhook-unsubscribe/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/webhook-unsubscribe/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/webhook-unsubscribe/*.html" ]
+
+[functions.process-webhooks]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/process-webhooks/index.ts"
+# This function processes webhook notifications and doesn't need JWT verification
+# since it's triggered internally
