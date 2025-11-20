@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import bannerImage from '../assets/images/banner.jpg'
+import { BentoCard } from '../components/ui/bento-card'
 import { 
   Users, 
   FileText, 
@@ -326,7 +327,7 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
             {[...Array(4)].map((_, i) => (
               <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
                 theme === 'light'
@@ -348,41 +349,39 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {statCards.map((stat, index) => (
-              <div 
-                key={stat.name} 
-                className={`backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
-                  stat.borderColor
-                } ${
-                  theme === 'light'
-                    ? 'bg-white hover:shadow-blue-500/10'
-                    : 'bg-white/5 hover:bg-white/10'
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                    stat.trendUp 
-                      ? 'bg-green-500/10 text-green-500' 
-                      : 'bg-red-500/10 text-red-500'
-                  }`}>
-                    <TrendingUp className={`w-3 h-3 mr-1 ${!stat.trendUp && 'rotate-180'}`} />
-                    {stat.trend}
-                  </div>
-                </div>
-                <p className={`text-sm font-medium mb-2 ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/60'
-                }`}>
-                  {stat.name}
-                </p>
-                <p className={`text-4xl font-bold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
-                  {stat.value}
-                </p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
+            <div className="md:col-span-2">
+              <BentoCard
+                title="Total Clients"
+                value={stats.totalClients}
+                subtitle="Active clients in your account"
+                colors={["#3B82F6", "#60A5FA", "#93C5FD"]}
+                delay={0.2}
+              />
+            </div>
+            <BentoCard
+              title="Active Forms"
+              value={stats.totalForms}
+              subtitle="Forms ready to collect responses"
+              colors={["#60A5FA", "#34D399", "#93C5FD"]}
+              delay={0.4}
+            />
+            <BentoCard
+              title="Response Rate"
+              value={`${stats.responseRate}%`}
+              subtitle="Engagement across all forms"
+              colors={["#F59E0B", "#A78BFA", "#FCD34D"]}
+              delay={0.6}
+            />
+            <div className="md:col-span-2">
+              <BentoCard
+                title="Total Responses"
+                value={stats.totalResponses}
+                subtitle="Form submissions received this month"
+                colors={["#3B82F6", "#A78BFA", "#FBCFE8"]}
+                delay={0.8}
+              />
+            </div>
           </div>
         )}
 

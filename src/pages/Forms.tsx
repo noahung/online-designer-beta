@@ -9,6 +9,8 @@ import FolderSidebar from '../components/folders/FolderSidebar'
 import FolderModal from '../components/folders/FolderModal'
 import FolderBadge from '../components/folders/FolderBadge'
 import BulkActions from '../components/folders/BulkActions'
+import { FormCard } from '../components/ui/form-card'
+import { Pagination } from '../components/ui/pagination'
 import { 
   getFolders, 
   createFolder, 
@@ -48,6 +50,10 @@ export default function Forms() {
   const [forms, setForms] = useState<Form[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
   
   // Folder state
   const [folders, setFolders] = useState<FolderType[]>([])
@@ -426,6 +432,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   })
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredForms.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedForms = filteredForms.slice(startIndex, endIndex)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedFolderId])
+
   return (
     <>
       {/* Folder Modal */}
@@ -531,6 +548,7 @@ document.addEventListener("DOMContentLoaded", function() {
               theme === 'light' ? 'text-gray-600' : 'text-white/60'
             }`}>
               Found {filteredForms.length} form{filteredForms.length !== 1 ? 's' : ''}
+              {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
             </p>
           )}
         </div>
@@ -598,198 +616,41 @@ document.addEventListener("DOMContentLoaded", function() {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          {filteredForms.map((form, index) => (
-            <div key={form.id} className={`group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in ${openMenuId === form.id ? 'relative z-50' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
-              <div className="flex items-start justify-between">
-                {/* Checkbox for bulk selection */}
-                <div className="flex items-start space-x-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedFormIds.has(form.id)}
-                    onChange={() => toggleFormSelection(form.id)}
-                    className="mt-1 w-5 h-5 rounded border-2 border-white/30 bg-white/10 checked:bg-orange-500 checked:border-orange-500 cursor-pointer transition-all"
-                  />
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3 flex-wrap">
-                      <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
-                        {form.name}
-                      </h3>
-                      {form.internal_name && (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-300 border border-orange-400/30">
-                          {form.internal_name}
-                        </span>
-                      )}
-                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
-                        form.is_active 
-                          ? 'bg-green-500/20 text-green-300 border-green-400/30'
-                          : 'bg-slate-500/20 text-slate-300 border-slate-400/30'
-                      }`}>
-                        {form.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                      {form.form_folders && (
-                        <FolderBadge
-                          folderName={form.form_folders.name}
-                          folderColor={form.form_folders.color}
-                          size="sm"
-                        />
-                      )}
-                    </div>
-                    
-                    {form.description && (
-                      <p className="text-white/70 mb-4 text-base leading-relaxed">{form.description}</p>
-                    )}
-                    
-                    <div className="flex items-center space-x-4 text-sm text-white/60">
-                      <span className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                        Client: {form.clients?.name}
-                      </span>
-                      <span>•</span>
-                      <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
+        <>
+          <div className="space-y-6">
+            {paginatedForms.map((form, index) => (
+              <FormCard
+                key={form.id}
+                form={form}
+                index={index}
+                responseCount={responseCounts[form.id] || 0}
+                isSelected={selectedFormIds.has(form.id)}
+                onToggleSelect={() => toggleFormSelection(form.id)}
+                onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
+                onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
+                onCopyEmbed={() => copyEmbedCode(form.id)}
+                onPreview={() => window.open(`/form/${form.id}`, '_blank')}
+                onEdit={() => openEditModal(form.id)}
+                onDuplicate={() => duplicateForm(form.id)}
+                onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
+                onDelete={() => deleteForm(form.id)}
+                folders={folders}
+                openMenuId={openMenuId}
+                onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
+                theme={theme}
+                FolderBadge={FolderBadge}
+              />
+            ))}
+          </div>
 
-                <div className="flex items-center space-x-2">
-                  {/* Responses Button */}
-                  <button
-                    onClick={() => navigate(`/forms/${form.id}/responses`)}
-                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white hover:from-blue-500/30 hover:to-purple-600/30 hover:scale-105"
-                    title="View responses"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Responses</span>
-                    {responseCounts[form.id] > 0 && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-blue-400 text-white font-semibold">
-                        {responseCounts[form.id]}
-                      </span>
-                    )}
-                  </button>
-                  
-                  {/* Move to Folder dropdown */}
-                  <select
-                    value={form.folder_id || ''}
-                    onChange={(e) => handleMoveFormToFolder(form.id, e.target.value || null)}
-                    className="px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-white/10 text-white hover:bg-white/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    title="Move to folder"
-                  >
-                    <option value="" className="bg-gray-800">📭 Uncategorized</option>
-                    {folders.map((folder) => (
-                      <option key={folder.id} value={folder.id} className="bg-gray-800">
-                        📁 {folder.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Embed Code Button */}
-                  <button
-                    onClick={() => copyEmbedCode(form.id)}
-                    className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
-                    title="Copy embed code"
-                  >
-                    <Code className="w-5 h-5" />
-                  </button>
-
-                  {/* More Actions Dropdown */}
-                  <div className="relative z-50">
-                    <button
-                      onClick={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
-                      className="p-3 text-white/60 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-white/30"
-                      title="More actions"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-
-                    {openMenuId === form.id && (
-                      <>
-                        {/* Backdrop to close menu */}
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setOpenMenuId(null)}
-                        />
-                        
-                        {/* Dropdown Menu */}
-                        <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-gray-800 border border-white/20 shadow-2xl overflow-hidden z-50 animate-scale-in">
-                          <button
-                            onClick={() => {
-                              window.open(`/form/${form.id}`, '_blank')
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Eye className="w-4 h-4 text-green-300" />
-                            <span>Preview</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              openEditModal(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Edit className="w-4 h-4 text-purple-300" />
-                            <span>Edit</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              duplicateForm(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Duplicate className="w-4 h-4 text-orange-300" />
-                            <span>Duplicate</span>
-                          </button>
-
-                          <div className="h-px bg-white/10 my-1" />
-
-                          <button
-                            onClick={() => {
-                              toggleFormStatus(form.id, form.is_active)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            {form.is_active ? (
-                              <>
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-slate-400" />
-                                </div>
-                                <span>Deactivate</span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-green-400" />
-                                </div>
-                                <span>Activate</span>
-                              </>
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              deleteForm(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            theme={theme}
+          />
+        </>
       )}
           </div>
         </div>

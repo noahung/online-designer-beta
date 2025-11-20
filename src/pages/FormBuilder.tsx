@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { useTheme } from '../contexts/ThemeContext'
 import FormPreview from '../components/FormPreview'
+import SingleStepPreview from '../components/SingleStepPreview'
 import SaveTemplateModal from '../components/templates/SaveTemplateModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
 import { formThemes } from '../lib/formThemes'
@@ -153,10 +154,11 @@ interface SortableStepItemProps {
   onClick: () => void
   onDelete: () => void
   onDuplicate: () => void
+  onPreview: () => void
   canDelete: boolean
 }
 
-function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, canDelete }: SortableStepItemProps) {
+function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, onPreview, canDelete }: SortableStepItemProps) {
   const {
     attributes,
     listeners,
@@ -204,6 +206,16 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onPreview()
+            }}
+            className="p-1 text-white/40 hover:text-green-300 hover:bg-green-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            title="Preview this step"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -628,6 +640,8 @@ export default function FormBuilder() {
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showSingleStepPreview, setShowSingleStepPreview] = useState(false)
+  const [previewStepIndex, setPreviewStepIndex] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
@@ -1781,6 +1795,10 @@ export default function FormBuilder() {
                         onClick={() => setSelectedStepIndex(index)}
                         onDelete={() => deleteStep(index)}
                         onDuplicate={() => duplicateStep(index)}
+                        onPreview={() => {
+                          setPreviewStepIndex(index)
+                          setShowSingleStepPreview(true)
+                        }}
                         canDelete={steps.length > 1}
                       />
                     ))}
@@ -2794,6 +2812,21 @@ export default function FormBuilder() {
         formId={formId}
         formName={name}
       />
+
+      {/* Single Step Preview Modal */}
+      {previewStepIndex !== null && (
+        <SingleStepPreview
+          isOpen={showSingleStepPreview}
+          onClose={() => {
+            setShowSingleStepPreview(false)
+            setPreviewStepIndex(null)
+          }}
+          step={steps[previewStepIndex]}
+          stepNumber={previewStepIndex + 1}
+          primaryColor={primaryButtonColor}
+          secondaryColor={secondaryButtonColor}
+        />
+      )}
 
       {/* Save Template Modal */}
       <SaveTemplateModal
