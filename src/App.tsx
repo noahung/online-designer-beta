@@ -16,6 +16,7 @@ import FormBuilder from './pages/FormBuilder'
 import FormEmbed from './pages/FormEmbed'
 import APIEndpoint from './pages/APIEndpoint'
 import FormResponses from './pages/FormResponses'
+import ResponseDetail from './pages/ResponseDetail'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, userType, loading } = useAuth()
@@ -138,6 +139,11 @@ function AppRoutes() {
         <Route path="responses" element={
           <ProtectedRoute>
             <Responses />
+          </ProtectedRoute>
+        } />
+        <Route path="response/:responseId" element={
+          <ProtectedRoute>
+            <ResponseDetail />
           </ProtectedRoute>
         } />
         <Route path="settings" element={
