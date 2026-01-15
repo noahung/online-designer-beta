@@ -8,7 +8,9 @@ import FormPreview from '../components/FormPreview'
 import SingleStepPreview from '../components/SingleStepPreview'
 import SaveTemplateModal from '../components/templates/SaveTemplateModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
+import LogicBuilder from '../components/LogicBuilder'
 import { formThemes } from '../lib/formThemes'
+import { StepLogic } from '../types/formLogic'
 import { 
   ArrowLeft, 
   Save, 
@@ -655,6 +657,10 @@ export default function FormBuilder() {
   const [showFormSettingsModal, setShowFormSettingsModal] = useState(false)
   const [showFormThemeModal, setShowFormThemeModal] = useState(false)
   const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
+  
+  // Logic modal state
+  const [showLogicBuilder, setShowLogicBuilder] = useState(false)
+  const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
 
   // Undo/Redo state
   const [history, setHistory] = useState<{ past: any[]; present: any; future: any[] }>({
@@ -819,6 +825,16 @@ export default function FormBuilder() {
 
       if (stepsError) throw stepsError
 
+      // Load step logic
+      const { data: logicData, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError && logicError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error loading step logic:', logicError)
+      }
+
       // Set form data
   setName(formData.name)
   setInternalName(formData.internal_name || '')
@@ -865,6 +881,20 @@ export default function FormBuilder() {
       }))
 
       setSteps(convertedSteps)
+      
+      // Convert logic data to Map
+      if (logicData && logicData.length > 0) {
+        const logicMap = new Map<string, StepLogic>()
+        logicData.forEach((logic: any) => {
+          logicMap.set(logic.step_id, {
+            step_id: logic.step_id,
+            rules: logic.rules || [],
+            default_action: logic.default_action || undefined
+          })
+        })
+        setStepLogicMap(logicMap)
+      }
+      
       push({ type: 'success', message: 'Form loaded successfully' })
       setIsInitialLoad(false)
     } catch (error) {
@@ -1437,6 +1467,39 @@ export default function FormBuilder() {
         }
       }
 
+      // Save step logic
+      if (finalFormId) {
+        // Delete existing step logic for this form
+        await supabase
+          .from('step_logic')
+          .delete()
+          .eq('form_id', finalFormId)
+
+        // Insert new step logic
+        const logicRecords = []
+        for (const [stepId, logic] of stepLogicMap.entries()) {
+          if (logic.rules.length > 0 || logic.default_action) {
+            logicRecords.push({
+              step_id: stepId,
+              form_id: finalFormId,
+              rules: logic.rules,
+              default_action: logic.default_action || null
+            })
+          }
+        }
+
+        if (logicRecords.length > 0) {
+          const { error: logicErr } = await supabase
+            .from('step_logic')
+            .insert(logicRecords)
+          
+          if (logicErr) {
+            console.error('Error saving step logic:', logicErr)
+            push({ type: 'warning', message: 'Form saved but logic rules may not have been saved' })
+          }
+        }
+      }
+
       push({ type: 'success', message: isEditing ? 'Form updated successfully' : 'Form created successfully' })
       // Stay on the same page after saving
     } catch (error) {
@@ -1898,6 +1961,25 @@ export default function FormBuilder() {
                         Layout Settings
                       </button>
                     )}
+                    <button
+                      onClick={() => setShowLogicBuilder(true)}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 text-purple-700'
+                          : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-300 border border-purple-400/30'
+                      }`}
+                      title="Add conditional logic"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Logic
+                      {stepLogicMap.get(currentStep.id || '')?.rules.length ? (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+                          {stepLogicMap.get(currentStep.id || '')?.rules.length}
+                        </span>
+                      ) : null}
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-6">
@@ -3399,6 +3481,24 @@ export default function FormBuilder() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Logic Builder Modal */}
+      {showLogicBuilder && currentStep && (
+        <LogicBuilder
+          currentStep={currentStep}
+          allSteps={steps}
+          stepLogic={stepLogicMap.get(currentStep.id || '') || null}
+          onSave={(logic) => {
+            setStepLogicMap(prev => {
+              const newMap = new Map(prev)
+              newMap.set(currentStep.id || '', logic)
+              return newMap
+            })
+            push({ type: 'success', message: 'Logic rules saved successfully' })
+          }}
+          onClose={() => setShowLogicBuilder(false)}
+        />
       )}
     </div>
   )

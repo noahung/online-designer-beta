@@ -1,6 +1,5 @@
 import React from "react"
 import { motion } from "framer-motion"
-import { AnimatedGradient } from "@/components/ui/animated-gradient-with-svg"
 import { BarChart3, Code, MoreVertical, Eye, Edit, Copy as Duplicate, Trash2 } from "lucide-react"
 
 interface FormCardProps {
@@ -75,10 +74,8 @@ const FormCard: React.FC<FormCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
     >
-      <AnimatedGradient colors={colors} speed={0.05} blur="medium" />
-
       <motion.div
-        className="relative z-10 p-6 backdrop-blur-sm"
+        className="relative z-10 p-6"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3, delay: index * 0.05 + 0.1 }}

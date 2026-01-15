@@ -32,37 +32,54 @@ const AnimatedGradient: React.FC<AnimatedGradientProps> = ({
       ? "blur-3xl"
       : "blur-[100px]";
 
+  const circles = useMemo(() => {
+    return colors.map((color, index) => ({
+      color,
+      top: `${Math.random() * 50}%`,
+      left: `${Math.random() * 50}%`,
+      tx1: Math.random() - 0.5,
+      ty1: Math.random() - 0.5,
+      tx2: Math.random() - 0.5,
+      ty2: Math.random() - 0.5,
+      tx3: Math.random() - 0.5,
+      ty3: Math.random() - 0.5,
+      tx4: Math.random() - 0.5,
+      ty4: Math.random() - 0.5,
+      scale: randomInt(0.5, 1.5)
+    }));
+  }, [colors]);
+
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <div className={cn(`absolute inset-0`, blurClass)}>
-        {colors.map((color, index) => (
+        {circles.map((circle, index) => (
           <svg
             key={index}
-            className="absolute animate-background-gradient"
+            className="absolute animate-background-gradient will-change-transform"
             style={
               {
-                top: `${Math.random() * 50}%`,
-                left: `${Math.random() * 50}%`,
+                top: circle.top,
+                left: circle.left,
                 "--background-gradient-speed": `${1 / speed}s`,
-                "--tx-1": Math.random() - 0.5,
-                "--ty-1": Math.random() - 0.5,
-                "--tx-2": Math.random() - 0.5,
-                "--ty-2": Math.random() - 0.5,
-                "--tx-3": Math.random() - 0.5,
-                "--ty-3": Math.random() - 0.5,
-                "--tx-4": Math.random() - 0.5,
-                "--ty-4": Math.random() - 0.5,
+                "--tx-1": circle.tx1,
+                "--ty-1": circle.ty1,
+                "--tx-2": circle.tx2,
+                "--ty-2": circle.ty2,
+                "--tx-3": circle.tx3,
+                "--ty-3": circle.ty3,
+                "--tx-4": circle.tx4,
+                "--ty-4": circle.ty4,
               } as React.CSSProperties
             }
-            width={circleSize * randomInt(0.5, 1.5)}
-            height={circleSize * randomInt(0.5, 1.5)}
+            width={circleSize * circle.scale}
+            height={circleSize * circle.scale}
             viewBox="0 0 100 100"
           >
             <circle
               cx="50"
               cy="50"
               r="50"
-              fill={color}
+              fill={circle.color}
               className="opacity-30 dark:opacity-[0.15]"
             />
           </svg>

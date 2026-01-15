@@ -1,8 +1,6 @@
 import React from "react"
 import { motion } from "framer-motion"
 
-import { AnimatedGradient } from "@/components/ui/animated-gradient-with-svg"
-
 interface BentoCardProps {
   title: string
   value: string | number
@@ -12,7 +10,7 @@ interface BentoCardProps {
   className?: string
 }
 
-const BentoCard: React.FC<BentoCardProps> = ({
+const BentoCard: React.FC<BentoCardProps> = React.memo(({
   title,
   value,
   subtitle,
@@ -38,14 +36,13 @@ const BentoCard: React.FC<BentoCardProps> = ({
 
   return (
     <motion.div
-      className={`relative overflow-hidden h-full bg-white dark:bg-white/5 rounded-2xl ${className}`}
+      className={`relative overflow-hidden h-full bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 ${className}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, delay }}
     >
-      <AnimatedGradient colors={colors} speed={0.05} blur="medium" />
       <motion.div
-        className="relative z-10 p-3 sm:p-5 md:p-8 text-gray-900 dark:text-white backdrop-blur-sm h-full flex flex-col justify-between"
+        className="relative z-10 p-3 sm:p-5 md:p-8 text-gray-900 dark:text-white h-full flex flex-col justify-between"
         variants={container}
         initial="hidden"
         animate="show"
@@ -73,6 +70,6 @@ const BentoCard: React.FC<BentoCardProps> = ({
       </motion.div>
     </motion.div>
   )
-}
+})
 
 export { BentoCard }

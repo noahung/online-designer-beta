@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { StepLogic } from '../types/formLogic'
 
 // Extend window interface for height update timeout
 declare global {
@@ -238,6 +239,8 @@ export default function FormEmbed() {
       measurements_text?: string;
     }>;
   }>>({})
+  
+  const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
 
   const [formTheme, setFormTheme] = useState<string>('generic')
 
@@ -494,6 +497,29 @@ export default function FormEmbed() {
       
       console.log('Mapped steps:', mapped)
       setSteps(mapped)
+      
+      // Load step logic
+      const { data: logicData, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError && logicError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error loading step logic:', logicError)
+      }
+
+      if (logicData && logicData.length > 0) {
+        const logicMap = new Map<string, StepLogic>()
+        logicData.forEach((logic: any) => {
+          logicMap.set(logic.step_id, {
+            step_id: logic.step_id,
+            rules: logic.rules || [],
+            default_action: logic.default_action || undefined
+          })
+        })
+        setStepLogicMap(logicMap)
+        console.log('Loaded step logic:', logicMap)
+      }
     } catch (err) {
       console.error('Unexpected error loading form:', err)
       setError('An unexpected error occurred while loading the form')
@@ -502,18 +528,78 @@ export default function FormEmbed() {
     }
   }
 
+  // Helper function to evaluate logic rules and determine next step
+  const evaluateLogicRules = (currentStepId: string, selectedOption: Option): number | null => {
+    const logic = stepLogicMap.get(currentStepId)
+    if (!logic || logic.rules.length === 0) return null
+
+    // Evaluate rules in order
+    for (const rule of logic.rules) {
+      let allConditionsMet = true
+
+      // Check all conditions (AND logic)
+      for (const condition of rule.conditions) {
+        if (condition.field_type === 'option') {
+          // Check if selected option matches condition
+          if (condition.option_id !== selectedOption.id) {
+            allConditionsMet = false
+            break
+          }
+        }
+        // TODO: Add support for other condition types (text, scale, etc.) when needed
+      }
+
+      // If all conditions met, apply this rule's action
+      if (allConditionsMet && rule.action.target_step_order) {
+        const targetIdx = steps.findIndex(s => s.step_order === rule.action.target_step_order)
+        return targetIdx >= 0 ? targetIdx : null
+      }
+    }
+
+    // If no rules matched, check default action
+    if (logic.default_action?.action.target_step_order) {
+      const targetIdx = steps.findIndex(s => s.step_order === logic.default_action.action.target_step_order)
+      return targetIdx >= 0 ? targetIdx : null
+    }
+
+    return null
+  }
+
   const selectOption = (option: Option) => {
     setResponses(r => ({ ...r, [currentStepIndex]: { ...(r[currentStepIndex] || {}), option_id: option.id } }))
     
     // Auto-advance to next step after a brief delay for better UX
     setTimeout(() => {
-      // branching: jump to step if defined (1-based step indexes stored in DB)
+      const currentStep = steps[currentStepIndex]
+      
+      // First check new logic rules system
+      if (currentStep.id) {
+        const logicTargetIdx = evaluateLogicRules(currentStep.id, option)
+        if (logicTargetIdx !== null) {
+          const targetStep = steps[logicTargetIdx]
+          
+          // Check if both current and target steps are image selection steps
+          if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+            setPreviousStepIndex(currentStepIndex)
+            setAnimationDirection('forward')
+            setIsAnimating(true)
+            setTimeout(() => {
+              setNavigationHistory(prev => [...prev, currentStepIndex])
+              setCurrentStepIndex(logicTargetIdx)
+              setTimeout(() => setIsAnimating(false), 300)
+            }, 150)
+          } else {
+            setNavigationHistory(prev => [...prev, currentStepIndex])
+            setCurrentStepIndex(logicTargetIdx)
+          }
+          return
+        }
+      }
+      
+      // Fallback to old jump_to_step system (for backward compatibility)
       if (option.jump_to_step) {
-        // find index for jump_to_step
         const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
         if (idx >= 0) {
-          // Check if both current and target steps are image selection steps
-          const currentStep = steps[currentStepIndex]
           const targetStep = steps[idx]
           if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
             setPreviousStepIndex(currentStepIndex)
@@ -525,7 +611,6 @@ export default function FormEmbed() {
               setTimeout(() => setIsAnimating(false), 300)
             }, 150)
           } else {
-            // Add current step to history before jumping
             setNavigationHistory(prev => [...prev, currentStepIndex])
             setCurrentStepIndex(idx)
           }

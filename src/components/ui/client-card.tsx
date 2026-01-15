@@ -1,6 +1,5 @@
 import React from "react"
 import { motion } from "framer-motion"
-import { AnimatedGradient } from "@/components/ui/animated-gradient-with-svg"
 import { Edit, Trash2 } from "lucide-react"
 
 interface ClientCardProps {
@@ -35,10 +34,8 @@ const ClientCard: React.FC<ClientCardProps> = ({
       transition={{ duration: 0.5, delay: index * 0.1 }}
       whileHover={{ y: -4 }}
     >
-      <AnimatedGradient colors={colors} speed={0.05} blur="medium" />
-      
       <motion.div
-        className="relative z-10 p-6 backdrop-blur-sm h-full flex flex-col"
+        className="relative z-10 p-6 h-full flex flex-col"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
