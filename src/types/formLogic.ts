@@ -24,7 +24,7 @@ export interface LogicCondition {
  */
 export interface LogicAction {
   type: LogicActionType
-  target_step_order?: number // The step to jump to (1-based)
+  target_step_id?: string // The step ID to jump to (UUID - persists across reordering)
 }
 
 /**

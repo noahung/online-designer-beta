@@ -11,6 +11,7 @@ The conditional logic system has been fully implemented with an If-Then-Else-If-
 ### 1. **Conditional Logic Types** (`src/types/formLogic.ts`)
 - ✅ `LogicCondition` - Field-based conditions with comparison operators
 - ✅ `LogicAction` - Actions to take (go_to_step, skip_to_step, go_to_end)
+  - **Uses step IDs (UUIDs)** - Logic persists correctly when steps are reordered! 🎉
 - ✅ `LogicRule` - If-Then statements with multiple conditions (AND logic)
 - ✅ `DefaultLogicAction` - Else-Then fallback behavior
 - ✅ `StepLogic` - Complete logic configuration per step
@@ -18,6 +19,8 @@ The conditional logic system has been fully implemented with an If-Then-Else-If-
 ### 2. **Visual Logic Builder** (`src/components/LogicBuilder.tsx`)
 - ✅ Modal interface with enhanced visual indicators
 - ✅ **If-Then-Else-If-Then** structure with clear visual hierarchy
+- ✅ **Dropdown selectors** showing all available pages/steps to route to
+- ✅ **Safe reordering** - Logic uses step IDs, so moving steps won't break logic!
 - ✅ Multiple conditions per rule with **AND** badges
 - ✅ Condition count badges on rules
 - ✅ Visual flow arrows (→) between sections

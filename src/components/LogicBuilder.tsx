@@ -43,7 +43,7 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
       }],
       action: {
         type: 'go_to_step',
-        target_step_order: allSteps.find(s => s.step_order > currentStep.step_order)?.step_order
+        target_step_id: allSteps.find(s => s.step_order > currentStep.step_order)?.id
       },
       order: rules.length
     }
@@ -369,8 +369,8 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
 
                   {/* Target step */}
                   <select
-                    value={rule.action.target_step_order || ''}
-                    onChange={(e) => updateAction(rule.id, { target_step_order: Number(e.target.value) })}
+                    value={rule.action.target_step_id || ''}
+                    onChange={(e) => updateAction(rule.id, { target_step_id: e.target.value })}
                     className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium ${
                       theme === 'light'
                         ? 'bg-white border-gray-300 text-gray-900 [&>option]:text-gray-900 [&>option]:bg-white'
@@ -379,7 +379,7 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
                   >
                     <option value="">Select step...</option>
                     {availableTargetSteps.map(step => (
-                      <option key={step.id} value={step.step_order}>
+                      <option key={step.id} value={step.id}>
                         {step.step_order}. {step.title}
                       </option>
                     ))}
@@ -429,10 +429,10 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
               </span>
 
               <select
-                value={defaultAction?.action?.target_step_order || ''}
+                value={defaultAction?.action?.target_step_id || ''}
                 onChange={(e) => updateDefaultAction({ 
                   type: 'go_to_step',
-                  target_step_order: Number(e.target.value) 
+                  target_step_id: e.target.value
                 })}
                 className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium ${
                   theme === 'light'
@@ -442,7 +442,7 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
               >
                 <option value="">Next step (default)</option>
                 {availableTargetSteps.map(step => (
-                  <option key={step.id} value={step.step_order}>
+                  <option key={step.id} value={step.id}>
                     {step.step_order}. {step.title}
                   </option>
                 ))}

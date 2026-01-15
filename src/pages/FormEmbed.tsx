@@ -550,15 +550,15 @@ export default function FormEmbed() {
       }
 
       // If all conditions met, apply this rule's action
-      if (allConditionsMet && rule.action.target_step_order) {
-        const targetIdx = steps.findIndex(s => s.step_order === rule.action.target_step_order)
+      if (allConditionsMet && rule.action.target_step_id) {
+        const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
         return targetIdx >= 0 ? targetIdx : null
       }
     }
 
     // If no rules matched, check default action
-    if (logic.default_action?.action.target_step_order) {
-      const targetIdx = steps.findIndex(s => s.step_order === logic.default_action.action.target_step_order)
+    if (logic.default_action?.action.target_step_id) {
+      const targetIdx = steps.findIndex(s => s.id === logic.default_action.action.target_step_id)
       return targetIdx >= 0 ? targetIdx : null
     }
 
