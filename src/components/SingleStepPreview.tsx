@@ -15,7 +15,7 @@ type Step = {
   id?: string
   title: string
   description?: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
   is_required?: boolean
   step_order: number
   options: Option[]
@@ -32,6 +32,11 @@ type Step = {
   frames_require_image?: boolean
   frames_require_location?: boolean  
   frames_require_measurements?: boolean
+  loop_start_step_id?: string
+  loop_end_step_id?: string
+  loop_label?: string
+  loop_max_iterations?: number
+  loop_button_text?: string
 }
 
 interface SingleStepPreviewProps {
@@ -258,6 +263,41 @@ export default function SingleStepPreview({
             <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
               <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <p className="text-gray-600">Upload frame images</p>
+            </div>
+          </div>
+        )
+
+      case 'loop_section':
+        return (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {step.loop_label ? `Add Another ${step.loop_label}?` : 'Add Another Entry?'}
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Users can repeat this section multiple times
+                {step.loop_max_iterations && ` (max ${step.loop_max_iterations})`}
+              </p>
+              <div className="flex gap-2 justify-center">
+                <button 
+                  type="button"
+                  className="px-6 py-2 rounded-lg font-medium text-white"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {step.loop_button_text || `Add Another ${step.loop_label || 'Entry'}`}
+                </button>
+                <button 
+                  type="button"
+                  className="px-6 py-2 rounded-lg font-medium border-2 border-gray-300 text-gray-700"
+                >
+                  Continue
+                </button>
+              </div>
             </div>
           </div>
         )

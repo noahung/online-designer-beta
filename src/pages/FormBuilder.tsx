@@ -33,6 +33,7 @@ import {
   Copy,
   Undo,
   Redo,
+  Repeat,
   BookmarkPlus,
   FolderOpen,
   Settings
@@ -70,7 +71,7 @@ type Step = {
   id?: string
   title: string
   description?: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
   is_required?: boolean
   step_order: number
   options: Option[]
@@ -88,6 +89,12 @@ type Step = {
   frames_require_image?: boolean // whether image upload is required for each frame
   frames_require_location?: boolean // whether location text is required for each frame  
   frames_require_measurements?: boolean // whether measurements are required for each frame
+  // Loop section specific fields
+  loop_start_step_id?: string // for loop_section: ID of first step in loop
+  loop_end_step_id?: string // for loop_section: ID of last step in loop
+  loop_label?: string // for loop_section: label for repeated item (e.g., "Window")
+  loop_max_iterations?: number // for loop_section: max times user can loop (default 10)
+  loop_button_text?: string // for loop_section: custom "Add Another" button text
 }
 
 interface StepTypeOption {
@@ -145,6 +152,12 @@ const stepTypes: StepTypeOption[] = [
     title: 'Frames Plan',
     description: 'Multiple frame upload with locations and measurements',
     icon: <Frame className="h-4 w-4" />
+  },
+  {
+    type: 'loop_section',
+    title: 'Loop Section',
+    description: 'Let users repeat a section multiple times',
+    icon: <Repeat className="h-4 w-4" />
   }
 ]
 
@@ -2717,6 +2730,138 @@ export default function FormBuilder() {
                           <option value="false" className="bg-slate-800">Optional</option>
                         </select>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Loop Section Configuration */}
+                  {currentStep.question_type === 'loop_section' && (
+                    <div className="space-y-4">
+                      <div className="bg-blue-500/10 border border-blue-400/30 rounded-xl p-4 mb-4">
+                        <div className="flex items-start gap-3">
+                          <Repeat className="w-5 h-5 text-blue-300 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-200 mb-1">Loop Section</p>
+                            <p className="text-xs text-blue-300/80">
+                              This allows users to repeat a set of questions multiple times. For example, add multiple windows, properties, or team members in a single form submission.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Item Label</label>
+                        <input
+                          type="text"
+                          value={currentStep.loop_label || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_label: e.target.value 
+                          })}
+                          placeholder="e.g., Window, Property, Frame"
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">What are users adding? (e.g., "Window" becomes "Add Another Window")</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Loop Start Step</label>
+                        <select
+                          value={currentStep.loop_start_step_id || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_start_step_id: e.target.value 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="" className="bg-slate-800">Select start step...</option>
+                          {steps
+                            .filter((s, i) => i < selectedStepIndex!)
+                            .map((step, idx) => (
+                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
+                                {idx + 1}. {step.title}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-white/60">First step users will see when they loop back</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Loop End Step</label>
+                        <select
+                          value={currentStep.loop_end_step_id || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_end_step_id: e.target.value 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="" className="bg-slate-800">Select end step...</option>
+                          {steps
+                            .filter((s, i) => i < selectedStepIndex!)
+                            .map((step, idx) => (
+                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
+                                {idx + 1}. {step.title}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-white/60">Last step before returning to this loop section</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Maximum Iterations</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={currentStep.loop_max_iterations || 10}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_max_iterations: Number(e.target.value) || 10 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Maximum times user can repeat this section</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Button Text (Optional)</label>
+                        <input
+                          type="text"
+                          value={currentStep.loop_button_text || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_button_text: e.target.value 
+                          })}
+                          placeholder={`Add Another ${currentStep.loop_label || 'Item'}`}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Custom button text (leave empty for default)</p>
+                      </div>
+
+                      {/* Loop Preview */}
+                      {currentStep.loop_start_step_id && currentStep.loop_end_step_id && (
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 mt-4">
+                          <p className="text-sm font-medium text-white/90 mb-3">Loop Preview:</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-white/70">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold">
+                                {steps.findIndex(s => s.id === currentStep.loop_start_step_id) + 1}
+                              </span>
+                              <span>→</span>
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold">
+                                {steps.findIndex(s => s.id === currentStep.loop_end_step_id) + 1}
+                              </span>
+                              <Repeat className="w-4 h-4 text-white/50 ml-2" />
+                              <span className="text-xs text-white/50">
+                                (repeats up to {currentStep.loop_max_iterations || 10} times)
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/60">
+                              Users will see: "{currentStep.loop_button_text || `Add Another ${currentStep.loop_label || 'Item'}`}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
