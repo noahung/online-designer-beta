@@ -5,9 +5,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { useTheme } from '../contexts/ThemeContext'
 import FormPreview from '../components/FormPreview'
+import SingleStepPreview from '../components/SingleStepPreview'
 import SaveTemplateModal from '../components/templates/SaveTemplateModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
+import LogicBuilder from '../components/LogicBuilder'
 import { formThemes } from '../lib/formThemes'
+import { StepLogic } from '../types/formLogic'
 import { 
   ArrowLeft, 
   Save, 
@@ -30,6 +33,7 @@ import {
   Copy,
   Undo,
   Redo,
+  Repeat,
   BookmarkPlus,
   FolderOpen,
   Settings
@@ -67,7 +71,7 @@ type Step = {
   id?: string
   title: string
   description?: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
   is_required?: boolean
   step_order: number
   options: Option[]
@@ -85,6 +89,12 @@ type Step = {
   frames_require_image?: boolean // whether image upload is required for each frame
   frames_require_location?: boolean // whether location text is required for each frame  
   frames_require_measurements?: boolean // whether measurements are required for each frame
+  // Loop section specific fields
+  loop_start_step_id?: string // for loop_section: ID of first step in loop
+  loop_end_step_id?: string // for loop_section: ID of last step in loop
+  loop_label?: string // for loop_section: label for repeated item (e.g., "Window")
+  loop_max_iterations?: number // for loop_section: max times user can loop (default 10)
+  loop_button_text?: string // for loop_section: custom "Add Another" button text
 }
 
 interface StepTypeOption {
@@ -142,6 +152,12 @@ const stepTypes: StepTypeOption[] = [
     title: 'Frames Plan',
     description: 'Multiple frame upload with locations and measurements',
     icon: <Frame className="h-4 w-4" />
+  },
+  {
+    type: 'loop_section',
+    title: 'Loop Section',
+    description: 'Let users repeat a section multiple times',
+    icon: <Repeat className="h-4 w-4" />
   }
 ]
 
@@ -153,10 +169,11 @@ interface SortableStepItemProps {
   onClick: () => void
   onDelete: () => void
   onDuplicate: () => void
+  onPreview: () => void
   canDelete: boolean
 }
 
-function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, canDelete }: SortableStepItemProps) {
+function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, onPreview, canDelete }: SortableStepItemProps) {
   const {
     attributes,
     listeners,
@@ -204,6 +221,16 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onPreview()
+            }}
+            className="p-1 text-white/40 hover:text-green-300 hover:bg-green-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            title="Preview this step"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -628,6 +655,8 @@ export default function FormBuilder() {
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showSingleStepPreview, setShowSingleStepPreview] = useState(false)
+  const [previewStepIndex, setPreviewStepIndex] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
@@ -641,6 +670,10 @@ export default function FormBuilder() {
   const [showFormSettingsModal, setShowFormSettingsModal] = useState(false)
   const [showFormThemeModal, setShowFormThemeModal] = useState(false)
   const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
+  
+  // Logic modal state
+  const [showLogicBuilder, setShowLogicBuilder] = useState(false)
+  const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
 
   // Undo/Redo state
   const [history, setHistory] = useState<{ past: any[]; present: any; future: any[] }>({
@@ -805,6 +838,16 @@ export default function FormBuilder() {
 
       if (stepsError) throw stepsError
 
+      // Load step logic
+      const { data: logicData, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError && logicError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error loading step logic:', logicError)
+      }
+
       // Set form data
   setName(formData.name)
   setInternalName(formData.internal_name || '')
@@ -851,6 +894,20 @@ export default function FormBuilder() {
       }))
 
       setSteps(convertedSteps)
+      
+      // Convert logic data to Map
+      if (logicData && logicData.length > 0) {
+        const logicMap = new Map<string, StepLogic>()
+        logicData.forEach((logic: any) => {
+          logicMap.set(logic.step_id, {
+            step_id: logic.step_id,
+            rules: logic.rules || [],
+            default_action: logic.default_action || undefined
+          })
+        })
+        setStepLogicMap(logicMap)
+      }
+      
       push({ type: 'success', message: 'Form loaded successfully' })
       setIsInitialLoad(false)
     } catch (error) {
@@ -1423,6 +1480,39 @@ export default function FormBuilder() {
         }
       }
 
+      // Save step logic
+      if (finalFormId) {
+        // Delete existing step logic for this form
+        await supabase
+          .from('step_logic')
+          .delete()
+          .eq('form_id', finalFormId)
+
+        // Insert new step logic
+        const logicRecords = []
+        for (const [stepId, logic] of stepLogicMap.entries()) {
+          if (logic.rules.length > 0 || logic.default_action) {
+            logicRecords.push({
+              step_id: stepId,
+              form_id: finalFormId,
+              rules: logic.rules,
+              default_action: logic.default_action || null
+            })
+          }
+        }
+
+        if (logicRecords.length > 0) {
+          const { error: logicErr } = await supabase
+            .from('step_logic')
+            .insert(logicRecords)
+          
+          if (logicErr) {
+            console.error('Error saving step logic:', logicErr)
+            push({ type: 'warning', message: 'Form saved but logic rules may not have been saved' })
+          }
+        }
+      }
+
       push({ type: 'success', message: isEditing ? 'Form updated successfully' : 'Form created successfully' })
       // Stay on the same page after saving
     } catch (error) {
@@ -1781,6 +1871,10 @@ export default function FormBuilder() {
                         onClick={() => setSelectedStepIndex(index)}
                         onDelete={() => deleteStep(index)}
                         onDuplicate={() => duplicateStep(index)}
+                        onPreview={() => {
+                          setPreviewStepIndex(index)
+                          setShowSingleStepPreview(true)
+                        }}
                         canDelete={steps.length > 1}
                       />
                     ))}
@@ -1880,6 +1974,25 @@ export default function FormBuilder() {
                         Layout Settings
                       </button>
                     )}
+                    <button
+                      onClick={() => setShowLogicBuilder(true)}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 text-purple-700'
+                          : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-300 border border-purple-400/30'
+                      }`}
+                      title="Add conditional logic"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Logic
+                      {stepLogicMap.get(currentStep.id || '')?.rules.length ? (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+                          {stepLogicMap.get(currentStep.id || '')?.rules.length}
+                        </span>
+                      ) : null}
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-6">
@@ -2620,6 +2733,138 @@ export default function FormBuilder() {
                     </div>
                   )}
 
+                  {/* Loop Section Configuration */}
+                  {currentStep.question_type === 'loop_section' && (
+                    <div className="space-y-4">
+                      <div className="bg-blue-500/10 border border-blue-400/30 rounded-xl p-4 mb-4">
+                        <div className="flex items-start gap-3">
+                          <Repeat className="w-5 h-5 text-blue-300 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-200 mb-1">Loop Section</p>
+                            <p className="text-xs text-blue-300/80">
+                              This allows users to repeat a set of questions multiple times. For example, add multiple windows, properties, or team members in a single form submission.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Item Label</label>
+                        <input
+                          type="text"
+                          value={currentStep.loop_label || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_label: e.target.value 
+                          })}
+                          placeholder="e.g., Window, Property, Frame"
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">What are users adding? (e.g., "Window" becomes "Add Another Window")</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Loop Start Step</label>
+                        <select
+                          value={currentStep.loop_start_step_id || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_start_step_id: e.target.value 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="" className="bg-slate-800">Select start step...</option>
+                          {steps
+                            .filter((s, i) => i < selectedStepIndex!)
+                            .map((step, idx) => (
+                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
+                                {idx + 1}. {step.title}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-white/60">First step users will see when they loop back</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Loop End Step</label>
+                        <select
+                          value={currentStep.loop_end_step_id || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_end_step_id: e.target.value 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="" className="bg-slate-800">Select end step...</option>
+                          {steps
+                            .filter((s, i) => i < selectedStepIndex!)
+                            .map((step, idx) => (
+                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
+                                {idx + 1}. {step.title}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-white/60">Last step before returning to this loop section</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Maximum Iterations</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={currentStep.loop_max_iterations || 10}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_max_iterations: Number(e.target.value) || 10 
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Maximum times user can repeat this section</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Button Text (Optional)</label>
+                        <input
+                          type="text"
+                          value={currentStep.loop_button_text || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, { 
+                            ...currentStep, 
+                            loop_button_text: e.target.value 
+                          })}
+                          placeholder={`Add Another ${currentStep.loop_label || 'Item'}`}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Custom button text (leave empty for default)</p>
+                      </div>
+
+                      {/* Loop Preview */}
+                      {currentStep.loop_start_step_id && currentStep.loop_end_step_id && (
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 mt-4">
+                          <p className="text-sm font-medium text-white/90 mb-3">Loop Preview:</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-white/70">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold">
+                                {steps.findIndex(s => s.id === currentStep.loop_start_step_id) + 1}
+                              </span>
+                              <span>→</span>
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold">
+                                {steps.findIndex(s => s.id === currentStep.loop_end_step_id) + 1}
+                              </span>
+                              <Repeat className="w-4 h-4 text-white/50 ml-2" />
+                              <span className="text-xs text-white/50">
+                                (repeats up to {currentStep.loop_max_iterations || 10} times)
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/60">
+                              Users will see: "{currentStep.loop_button_text || `Add Another ${currentStep.loop_label || 'Item'}`}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Save Step Button */}
                   <div className="flex justify-end pt-6 mt-6 border-t border-white/20">
                     <button
@@ -2794,6 +3039,21 @@ export default function FormBuilder() {
         formId={formId}
         formName={name}
       />
+
+      {/* Single Step Preview Modal */}
+      {previewStepIndex !== null && (
+        <SingleStepPreview
+          isOpen={showSingleStepPreview}
+          onClose={() => {
+            setShowSingleStepPreview(false)
+            setPreviewStepIndex(null)
+          }}
+          step={steps[previewStepIndex]}
+          stepNumber={previewStepIndex + 1}
+          primaryColor={primaryButtonColor}
+          secondaryColor={secondaryButtonColor}
+        />
+      )}
 
       {/* Save Template Modal */}
       <SaveTemplateModal
@@ -3366,6 +3626,24 @@ export default function FormBuilder() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Logic Builder Modal */}
+      {showLogicBuilder && currentStep && (
+        <LogicBuilder
+          currentStep={currentStep}
+          allSteps={steps}
+          stepLogic={stepLogicMap.get(currentStep.id || '') || null}
+          onSave={(logic) => {
+            setStepLogicMap(prev => {
+              const newMap = new Map(prev)
+              newMap.set(currentStep.id || '', logic)
+              return newMap
+            })
+            push({ type: 'success', message: 'Logic rules saved successfully' })
+          }}
+          onClose={() => setShowLogicBuilder(false)}
+        />
       )}
     </div>
   )

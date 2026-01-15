@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import bannerImage from '../assets/images/banner.jpg'
+import { BentoCard } from '../components/ui/bento-card'
 import { 
   Users, 
   FileText, 
@@ -52,32 +53,28 @@ export default function Dashboard() {
   const [showBanner, setShowBanner] = useState(true)
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
-  useEffect(() => {
-    fetchStats()
-    fetchRecentActivity()
-  }, [user])
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!user) return
 
     try {
-      // Get clients count
-      const { count: clientsCount } = await supabase
-        .from('clients')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-
-      // Get forms count
-      const { count: formsCount } = await supabase
-        .from('forms')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-
-      // Get responses count
-      const { count: responsesCount } = await supabase
-        .from('responses')
-        .select('*, forms!inner(user_id)', { count: 'exact', head: true })
-        .eq('forms.user_id', user.id)
+      const [
+        { count: clientsCount },
+        { count: formsCount },
+        { count: responsesCount }
+      ] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('forms')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('responses')
+          .select('*, forms!inner(user_id)', { count: 'exact', head: true })
+          .eq('forms.user_id', user.id)
+      ])
 
       // Calculate response rate
       const responseRate = formsCount && formsCount > 0 ? 
@@ -94,35 +91,36 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
-  const fetchRecentActivity = async () => {
+  const fetchRecentActivity = useCallback(async () => {
     if (!user) return
 
     try {
-      // Fetch recent forms
-      const { data: forms } = await supabase
-        .from('forms')
-        .select('id, name, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(2)
-
-      // Fetch recent responses
-      const { data: responses } = await supabase
-        .from('responses')
-        .select('id, contact_name, submitted_at, forms!inner(user_id, name)')
-        .eq('forms.user_id', user.id)
-        .order('submitted_at', { ascending: false })
-        .limit(2)
-
-      // Fetch recent clients
-      const { data: clients } = await supabase
-        .from('clients')
-        .select('id, name, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
+      const [
+        { data: forms },
+        { data: responses },
+        { data: clients }
+      ] = await Promise.all([
+        supabase
+          .from('forms')
+          .select('id, name, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(2),
+        supabase
+          .from('responses')
+          .select('id, contact_name, submitted_at, forms!inner(user_id, name)')
+          .eq('forms.user_id', user.id)
+          .order('submitted_at', { ascending: false })
+          .limit(2),
+        supabase
+          .from('clients')
+          .select('id, name, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+      ])
 
       const activities: RecentActivity[] = []
 
@@ -172,7 +170,12 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching recent activity:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    fetchStats()
+    fetchRecentActivity()
+  }, [fetchStats, fetchRecentActivity])
 
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
@@ -184,54 +187,7 @@ export default function Dashboard() {
     return date.toLocaleDateString()
   }
 
-  const statCards = [
-    {
-      name: 'Total Clients',
-      value: stats.totalClients,
-      icon: Users,
-      color: 'from-blue-500 to-cyan-500',
-      bgColor: 'from-blue-500/10 to-cyan-500/10',
-      borderColor: 'border-blue-400/20',
-      iconBg: 'bg-blue-500/10',
-      trend: '+12%',
-      trendUp: true
-    },
-    {
-      name: 'Active Forms',
-      value: stats.totalForms,
-      icon: FileText,
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'from-green-500/10 to-emerald-500/10',
-      borderColor: 'border-green-400/20',
-      iconBg: 'bg-green-500/10',
-      trend: '+8%',
-      trendUp: true
-    },
-    {
-      name: 'Total Responses',
-      value: stats.totalResponses,
-      icon: BarChart3,
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'from-purple-500/10 to-pink-500/10',
-      borderColor: 'border-purple-400/20',
-      iconBg: 'bg-purple-500/10',
-      trend: '+24%',
-      trendUp: true
-    },
-    {
-      name: 'Response Rate',
-      value: `${stats.responseRate}%`,
-      icon: TrendingUp,
-      color: 'from-orange-500 to-red-500',
-      bgColor: 'from-orange-500/10 to-red-500/10',
-      borderColor: 'border-orange-400/20',
-      iconBg: 'bg-orange-500/10',
-      trend: '+5%',
-      trendUp: true
-    },
-  ]
-
-  const quickActions = [
+  const quickActions = useMemo(() => [
     {
       title: 'Create New Form',
       description: 'Build a custom form for your clients',
@@ -268,12 +224,10 @@ export default function Dashboard() {
       borderColor: 'border-orange-400/30',
       action: () => {}
     }
-  ]
+  ], [navigate])
 
   return (
-    <div className={`min-h-screen ${
-      theme === 'light' ? 'bg-gray-50' : 'bg-[#111111]'
-    }`}>
+    <div className={`w-full min-h-full ${theme === 'light' ? 'bg-gray-50' : ''}`}>
       <div className="max-w-[1600px] mx-auto p-8">
         {/* Promotional Banner */}
         {showBanner && (
@@ -326,9 +280,9 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
             {[...Array(4)].map((_, i) => (
-              <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
+              <div key={i} className={`backdrop-blur-md rounded-2xl border p-6 animate-pulse ${
                 theme === 'light'
                   ? 'bg-white border-gray-200'
                   : 'bg-white/5 border-white/10'
@@ -348,48 +302,46 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {statCards.map((stat, index) => (
-              <div 
-                key={stat.name} 
-                className={`backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
-                  stat.borderColor
-                } ${
-                  theme === 'light'
-                    ? 'bg-white hover:shadow-blue-500/10'
-                    : 'bg-white/5 hover:bg-white/10'
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                    stat.trendUp 
-                      ? 'bg-green-500/10 text-green-500' 
-                      : 'bg-red-500/10 text-red-500'
-                  }`}>
-                    <TrendingUp className={`w-3 h-3 mr-1 ${!stat.trendUp && 'rotate-180'}`} />
-                    {stat.trend}
-                  </div>
-                </div>
-                <p className={`text-sm font-medium mb-2 ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/60'
-                }`}>
-                  {stat.name}
-                </p>
-                <p className={`text-4xl font-bold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
-                  {stat.value}
-                </p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
+            <div className="md:col-span-2">
+              <BentoCard
+                title="Total Clients"
+                value={stats.totalClients}
+                subtitle="Active clients in your account"
+                colors={["#3B82F6", "#60A5FA", "#93C5FD"]}
+                delay={0.2}
+              />
+            </div>
+            <BentoCard
+              title="Active Forms"
+              value={stats.totalForms}
+              subtitle="Forms ready to collect responses"
+              colors={["#60A5FA", "#34D399", "#93C5FD"]}
+              delay={0.4}
+            />
+            <BentoCard
+              title="Response Rate"
+              value={`${stats.responseRate}%`}
+              subtitle="Engagement across all forms"
+              colors={["#F59E0B", "#A78BFA", "#FCD34D"]}
+              delay={0.6}
+            />
+            <div className="md:col-span-2">
+              <BentoCard
+                title="Total Responses"
+                value={stats.totalResponses}
+                subtitle="Form submissions received this month"
+                colors={["#3B82F6", "#A78BFA", "#FBCFE8"]}
+                delay={0.8}
+              />
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Quick Actions - Spans 2 columns */}
           <div className="lg:col-span-2">
-            <div className={`backdrop-blur-xl rounded-2xl border p-8 ${
+            <div className={`backdrop-blur-md rounded-2xl border p-8 ${
               theme === 'light'
                 ? 'bg-white border-gray-200'
                 : 'bg-white/5 border-white/10'
@@ -408,7 +360,7 @@ export default function Dashboard() {
                   <button
                     key={action.title}
                     onClick={action.action}
-                    className={`text-left p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group ${
+                    className={`text-left p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group will-change-transform ${
                       action.borderColor
                     } bg-gradient-to-br ${action.bgColor}`}
                     style={{ animationDelay: `${index * 0.1}s` }}
@@ -432,7 +384,7 @@ export default function Dashboard() {
             </div>
 
             {/* Performance Insights */}
-            <div className={`mt-8 backdrop-blur-xl rounded-2xl border p-8 ${
+            <div className={`mt-8 backdrop-blur-md rounded-2xl border p-8 ${
               theme === 'light'
                 ? 'bg-white border-gray-200'
                 : 'bg-white/5 border-white/10'
@@ -491,7 +443,7 @@ export default function Dashboard() {
 
           {/* Recent Activity - Spans 1 column */}
           <div className="lg:col-span-1">
-            <div className={`backdrop-blur-xl rounded-2xl border p-8 ${
+            <div className={`backdrop-blur-md rounded-2xl border p-8 ${
               theme === 'light'
                 ? 'bg-white border-gray-200'
                 : 'bg-white/5 border-white/10'
@@ -510,7 +462,7 @@ export default function Dashboard() {
                   recentActivity.map((activity, index) => (
                     <div
                       key={activity.id}
-                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${
+                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] will-change-transform ${
                         theme === 'light'
                           ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
                           : 'bg-white/5 border-white/10 hover:bg-white/10'
@@ -575,7 +527,7 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Tip */}
-            <div className={`mt-8 backdrop-blur-xl rounded-2xl border p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 ${
+            <div className={`mt-8 backdrop-blur-md rounded-2xl border p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 ${
               theme === 'light'
                 ? 'border-amber-400/20'
                 : 'border-amber-400/20'
