@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, X, AlertCircle, ArrowRight, ChevronRight, Check, Zap } from 'lucide-react'
+import { Plus, Trash2, X, AlertCircle, ArrowRight, ChevronRight, Check, Zap, Eye, Edit2 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { LogicRule, LogicCondition, LogicAction, DefaultLogicAction, StepLogic } from '../types/formLogic'
+import LogicVisualization from './LogicVisualization'
 
 interface Step {
   id?: string
@@ -21,6 +22,7 @@ interface LogicBuilderProps {
 
 export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave, onClose }: LogicBuilderProps) {
   const { theme } = useTheme()
+  const [viewMode, setViewMode] = useState<'edit' | 'visualize'>('edit')
   const [rules, setRules] = useState<LogicRule[]>(stepLogic?.rules || [])
   const [defaultAction, setDefaultAction] = useState<DefaultLogicAction | undefined>(stepLogic?.default_action)
 
@@ -143,7 +145,7 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
             <h2 className={`text-2xl font-bold ${
               theme === 'light' ? 'text-gray-900' : 'text-white'
             }`}>
-              Edit logic for
+              {viewMode === 'edit' ? 'Edit Logic' : 'Logic Flowchart'}
             </h2>
             <p className={`mt-1 text-sm flex items-center gap-2 ${
               theme === 'light' ? 'text-gray-600' : 'text-gray-400'
@@ -154,18 +156,70 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
               {currentStep.title}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className={`p-2 rounded-lg transition-colors ${
-              theme === 'light'
-                ? 'hover:bg-gray-100 text-gray-600'
-                : 'hover:bg-white/10 text-white/60'
-            }`}
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <div className={`p-1 rounded-lg flex items-center border ${
+              theme === 'light' 
+                ? 'bg-gray-100 border-gray-200' 
+                : 'bg-white/5 border-white/10'
+            }`}>
+              <button
+                onClick={() => setViewMode('edit')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                  viewMode === 'edit'
+                    ? theme === 'light'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'bg-gray-700 text-white shadow-sm'
+                    : theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-900'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Edit2 className="w-4 h-4" />
+                Editor
+              </button>
+              <button
+                onClick={() => setViewMode('visualize')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                  viewMode === 'visualize'
+                    ? theme === 'light'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'bg-gray-700 text-white shadow-sm'
+                    : theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-900'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Eye className="w-4 h-4" />
+                Flowchart
+              </button>
+            </div>
+
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-lg transition-colors ml-4 ${
+                theme === 'light'
+                  ? 'hover:bg-gray-100 text-gray-600'
+                  : 'hover:bg-white/10 text-white/60'
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
+        {viewMode === 'visualize' ? (
+          <LogicVisualization 
+            currentStep={currentStep} 
+            allSteps={allSteps}
+            stepLogic={{
+              step_id: currentStep.id || '',
+              rules,
+              default_action: defaultAction
+            }}
+          />
+        ) : (
+          <>
         {/* Info Box */}
         <div className={`m-6 p-4 rounded-xl border flex items-start gap-3 ${
           theme === 'light'
@@ -461,6 +515,9 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
             </div>
           )}
         </div>
+
+        </>
+        )}
 
         {/* Footer */}
         <div className={`sticky bottom-0 border-t p-6 flex items-center justify-between backdrop-blur-sm ${

@@ -539,30 +539,34 @@ export default function FormEmbed() {
   }
 
   // Helper function to evaluate logic rules and determine next step
-  const evaluateLogicRules = (currentStepId: string, selectedOption: Option): number | null => {
+  const evaluateLogicRules = (currentStepId: string, response: any): number | null => {
     const logic = stepLogicMap.get(currentStepId)
-    if (!logic || logic.rules.length === 0) return null
+    if (!logic || (!logic.rules.length && !logic.default_action)) return null
 
     // Evaluate rules in order
-    for (const rule of logic.rules) {
-      let allConditionsMet = true
+    if (logic.rules.length > 0) {
+      for (const rule of logic.rules) {
+        let allConditionsMet = true
 
-      // Check all conditions (AND logic)
-      for (const condition of rule.conditions) {
-        if (condition.field_type === 'option') {
-          // Check if selected option matches condition
-          if (condition.option_id !== selectedOption.id) {
-            allConditionsMet = false
-            break
+        // Check all conditions (AND logic)
+        for (const condition of rule.conditions) {
+          if (condition.field_type === 'option') {
+            // Check if selected option matches condition
+            // Handle both Option object (from selectOption) and response object (from responses state)
+            const selectedId = response?.id || response?.option_id
+            if (condition.option_id !== selectedId) {
+              allConditionsMet = false
+              break
+            }
           }
+          // TODO: Add support for other condition types (text, scale, etc.) when needed
         }
-        // TODO: Add support for other condition types (text, scale, etc.) when needed
-      }
 
-      // If all conditions met, apply this rule's action
-      if (allConditionsMet && rule.action.target_step_id) {
-        const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
-        return targetIdx >= 0 ? targetIdx : null
+        // If all conditions met, apply this rule's action
+        if (allConditionsMet && rule.action.target_step_id) {
+          const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
+          return targetIdx >= 0 ? targetIdx : null
+        }
       }
     }
 
@@ -1865,6 +1869,29 @@ export default function FormEmbed() {
       console.log('🔗 [FORM] View responses at: https://designer.advertomedia.co.uk/responses')
 
       setCurrentStepIndex(currentStepIndex + 1)
+      return
+    }
+
+    // Check for conditional logic before navigating
+    const currentStepLogic = step.id ? evaluateLogicRules(step.id, responses[currentStepIndex]) : null
+    if (currentStepLogic !== null) {
+      console.log('🔀 [FORM] Logic rule matched! Navigating to step index:', currentStepLogic)
+      
+      setNavigationHistory(prev => [...prev, currentStepIndex])
+      
+      // Trigger animation if moving between image selection steps
+      const targetStep = steps[currentStepLogic]
+      if (step?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+        setPreviousStepIndex(currentStepIndex)
+        setAnimationDirection('forward')
+        setIsAnimating(true)
+        setTimeout(() => {
+          setCurrentStepIndex(currentStepLogic)
+          setTimeout(() => setIsAnimating(false), 300)
+        }, 150)
+      } else {
+        setCurrentStepIndex(currentStepLogic)
+      }
       return
     }
 

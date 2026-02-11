@@ -9,6 +9,7 @@ import SingleStepPreview from '../components/SingleStepPreview'
 import SaveTemplateModal from '../components/templates/SaveTemplateModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
 import LogicBuilder from '../components/LogicBuilder'
+import GlobalFlowchart from '../components/GlobalFlowchart'
 import { formThemes } from '../lib/formThemes'
 import { StepLogic } from '../types/formLogic'
 import {
@@ -633,6 +634,7 @@ export default function FormBuilder() {
 
   // Logic modal state
   const [showLogicBuilder, setShowLogicBuilder] = useState(false)
+  const [showGlobalFlowchart, setShowGlobalFlowchart] = useState(false)
   const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
 
   // Undo/Redo state
@@ -1361,6 +1363,7 @@ export default function FormBuilder() {
 
       // Prepare to collect new logic records correctly mapped to new step IDs
       const logicToInsert: any[] = []
+      const idMap = new Map<string, string>()
 
       // Create/recreate all steps
       for (const step of steps) {
@@ -1392,20 +1395,9 @@ export default function FormBuilder() {
         if (stepErr) throw stepErr
         const stepId = stepData.id
 
-        // Check if there was logic associated with the old ID
-        if (oldStepId && stepLogicMap.has(oldStepId)) {
-          const oldLogic = stepLogicMap.get(oldStepId)
-          if (oldLogic) {
-            // Add to our list to insert, but mapped to the NEW step ID
-            if (oldLogic.rules.length > 0 || oldLogic.default_action) {
-              logicToInsert.push({
-                step_id: stepId,
-                form_id: finalFormId,
-                rules: oldLogic.rules,
-                default_action: oldLogic.default_action || null
-              })
-            }
-          }
+        // Map old ID to new ID for logic updates
+        if (oldStepId) {
+          idMap.set(oldStepId, stepId)
         }
 
         // Insert options (upload images if provided)
@@ -1465,6 +1457,44 @@ export default function FormBuilder() {
           if (optErr) throw optErr
         }
       }
+
+      // Process logic with correct ID mapping
+      stepLogicMap.forEach((logic, oldStepId) => {
+        const newStepId = idMap.get(oldStepId)
+        if (!newStepId) return
+
+        // Update rules with new target IDs
+        const updatedRules = logic.rules.map(rule => ({
+          ...rule,
+          step_id: newStepId,
+          action: {
+            ...rule.action,
+            target_step_id: rule.action.target_step_id 
+              ? idMap.get(rule.action.target_step_id) || rule.action.target_step_id 
+              : undefined
+          }
+        }))
+
+        // Update default action with new target ID
+        const updatedDefaultAction = logic.default_action ? {
+          ...logic.default_action,
+          action: {
+            ...logic.default_action.action,
+            target_step_id: logic.default_action.action.target_step_id
+              ? idMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id
+              : undefined
+          }
+        } : undefined
+
+        if (updatedRules.length > 0 || updatedDefaultAction) {
+          logicToInsert.push({
+            step_id: newStepId,
+            form_id: finalFormId,
+            rules: updatedRules,
+            default_action: updatedDefaultAction || null
+          })
+        }
+      })
 
       // Save step logic
       if (finalFormId) {
@@ -1780,6 +1810,18 @@ export default function FormBuilder() {
               title="Redo last undone action"
             >
               <Redo className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setShowGlobalFlowchart(true)}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
+                ? 'bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 text-teal-700 border border-teal-200'
+                : 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 hover:from-teal-500/30 hover:to-teal-600/30 text-teal-200 border border-teal-400/30'
+                }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Logic Map
             </button>
             <button
               onClick={() => setShowPreview(true)}
@@ -3518,6 +3560,23 @@ export default function FormBuilder() {
             push({ type: 'success', message: 'Logic rules saved successfully' })
           }}
           onClose={() => setShowLogicBuilder(false)}
+        />
+      )}
+
+      {/* Global Flowchart Modal */}
+      {showGlobalFlowchart && (
+        <GlobalFlowchart
+          steps={steps}
+          stepLogicMap={stepLogicMap}
+          onClose={() => setShowGlobalFlowchart(false)}
+          onEditLogic={(step) => {
+            const index = steps.findIndex(s => s.id === step.id)
+            if (index !== -1) {
+              setSelectedStepIndex(index)
+              setShowGlobalFlowchart(false) // Close map to open editor
+              setShowLogicBuilder(true)
+            }
+          }}
         />
       )}
     </div>
