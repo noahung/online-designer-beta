@@ -1630,6 +1630,10 @@ export default function FormBuilder() {
         setSteps(updatedSteps)
       }
 
+      // Track option ID mapping for logic updates
+      const optionIdMap = new Map<string, string>()
+      const newOptionsWithIds: Array<any> = []
+
       // Insert/recreate options
       for (const opt of step.options) {
         let image_url = opt.image_url || null
@@ -1676,14 +1680,83 @@ export default function FormBuilder() {
           */
         }
 
-        const { error: optErr } = await supabase.from('form_options').insert([{
+        const { data: optData, error: optErr } = await supabase.from('form_options').insert([{
           step_id: stepId,
           label: opt.label,
           image_url,
           jump_to_step: opt.jump_to_step ?? null,
           option_order: step.options.indexOf(opt) + 1
-        }])
+        }]).select().single()
+        
         if (optErr) throw optErr
+
+        // Map old option ID to new option ID
+        if (optData) {
+          if (opt.id) optionIdMap.set(opt.id, optData.id)
+          newOptionsWithIds.push({ ...opt, id: optData.id, image_url })
+        }
+      }
+
+      // Update local state with new IDs immediately!
+      // This fixes the issue where subsequent logic edits use old/undefined IDs
+      setSteps(prevSteps => {
+        const newSteps = [...prevSteps]
+        newSteps[stepIndex] = { 
+          ...newSteps[stepIndex], 
+          id: stepId,
+          options: newOptionsWithIds 
+        }
+        return newSteps
+      })
+
+      // Handle Step Logic
+      // We must save logic here because saveStep recreates IDs which breaks existing logic links
+      const oldStepId = step.id // Use original ID to look up logic
+      if (oldStepId && stepLogicMap.has(oldStepId)) {
+        const logic = stepLogicMap.get(oldStepId)
+        
+        // Check for temp IDs in targets (safeguard)
+        const hasTempTargets = logic?.rules.some(r => r.action.target_step_id?.startsWith('temp_')) ||
+                               logic?.default_action?.action.target_step_id?.startsWith('temp_')
+
+        if (hasTempTargets) {
+             push({ type: 'warning', message: 'Logic saved locally. Use "Save Form" to persist links to new steps.' })
+        } else if (logic && (logic.rules.length > 0 || logic.default_action)) {
+             // Delete existing logic for this step first
+             await supabase.from('step_logic').delete().eq('step_id', stepId)
+             
+             // Map rules to use new IDs
+             const mappedRules = logic.rules.map(r => ({
+                 ...r, 
+                 step_id: stepId,
+                 conditions: r.conditions.map(c => ({
+                     ...c,
+                     // Map option ID if it was recreated
+                     option_id: c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
+                 }))
+             }))
+
+             // Insert new logic
+             const { error: logicErr } = await supabase.from('step_logic').insert({
+                 step_id: stepId,
+                 form_id: formId,
+                 rules: mappedRules,
+                 default_action: logic.default_action ? {...logic.default_action, step_id: stepId} : null
+             })
+             
+             if (logicErr) console.error('Error saving step logic:', logicErr)
+        }
+
+        // Update local map key if step ID changed (e.g. new step saved for first time)
+        if (oldStepId !== stepId && logic) {
+             setStepLogicMap(prev => {
+                 const newMap = new Map(prev)
+                 newMap.delete(oldStepId)
+                 // Start using the real DB ID
+                 newMap.set(stepId, { ...logic, step_id: stepId })
+                 return newMap
+             })
+        }
       }
 
       push({ type: 'success', message: `Step "${step.title}" saved successfully` })
