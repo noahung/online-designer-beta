@@ -13,6 +13,7 @@ import Forms from './pages/Forms'
 import Responses from './pages/Responses'
 import Settings from './pages/Settings'
 import FormBuilder from './pages/FormBuilder'
+import SinglePageFormBuilder from './pages/SinglePageFormBuilder'
 import FormEmbed from './pages/FormEmbed'
 import APIEndpoint from './pages/APIEndpoint'
 import FormResponses from './pages/FormResponses'
@@ -129,6 +130,16 @@ function AppRoutes() {
         <Route path="forms/edit/:id" element={
           <ProtectedRoute adminOnly>
             <FormBuilder />
+          </ProtectedRoute>
+        } />
+        <Route path="forms/new-single" element={
+          <ProtectedRoute adminOnly>
+            <SinglePageFormBuilder />
+          </ProtectedRoute>
+        } />
+        <Route path="forms/edit-single/:id" element={
+          <ProtectedRoute adminOnly>
+            <SinglePageFormBuilder />
           </ProtectedRoute>
         } />
         <Route path="forms/:formId/responses" element={

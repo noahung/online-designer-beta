@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Eye, Code, Search, BarChart3, MoreVertical, Copy as
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import FolderSidebar from '../components/folders/FolderSidebar'
+import FormTypeSelectionModal from '../components/FormTypeSelectionModal'
 import FolderModal from '../components/folders/FolderModal'
 import FolderBadge from '../components/folders/FolderBadge'
 import BulkActions from '../components/folders/BulkActions'
@@ -31,6 +32,7 @@ interface Form {
   created_at: string
   client_id: string
   folder_id: string | null
+  form_type?: string | null
   clients: {
     name: string
     primary_color: string
@@ -71,6 +73,9 @@ export default function Forms() {
   
   // Dropdown menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  // Form type selection modal
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false)
 
   useEffect(() => {
     fetchForms()
@@ -225,8 +230,13 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   const openEditModal = async (formId: string) => {
-    // Navigate to the FormBuilder in edit mode instead of opening a modal
-    navigate(`/forms/edit/${formId}`)
+    // Find the form to check its type
+    const form = forms.find(f => f.id === formId)
+    if (form?.form_type === 'single_page') {
+      navigate(`/forms/edit-single/${formId}`)
+    } else {
+      navigate(`/forms/edit/${formId}`)
+    }
   }
 
   const duplicateForm = async (formId: string) => {
@@ -271,7 +281,8 @@ document.addEventListener("DOMContentLoaded", function() {
           primary_button_text_color: originalForm.primary_button_text_color,
           secondary_button_color: originalForm.secondary_button_color,
           secondary_button_text_color: originalForm.secondary_button_text_color,
-          internal_name: originalForm.internal_name
+          internal_name: originalForm.internal_name,
+          form_type: originalForm.form_type || 'multi_step'
         })
         .select()
         .single()
@@ -503,7 +514,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }`}>Create and manage your client forms</p>
               </div>
               <button 
-                onClick={() => navigate('/forms/new')} 
+                onClick={() => setIsTypeModalOpen(true)} 
                 className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
           style={{animationDelay: '0.2s'}}
         >
@@ -594,7 +605,7 @@ document.addEventListener("DOMContentLoaded", function() {
           <h3 className="text-2xl font-bold text-white mb-3">No forms yet</h3>
           <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
           <button 
-            onClick={() => navigate('/forms/new')} 
+            onClick={() => setIsTypeModalOpen(true)} 
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -655,6 +666,20 @@ document.addEventListener("DOMContentLoaded", function() {
           </div>
         </div>
       </div>
+
+      {/* Form type selection modal */}
+      <FormTypeSelectionModal
+        isOpen={isTypeModalOpen}
+        onClose={() => setIsTypeModalOpen(false)}
+        onSelect={(type) => {
+          setIsTypeModalOpen(false)
+          if (type === 'single_page') {
+            navigate('/forms/new-single')
+          } else {
+            navigate('/forms/new')
+          }
+        }}
+      />
     </>
   )
 }

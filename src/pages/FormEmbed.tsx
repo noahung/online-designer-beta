@@ -6,6 +6,8 @@ import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { StepLogic } from '../types/formLogic'
+import SinglePageFormEmbed from '../components/single-page/SinglePageFormEmbed'
+import type { RenderedField } from '../components/single-page/FieldRenderer'
 
 // Extend window interface for height update timeout
 declare global {
@@ -382,6 +384,8 @@ export default function FormEmbed() {
           user_id,
           client_id,
           form_theme,
+          form_type,
+          welcome_message,
           primary_button_color,
           primary_button_text_color,
           secondary_button_color,
@@ -2011,6 +2015,49 @@ export default function FormEmbed() {
           <p className={currentTheme.styles.text.body}>Your submission has been received.</p>
         </div>
       </div>
+    )
+  }
+
+  // ── Single-page form branch ───────────────────────────────────────────────
+  if (formData?.form_type === 'single_page') {
+    // Map form_steps to RenderedField[]
+    const renderedFields: RenderedField[] = steps.map((s: any) => ({
+      id: s.id,
+      field_type: s.question_type as any,
+      label: s.title,
+      description: s.description || '',
+      placeholder: s.placeholder || '',
+      is_required: s.is_required ?? false,
+      field_order: s.step_order,
+      options: (s.options || []).map((o: any) => ({
+        id: o.id,
+        label: o.label,
+        description: o.description || '',
+        image_url: o.image_url,
+      })),
+      allow_multiple: (s as any).allow_multiple ?? false,
+      scale_min: s.scale_min,
+      scale_max: s.scale_max,
+      scale_min_label: (s as any).scale_min_label || '',
+      scale_max_label: (s as any).scale_max_label || '',
+      number_min: (s as any).number_min,
+      number_max: (s as any).number_max,
+      max_file_size: s.max_file_size,
+      allowed_file_types: s.allowed_file_types,
+      images_per_row: s.images_per_row,
+    }))
+
+    return (
+      <SinglePageFormEmbed
+        formId={formData.id}
+        formName={formName}
+        fields={renderedFields}
+        formData={formData}
+        primaryColor={formData?.clients?.primary_color || formColors.primaryButtonColor}
+        primaryButtonColor={formColors.primaryButtonColor}
+        primaryButtonTextColor={formColors.primaryButtonTextColor}
+        welcomeMessage={formData?.welcome_message || ''}
+      />
     )
   }
 
