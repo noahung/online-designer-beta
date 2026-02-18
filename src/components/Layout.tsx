@@ -76,7 +76,7 @@ export default function Layout() {
 
   return (
     <div className={cn(
-      "flex flex-col md:flex-row w-full flex-1 mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
+      "flex flex-col md:flex-row w-full flex-1 mx-auto overflow-hidden",
       "h-screen"
     )}>
       <Sidebar open={open} setOpen={setOpen}>
@@ -165,10 +165,9 @@ const LogoIcon = () => {
 // Dashboard component holds the main content area
 const Dashboard = () => {
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 overflow-hidden">
       <div className={cn(
-        "p-2 md:p-10 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700",
-        "bg-white dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full overflow-y-auto"
+        "bg-white dark:bg-neutral-900 flex flex-col flex-1 w-full h-full overflow-y-auto"
       )}>
         <Outlet />
       </div>

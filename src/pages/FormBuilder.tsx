@@ -1364,6 +1364,8 @@ export default function FormBuilder() {
       // Prepare to collect new logic records correctly mapped to new step IDs
       const logicToInsert: any[] = []
       const idMap = new Map<string, string>()
+      // Maps old option IDs -> new DB option IDs, keyed by old step ID
+      const optionIdMapByStep = new Map<string, Map<string, string>>()
 
       // Create/recreate all steps
       for (const step of steps) {
@@ -1400,61 +1402,50 @@ export default function FormBuilder() {
           idMap.set(oldStepId, stepId)
         }
 
-        // Insert options (upload images if provided)
-        for (const opt of step.options) {
+        // Insert options - resolve image URLs first (uploads must be sequential), then batch insert
+        const resolvedOptions: Array<{ opt: typeof step.options[0]; image_url: string | null; order: number }> = []
+        for (let oi = 0; oi < step.options.length; oi++) {
+          const opt = step.options[oi]
           let image_url = opt.image_url || null
           if (opt.imageFile) {
-            // Try direct upload without policy checks first
             const bucket = 'form-assets'
             const filename = `${user.id}/${finalFormId}/${stepId}/${Date.now()}-${opt.imageFile.name}`
-
-            console.log('Attempting direct upload to:', bucket, filename)
             const { error: upErr } = await supabase.storage.from(bucket).upload(filename, opt.imageFile)
-
             if (upErr) {
               console.error('Upload error details:', upErr)
               push({ type: 'error', message: `Image upload failed: ${upErr.message}` })
-              // Fall back to placeholder
               image_url = `https://via.placeholder.com/300x200?text=${encodeURIComponent(opt.label)}`
             } else {
-              // Success! Get the public URL
               const { data: pub } = await supabase.storage.from(bucket).getPublicUrl(filename)
               image_url = pub?.publicUrl || `https://via.placeholder.com/300x200?text=${encodeURIComponent(opt.label)}`
-              console.log('Upload successful, URL:', image_url)
-              push({ type: 'success', message: 'Image uploaded successfully!' })
             }
-
-            /* TODO: Re-enable when storage is working
-            const bucket = 'form-assets'
-            
-            // Ensure bucket exists before uploading
-            const bucketReady = await ensureBucketExists(bucket)
-            if (!bucketReady) {
-              push({ type: 'error', message: 'Storage bucket not available. Please check your Supabase configuration.' })
-              continue // Skip this image and continue with the form save
-            }
-            
-            const filename = `${user.id}/${finalFormId}/${stepId}/${Date.now()}-${opt.imageFile.name}`
-            const { error: upErr } = await supabase.storage.from(bucket).upload(filename, opt.imageFile)
-            if (upErr) {
-              console.error('Upload error details:', upErr)
-              push({ type: 'error', message: `Image upload failed: ${upErr.message || 'Unknown error'}` })
-            } else {
-              // for public buckets, get the public URL and store that for direct use in the embed
-              const { data: pub } = await supabase.storage.from(bucket).getPublicUrl(filename)
-              image_url = (pub ?? { publicUrl: filename }).publicUrl
-            }
-            */
           }
+          resolvedOptions.push({ opt, image_url, order: oi + 1 })
+        }
 
-          const { error: optErr } = await supabase.from('form_options').insert([{
-            step_id: stepId,
-            label: opt.label,
-            image_url,
-            jump_to_step: opt.jump_to_step ?? null,
-            option_order: step.options.indexOf(opt) + 1
-          }])
+        // Batch insert all options for this step in one DB call
+        if (resolvedOptions.length > 0) {
+          const { data: insertedOpts, error: optErr } = await supabase.from('form_options').insert(
+            resolvedOptions.map(({ opt, image_url, order }) => ({
+              step_id: stepId,
+              label: opt.label,
+              image_url,
+              jump_to_step: opt.jump_to_step ?? null,
+              option_order: order
+            }))
+          ).select()
           if (optErr) throw optErr
+
+          // Track old->new option ID mapping for logic condition updates
+          if (insertedOpts) {
+            const optionMap = optionIdMapByStep.get(oldStepId || stepId) || new Map<string, string>()
+            resolvedOptions.forEach(({ opt }, idx) => {
+              if (opt.id && insertedOpts[idx]?.id) {
+                optionMap.set(opt.id, insertedOpts[idx].id)
+              }
+            })
+            optionIdMapByStep.set(oldStepId || stepId, optionMap)
+          }
         }
       }
 
@@ -1463,14 +1454,20 @@ export default function FormBuilder() {
         const newStepId = idMap.get(oldStepId)
         if (!newStepId) return
 
-        // Update rules with new target IDs
+        const optionIdMap = optionIdMapByStep.get(oldStepId) || new Map<string, string>()
+
+        // Update rules with new target IDs and option IDs
         const updatedRules = logic.rules.map(rule => ({
           ...rule,
           step_id: newStepId,
+          conditions: rule.conditions.map(c => ({
+            ...c,
+            option_id: c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
+          })),
           action: {
             ...rule.action,
-            target_step_id: rule.action.target_step_id 
-              ? idMap.get(rule.action.target_step_id) || rule.action.target_step_id 
+            target_step_id: rule.action.target_step_id
+              ? idMap.get(rule.action.target_step_id) || rule.action.target_step_id
               : undefined
           }
         }))
