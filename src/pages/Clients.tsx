@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Plus, Edit, Trash2, Users, Upload, X, Palette, Eye, EyeOff } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
+import { ClientCard } from '../components/ui/client-card'
 
 interface Client {
   id: string
@@ -412,119 +413,14 @@ export default function Clients() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clients.map((client, index) => (
-            <div key={client.id} className={`backdrop-blur-xl rounded-2xl border p-6 hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-200 hover:-translate-y-1 animate-slide-up ${
-              theme === 'light'
-                ? 'bg-white/60 border-gray-200 hover:bg-white/80'
-                : 'bg-white/10 border-white/20 hover:bg-white/15'
-            }`} style={{animationDelay: `${0.1 * index}s`}}>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className={`font-semibold mb-1 text-lg ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
-                  }`}>{client.name}</h3>
-                  <div className="flex items-center space-x-2">
-                    <p className={`text-sm ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                    }`}>
-                      Created {new Date(client.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleEdit(client)}
-                    className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                      theme === 'light'
-                        ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
-                        : 'text-white/60 hover:text-blue-300 hover:bg-blue-500/20'
-                    }`}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.id)}
-                    className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                      theme === 'light'
-                        ? 'text-gray-500 hover:text-red-600 hover:bg-red-50'
-                        : 'text-white/60 hover:text-red-300 hover:bg-red-500/20'
-                    }`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
-                    theme === 'light' ? 'text-gray-500' : 'text-white/70'
-                  }`}>Brand Colors</label>
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className={`w-10 h-10 rounded-xl border-2 shadow-lg ring-2 transition-transform hover:scale-110 ${
-                        theme === 'light'
-                          ? 'border-gray-200 ring-gray-100'
-                          : 'border-white/30 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: client.primary_color }}
-                      title={`Primary: ${client.primary_color}`}
-                    />
-                    <div 
-                      className={`w-10 h-10 rounded-xl border-2 shadow-lg ring-2 transition-transform hover:scale-110 ${
-                        theme === 'light'
-                          ? 'border-gray-200 ring-gray-100'
-                          : 'border-white/30 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: client.secondary_color }}
-                      title={`Secondary: ${client.secondary_color}`}
-                    />
-                  </div>
-                </div>
-
-                {client.logo_url && (
-                  <div>
-                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
-                    }`}>Logo</label>
-                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
-                      theme === 'light'
-                        ? 'bg-gray-50 border-gray-100'
-                        : 'bg-white/10 border-white/20'
-                    }`}>
-                      <img 
-                        src={client.logo_url} 
-                        alt={`${client.name} logo`}
-                        className="h-8"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {client.webhook_url && (
-                  <div>
-                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
-                    }`}>Webhook</label>
-                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
-                      theme === 'light'
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-green-500/10 border-green-400/30'
-                    }`}>
-                      <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${
-                          theme === 'light' ? 'bg-green-500' : 'bg-green-400'
-                        }`}></div>
-                        <span className={`text-xs font-medium ${
-                          theme === 'light' ? 'text-green-700' : 'text-green-300'
-                        }`}>
-                          Zapier Connected
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ClientCard
+              key={client.id}
+              client={client}
+              index={index}
+              onEdit={() => handleEdit(client)}
+              onDelete={() => handleDelete(client.id)}
+              theme={theme}
+            />
           ))}
         </div>
       )}
