@@ -73,9 +73,22 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
 
   // Update rule action
   const updateAction = (ruleId: string, updates: Partial<LogicAction>) => {
-    setRules(rules.map(rule => 
-      rule.id === ruleId ? { ...rule, action: { ...rule.action, ...updates } } : rule
-    ))
+    setRules(rules.map(rule => {
+      if (rule.id !== ruleId) return rule
+
+      const newAction = { ...rule.action, ...updates }
+      
+      // If switching to go_to_end, clear target_step_id
+      if (updates.type === 'go_to_end') {
+        delete newAction.target_step_id
+      }
+      // If switching to go_to_step/skip_to_step and no target, set default to next available
+      else if (updates.type && updates.type !== 'go_to_end' && !newAction.target_step_id) {
+        newAction.target_step_id = availableTargetSteps[0]?.id
+      }
+
+      return { ...rule, action: newAction }
+    }))
   }
 
   // Add condition to rule
@@ -108,9 +121,17 @@ export default function LogicBuilder({ currentStep, allSteps, stepLogic, onSave,
 
   // Update default action
   const updateDefaultAction = (updates: Partial<LogicAction>) => {
+    const currentAction = defaultAction?.action || { type: 'go_to_step' as const }
+    const newAction = { ...currentAction, ...updates }
+    
+    // Cleanup target_step_id if switching to go_to_end
+    if (updates.type === 'go_to_end') {
+      delete (newAction as any).target_step_id
+    }
+    
     setDefaultAction({
       step_id: currentStep.id || '',
-      action: { ...defaultAction?.action, ...updates } as LogicAction
+      action: newAction as LogicAction
     })
   }
 

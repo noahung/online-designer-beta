@@ -544,42 +544,87 @@ export default function FormEmbed() {
 
   // Helper function to evaluate logic rules and determine next step
   const evaluateLogicRules = (currentStepId: string, response: any): number | null => {
+    console.log('🔍 [FORM] Evaluating logic for step:', currentStepId)
     const logic = stepLogicMap.get(currentStepId)
-    if (!logic || (!logic.rules.length && !logic.default_action)) return null
+    if (!logic) {
+      console.log('   No logic found for this step')
+      return null
+    }
+
+    // Check if we should ignore logic (no rules and default action is just 'next step' without specific target)
+    if (logic.rules.length === 0 && !logic.default_action) {
+        console.log('   Logic object exists but is empty')
+        return null
+    }
+
+    console.log('   Found logic:', logic)
+    console.log('   User response:', response)
 
     // Evaluate rules in order
     if (logic.rules.length > 0) {
       for (const rule of logic.rules) {
         let allConditionsMet = true
 
+        // A rule with zero conditions should never auto-match — skip it
+        if (rule.conditions.length === 0) {
+          console.log('   ⚠️ Rule has no conditions, skipping:', rule.id)
+          continue
+        }
+
         // Check all conditions (AND logic)
         for (const condition of rule.conditions) {
           if (condition.field_type === 'option') {
-            // Check if selected option matches condition
             // Handle both Option object (from selectOption) and response object (from responses state)
             const selectedId = response?.id || response?.option_id
+            console.log(`   Rule ${rule.id}: condition.option_id="${condition.option_id}" vs selectedId="${selectedId}" → ${condition.option_id === selectedId ? 'MATCH' : 'NO MATCH'}`)
             if (condition.option_id !== selectedId) {
               allConditionsMet = false
               break
             }
+          } else {
+            // Non-option condition types are not yet evaluated — treat as unmet so rule is skipped
+            console.log(`   Rule ${rule.id}: condition field_type "${condition.field_type}" not supported yet, skipping rule`)
+            allConditionsMet = false
+            break
           }
-          // TODO: Add support for other condition types (text, scale, etc.) when needed
         }
 
         // If all conditions met, apply this rule's action
-        if (allConditionsMet && rule.action.target_step_id) {
-          const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
-          return targetIdx >= 0 ? targetIdx : null
+        if (allConditionsMet) {
+          console.log('   ✅ Rule matched:', rule)
+          // Handle "go to end" action explicitly
+          if (rule.action.type === 'go_to_end') {
+            console.log('   Action: Go to end')
+            return steps.length
+          }
+          
+          // Handle "go to step" action
+          if (rule.action.target_step_id) {
+            const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
+            console.log('   Action: Go to step ID', rule.action.target_step_id, 'Index:', targetIdx)
+            return targetIdx >= 0 ? targetIdx : null
+          }
         }
       }
     }
 
     // If no rules matched, check default action
-    if (logic.default_action?.action.target_step_id) {
-      const targetIdx = steps.findIndex(s => s.id === logic.default_action.action.target_step_id)
-      return targetIdx >= 0 ? targetIdx : null
+    if (logic.default_action) {
+      console.log('   Checking default action:', logic.default_action)
+      // Handle "go to end" default action
+      if (logic.default_action.action.type === 'go_to_end') {
+        console.log('   Default Action: Go to end')
+        return steps.length
+      }
+
+      if (logic.default_action.action.target_step_id) {
+        const targetIdx = steps.findIndex(s => s.id === logic.default_action.action.target_step_id)
+        console.log('   Default Action: Go to step ID', logic.default_action.action.target_step_id, 'Index:', targetIdx)
+        return targetIdx >= 0 ? targetIdx : null
+      }
     }
 
+    console.log('   No matching rules and no valid default action target')
     return null
   }
 
@@ -622,7 +667,8 @@ export default function FormEmbed() {
       }
       
       // Fallback to old jump_to_step system (for backward compatibility)
-      if (option.jump_to_step) {
+      // Only proceed if NO new logic exists for this step to prevent conflicts
+      if (option.jump_to_step && (!currentStep.id || !stepLogicMap.has(currentStep.id))) {
         const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
         if (idx >= 0) {
           const targetStep = steps[idx]
@@ -1928,9 +1974,18 @@ export default function FormEmbed() {
     if (navigationHistory.length > 1) {
       // Go back to the previous step in history
       const newHistory = [...navigationHistory]
-      newHistory.pop() // Remove current step
-      const previousStep = newHistory[newHistory.length - 1]
+      const previousStep = newHistory.pop()! // The popped value IS the step to return to
       setNavigationHistory(newHistory)
+
+      // Clear responses for all steps after the destination so stale answers
+      // from the previous navigation path cannot trigger incorrect logic rules
+      setResponses(r => {
+        const updated = { ...r }
+        for (let i = previousStep + 1; i < steps.length; i++) {
+          delete updated[i]
+        }
+        return updated
+      })
 
       // Trigger animation for image selection steps
       const currentStep = steps[currentStepIndex]
@@ -2111,7 +2166,7 @@ export default function FormEmbed() {
         <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
         <p className={currentTheme.styles.text.body}>{step.title}</p>
         {step.description && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
         )}
 
         <div className={currentTheme.styles.progress}>
@@ -2801,8 +2856,12 @@ export default function FormEmbed() {
                                 <>
                                   <Upload className="h-12 w-12 text-gray-400" />
                                   <div>
-                                    <p className="text-lg font-medium text-gray-600">Choose file</p>
-                                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB (drag & drop or click)</p>
+                                    <p className="text-lg font-medium text-gray-600 mb-2">
+                                      Choose file
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      PNG, JPG up to 10MB (drag & drop or click)
+                                    </p>
                                   </div>
                                 </>
                               )}
