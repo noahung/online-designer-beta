@@ -41,7 +41,8 @@ img, video {
 .animate-slide-up,
 .animate-slide-in-left,
 .animate-slide-in-right,
-.animate-scale-in {
+.animate-scale-in,
+.animate-background-gradient {
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;

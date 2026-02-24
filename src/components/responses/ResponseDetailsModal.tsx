@@ -1,4 +1,4 @@
-import { X, Calendar, User, Mail, Trash2, Phone, MapPin, FileText } from 'lucide-react'
+import { X, Calendar, User, Mail, Trash2, Phone, MapPin, FileText, Download } from 'lucide-react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { FormResponse } from '../../api/responses'
 import { createPortal } from 'react-dom'
@@ -33,6 +33,23 @@ export default function ResponseDetailsModal({
     }
   }
 
+  const downloadImage = async (imageUrl: string, fileName: string) => {
+    try {
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading image:', error)
+    }
+  }
+
   const renderAnswerValue = (answer: any): JSX.Element => {
     // Handle different answer types
     if (answer.answer_text) {
@@ -41,18 +58,31 @@ export default function ResponseDetailsModal({
     if (answer.file_url) {
       return (
         <div className="space-y-2">
-          <a
-            href={answer.file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`hover:underline ${
-              theme === 'light' ? 'text-blue-600' : 'text-blue-400'
-            }`}
-          >
-            {answer.file_name || 'Download File'} →
-          </a>
+          <div className="flex items-center gap-2">
+            <a
+              href={answer.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:underline ${
+                theme === 'light' ? 'text-blue-600' : 'text-blue-400'
+              }`}
+            >
+              {answer.file_name || 'Download File'} →
+            </a>
+            <button
+              onClick={() => downloadImage(answer.file_url, answer.file_name || 'attachment')}
+              className={`p-1.5 rounded-lg transition-colors ${
+                theme === 'light'
+                  ? 'hover:bg-blue-100 text-blue-600'
+                  : 'hover:bg-blue-500/20 text-blue-400'
+              }`}
+              title="Download file"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
           {answer.file_size && (
-            <span className={`text-sm ml-2 ${
+            <span className={`text-sm ${
               theme === 'light' ? 'text-gray-500' : 'text-white/60'
             }`}>
               ({(answer.file_size / 1024).toFixed(1)} KB)
@@ -72,9 +102,63 @@ export default function ResponseDetailsModal({
       return <span>Rating: {answer.scale_rating}</span>
     }
     if (answer.frames_count !== null) {
-      return <span>Frames: {answer.frames_count}</span>
+      return <span>Requested: {answer.frames_count} frame{answer.frames_count > 1 ? 's' : ''}</span>
     }
     return <span className={theme === 'light' ? 'text-gray-400' : 'text-white/40'}>-</span>
+  }
+
+  const renderFramesForAnswer = (answer: any) => {
+    const frames = (response.response_frames || []).filter((f: any) => f.step_id === answer.step_id)
+    if (frames.length === 0) return null
+
+    return (
+      <div className="mt-3 space-y-2">
+        <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
+          {frames.length} frame{frames.length > 1 ? 's' : ''} captured
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {frames.map((frame: any) => (
+            <div key={frame.id} className={`rounded-lg p-2 border ${
+              theme === 'light' ? 'bg-white border-gray-200' : 'bg-white/5 border-white/10'
+            }`}>
+              {frame.image_url ? (
+                <div className="relative group">
+                  <img 
+                    src={frame.image_url} 
+                    alt={`Frame ${frame.frame_number}`}
+                    className="w-full h-32 object-cover rounded mb-2"
+                  />
+                  <button
+                    onClick={() => downloadImage(frame.image_url, `frame-${frame.frame_number}.jpg`)}
+                    className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${
+                      theme === 'light' 
+                        ? 'bg-white/90 hover:bg-white text-gray-700'
+                        : 'bg-black/60 hover:bg-black/80 text-white'
+                    }`}
+                    title="Download image"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className={`w-full h-32 flex items-center justify-center rounded mb-2 ${
+                  theme === 'light' ? 'bg-gray-100' : 'bg-white/5'
+                }`}>
+                  <span className={`text-xs ${
+                    theme === 'light' ? 'text-gray-400' : 'text-white/40'
+                  }`}>No image</span>
+                </div>
+              )}
+              <div className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>
+                <p className="font-medium">Frame {frame.frame_number}</p>
+                {frame.location_text && <p className={theme === 'light' ? 'text-gray-500' : 'text-white/50'}>{frame.location_text}</p>}
+                {frame.measurements_text && <p className={theme === 'light' ? 'text-gray-500' : 'text-white/50'}>{frame.measurements_text}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const modalContent = (
@@ -308,6 +392,7 @@ export default function ResponseDetailsModal({
                       }`}>
                         {renderAnswerValue(answer)}
                       </div>
+                      {answer.form_steps?.[0]?.question_type === 'frames_plan' && renderFramesForAnswer(answer)}
                     </div>
                   ))}
               </div>

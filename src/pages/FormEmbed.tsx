@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabase'
 import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { StepLogic } from '../types/formLogic'
+import SinglePageFormEmbed from '../components/single-page/SinglePageFormEmbed'
+import type { RenderedField } from '../components/single-page/FieldRenderer'
 
 // Extend window interface for height update timeout
 declare global {
@@ -83,6 +86,11 @@ type Step = {
   frames_require_measurements?: boolean;
   enable_room_location?: boolean;
   enable_measurements?: boolean;
+  loop_start_step_id?: string;
+  loop_end_step_id?: string;
+  loop_label?: string;
+  loop_max_iterations?: number;
+  loop_button_text?: string;
 }
 
 export default function FormEmbed() {
@@ -238,6 +246,13 @@ export default function FormEmbed() {
       measurements_text?: string;
     }>;
   }>>({})
+  
+  const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
+
+  // Loop tracking state
+  const [loopIterations, setLoopIterations] = useState<Map<string, number>>(new Map()) // stepId -> current iteration count
+  const [currentIteration, setCurrentIteration] = useState<number>(0) // Current iteration number (0 = not in loop)
+  const [loopHistory, setLoopHistory] = useState<Array<{loopStepId: string, iteration: number}>>([]) // Track loop navigation history
 
   const [formTheme, setFormTheme] = useState<string>('generic')
 
@@ -369,6 +384,8 @@ export default function FormEmbed() {
           user_id,
           client_id,
           form_theme,
+          form_type,
+          welcome_message,
           primary_button_color,
           primary_button_text_color,
           secondary_button_color,
@@ -494,6 +511,29 @@ export default function FormEmbed() {
       
       console.log('Mapped steps:', mapped)
       setSteps(mapped)
+      
+      // Load step logic
+      const { data: logicData, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError && logicError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error loading step logic:', logicError)
+      }
+
+      if (logicData && logicData.length > 0) {
+        const logicMap = new Map<string, StepLogic>()
+        logicData.forEach((logic: any) => {
+          logicMap.set(logic.step_id, {
+            step_id: logic.step_id,
+            rules: logic.rules || [],
+            default_action: logic.default_action || undefined
+          })
+        })
+        setStepLogicMap(logicMap)
+        console.log('Loaded step logic:', logicMap)
+      }
     } catch (err) {
       console.error('Unexpected error loading form:', err)
       setError('An unexpected error occurred while loading the form')
@@ -502,18 +542,135 @@ export default function FormEmbed() {
     }
   }
 
+  // Helper function to evaluate logic rules and determine next step
+  const evaluateLogicRules = (currentStepId: string, response: any): number | null => {
+    console.log('🔍 [FORM] Evaluating logic for step:', currentStepId)
+    const logic = stepLogicMap.get(currentStepId)
+    if (!logic) {
+      console.log('   No logic found for this step')
+      return null
+    }
+
+    // Check if we should ignore logic (no rules and default action is just 'next step' without specific target)
+    if (logic.rules.length === 0 && !logic.default_action) {
+        console.log('   Logic object exists but is empty')
+        return null
+    }
+
+    console.log('   Found logic:', logic)
+    console.log('   User response:', response)
+
+    // Evaluate rules in order
+    if (logic.rules.length > 0) {
+      for (const rule of logic.rules) {
+        let allConditionsMet = true
+
+        // A rule with zero conditions should never auto-match — skip it
+        if (rule.conditions.length === 0) {
+          console.log('   ⚠️ Rule has no conditions, skipping:', rule.id)
+          continue
+        }
+
+        // Check all conditions (AND logic)
+        for (const condition of rule.conditions) {
+          if (condition.field_type === 'option') {
+            // Handle both Option object (from selectOption) and response object (from responses state)
+            const selectedId = response?.id || response?.option_id
+            console.log(`   Rule ${rule.id}: condition.option_id="${condition.option_id}" vs selectedId="${selectedId}" → ${condition.option_id === selectedId ? 'MATCH' : 'NO MATCH'}`)
+            if (condition.option_id !== selectedId) {
+              allConditionsMet = false
+              break
+            }
+          } else {
+            // Non-option condition types are not yet evaluated — treat as unmet so rule is skipped
+            console.log(`   Rule ${rule.id}: condition field_type "${condition.field_type}" not supported yet, skipping rule`)
+            allConditionsMet = false
+            break
+          }
+        }
+
+        // If all conditions met, apply this rule's action
+        if (allConditionsMet) {
+          console.log('   ✅ Rule matched:', rule)
+          // Handle "go to end" action explicitly
+          if (rule.action.type === 'go_to_end') {
+            console.log('   Action: Go to end')
+            return steps.length
+          }
+          
+          // Handle "go to step" action
+          if (rule.action.target_step_id) {
+            const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
+            console.log('   Action: Go to step ID', rule.action.target_step_id, 'Index:', targetIdx)
+            return targetIdx >= 0 ? targetIdx : null
+          }
+        }
+      }
+    }
+
+    // If no rules matched, check default action
+    if (logic.default_action) {
+      console.log('   Checking default action:', logic.default_action)
+      // Handle "go to end" default action
+      if (logic.default_action.action.type === 'go_to_end') {
+        console.log('   Default Action: Go to end')
+        return steps.length
+      }
+
+      if (logic.default_action.action.target_step_id) {
+        const targetIdx = steps.findIndex(s => s.id === logic.default_action.action.target_step_id)
+        console.log('   Default Action: Go to step ID', logic.default_action.action.target_step_id, 'Index:', targetIdx)
+        return targetIdx >= 0 ? targetIdx : null
+      }
+    }
+
+    console.log('   No matching rules and no valid default action target')
+    return null
+  }
+
   const selectOption = (option: Option) => {
-    setResponses(r => ({ ...r, [currentStepIndex]: { ...(r[currentStepIndex] || {}), option_id: option.id } }))
+    setResponses(r => ({ 
+      ...r, 
+      [currentStepIndex]: { 
+        ...(r[currentStepIndex] || {}), 
+        option_id: option.id,
+        iteration_number: currentIteration
+      } 
+    }))
     
     // Auto-advance to next step after a brief delay for better UX
     setTimeout(() => {
-      // branching: jump to step if defined (1-based step indexes stored in DB)
-      if (option.jump_to_step) {
-        // find index for jump_to_step
+      const currentStep = steps[currentStepIndex]
+      
+      // First check new logic rules system
+      if (currentStep.id) {
+        const logicTargetIdx = evaluateLogicRules(currentStep.id, option)
+        if (logicTargetIdx !== null) {
+          const targetStep = steps[logicTargetIdx]
+          
+          // Check if both current and target steps are image selection steps
+          if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+            setPreviousStepIndex(currentStepIndex)
+            setAnimationDirection('forward')
+            setIsAnimating(true)
+            setTimeout(() => {
+              setNavigationHistory(prev => [...prev, currentStepIndex])
+              setCurrentStepIndex(logicTargetIdx)
+              setTimeout(() => setIsAnimating(false), 300)
+            }, 150)
+          } else {
+            setNavigationHistory(prev => [...prev, currentStepIndex])
+            setCurrentStepIndex(logicTargetIdx)
+          }
+          return
+        }
+      }
+      
+      // Fallback to old jump_to_step system (for backward compatibility)
+      // Only proceed if NO new logic exists for this step to prevent conflicts
+      if (option.jump_to_step && (!currentStep.id || !stepLogicMap.has(currentStep.id))) {
         const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
         if (idx >= 0) {
-          // Check if both current and target steps are image selection steps
-          const currentStep = steps[currentStepIndex]
           const targetStep = steps[idx]
           if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
             setPreviousStepIndex(currentStepIndex)
@@ -525,7 +682,6 @@ export default function FormEmbed() {
               setTimeout(() => setIsAnimating(false), 300)
             }, 150)
           } else {
-            // Add current step to history before jumping
             setNavigationHistory(prev => [...prev, currentStepIndex])
             setCurrentStepIndex(idx)
           }
@@ -1689,7 +1845,9 @@ export default function FormEmbed() {
           // Opinion scale rating
           scale_rating: ans.scale_rating ?? null,
           // Frames count for frames_plan questions
-          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null
+          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null,
+          // Loop iteration number (0 = not in loop, 1+ = iteration number)
+          iteration_number: (ans as any)?.iteration_number ?? 0
         })
 
         // Collect frames_plan rows
@@ -1764,6 +1922,29 @@ export default function FormEmbed() {
       return
     }
 
+    // Check for conditional logic before navigating
+    const currentStepLogic = step.id ? evaluateLogicRules(step.id, responses[currentStepIndex]) : null
+    if (currentStepLogic !== null) {
+      console.log('🔀 [FORM] Logic rule matched! Navigating to step index:', currentStepLogic)
+      
+      setNavigationHistory(prev => [...prev, currentStepIndex])
+      
+      // Trigger animation if moving between image selection steps
+      const targetStep = steps[currentStepLogic]
+      if (step?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+        setPreviousStepIndex(currentStepIndex)
+        setAnimationDirection('forward')
+        setIsAnimating(true)
+        setTimeout(() => {
+          setCurrentStepIndex(currentStepLogic)
+          setTimeout(() => setIsAnimating(false), 300)
+        }, 150)
+      } else {
+        setCurrentStepIndex(currentStepLogic)
+      }
+      return
+    }
+
     // Regular next step navigation - add to history
     setNavigationHistory(prev => [...prev, currentStepIndex])
     
@@ -1793,9 +1974,18 @@ export default function FormEmbed() {
     if (navigationHistory.length > 1) {
       // Go back to the previous step in history
       const newHistory = [...navigationHistory]
-      newHistory.pop() // Remove current step
-      const previousStep = newHistory[newHistory.length - 1]
+      const previousStep = newHistory.pop()! // The popped value IS the step to return to
       setNavigationHistory(newHistory)
+
+      // Clear responses for all steps after the destination so stale answers
+      // from the previous navigation path cannot trigger incorrect logic rules
+      setResponses(r => {
+        const updated = { ...r }
+        for (let i = previousStep + 1; i < steps.length; i++) {
+          delete updated[i]
+        }
+        return updated
+      })
 
       // Trigger animation for image selection steps
       const currentStep = steps[currentStepIndex]
@@ -1883,6 +2073,49 @@ export default function FormEmbed() {
     )
   }
 
+  // ── Single-page form branch ───────────────────────────────────────────────
+  if (formData?.form_type === 'single_page') {
+    // Map form_steps to RenderedField[]
+    const renderedFields: RenderedField[] = steps.map((s: any) => ({
+      id: s.id,
+      field_type: s.question_type as any,
+      label: s.title,
+      description: s.description || '',
+      placeholder: s.placeholder || '',
+      is_required: s.is_required ?? false,
+      field_order: s.step_order,
+      options: (s.options || []).map((o: any) => ({
+        id: o.id,
+        label: o.label,
+        description: o.description || '',
+        image_url: o.image_url,
+      })),
+      allow_multiple: (s as any).allow_multiple ?? false,
+      scale_min: s.scale_min,
+      scale_max: s.scale_max,
+      scale_min_label: (s as any).scale_min_label || '',
+      scale_max_label: (s as any).scale_max_label || '',
+      number_min: (s as any).number_min,
+      number_max: (s as any).number_max,
+      max_file_size: s.max_file_size,
+      allowed_file_types: s.allowed_file_types,
+      images_per_row: s.images_per_row,
+    }))
+
+    return (
+      <SinglePageFormEmbed
+        formId={formData.id}
+        formName={formName}
+        fields={renderedFields}
+        formData={formData}
+        primaryColor={formData?.clients?.primary_color || formColors.primaryButtonColor}
+        primaryButtonColor={formColors.primaryButtonColor}
+        primaryButtonTextColor={formColors.primaryButtonTextColor}
+        welcomeMessage={formData?.welcome_message || ''}
+      />
+    )
+  }
+
   const step = steps[currentStepIndex]
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
@@ -1933,7 +2166,7 @@ export default function FormEmbed() {
         <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
         <p className={currentTheme.styles.text.body}>{step.title}</p>
         {step.description && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
         )}
 
         <div className={currentTheme.styles.progress}>
@@ -2623,8 +2856,12 @@ export default function FormEmbed() {
                                 <>
                                   <Upload className="h-12 w-12 text-gray-400" />
                                   <div>
-                                    <p className="text-lg font-medium text-gray-600">Choose file</p>
-                                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB (drag & drop or click)</p>
+                                    <p className="text-lg font-medium text-gray-600 mb-2">
+                                      Choose file
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      PNG, JPG up to 10MB (drag & drop or click)
+                                    </p>
                                   </div>
                                 </>
                               )}
@@ -2708,6 +2945,98 @@ export default function FormEmbed() {
               {step.is_required && (
                 <p className="text-xs text-gray-500">* indicates required fields</p>
               )}
+            </div>
+          </div>
+        ) : step.question_type === 'loop_section' ? (
+          <div className="mt-6">
+            <div className="space-y-6">
+              {/* Loop Section UI */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-4">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      {step.loop_label ? `Add Another ${step.loop_label}?` : 'Add Another Entry?'}
+                    </h3>
+                    <p className="text-gray-600">
+                      You've completed {currentIteration > 0 ? `${step.loop_label || 'entry'} #${currentIteration}` : 'the first entry'}.
+                      {step.loop_max_iterations && currentIteration < step.loop_max_iterations && (
+                        <span className="block mt-1 text-sm">
+                          You can add up to {step.loop_max_iterations} {step.loop_label?.toLowerCase() || 'entries'} total.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                    {/* Add Another button */}
+                    {(!step.loop_max_iterations || currentIteration < step.loop_max_iterations) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Increment iteration counter
+                          const newIteration = currentIteration + 1
+                          setCurrentIteration(newIteration)
+                          
+                          // Track this loop
+                          setLoopIterations(prev => new Map(prev).set(step.id!, newIteration))
+                          setLoopHistory(prev => [...prev, { loopStepId: step.id!, iteration: newIteration }])
+                          
+                          // Navigate back to loop start
+                          if (step.loop_start_step_id) {
+                            const startIndex = steps.findIndex(s => s.id === step.loop_start_step_id)
+                            if (startIndex !== -1) {
+                              setCurrentStepIndex(startIndex)
+                              // Clear responses in loop range for new iteration
+                              const endIndex = steps.findIndex(s => s.id === step.loop_end_step_id)
+                              if (endIndex !== -1) {
+                                setResponses(r => {
+                                  const newResponses = { ...r }
+                                  for (let i = startIndex; i <= endIndex; i++) {
+                                    delete newResponses[i]
+                                  }
+                                  return newResponses
+                                })
+                              }
+                            }
+                          }
+                        }}
+                        className="px-8 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                      >
+                        {step.loop_button_text || `Add Another ${step.loop_label || 'Entry'}`}
+                      </button>
+                    )}
+
+                    {/* Continue button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Reset iteration counter
+                        setCurrentIteration(0)
+                        
+                        // Move to next step
+                        if (currentStepIndex < steps.length - 1) {
+                          setCurrentStepIndex(prev => prev + 1)
+                        }
+                      }}
+                      className="px-8 py-3 rounded-xl font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                    >
+                      Continue
+                    </button>
+                  </div>
+
+                  {step.loop_max_iterations && currentIteration >= step.loop_max_iterations && (
+                    <p className="text-sm text-purple-600 font-medium">
+                      You've reached the maximum of {step.loop_max_iterations} {step.loop_label?.toLowerCase() || 'entries'}.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
