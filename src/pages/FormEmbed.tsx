@@ -78,6 +78,7 @@ type Step = {
   scale_min?: number;
   scale_max?: number;
   images_per_row?: number;
+  mobile_images_per_row?: number;
   crop_images_to_square?: boolean;
   frames_count?: number;
   frames_max_count?: number;
@@ -524,6 +525,7 @@ export default function FormEmbed() {
           scale_min: row.scale_min,
           scale_max: row.scale_max,
           images_per_row: row.images_per_row,
+          mobile_images_per_row: row.mobile_images_per_row,
           crop_images_to_square: row.crop_images_to_square ?? true,
           // Frames plan configuration (default when null/undefined)
           frames_max_count: row.frames_max_count ?? 10,
@@ -2145,6 +2147,7 @@ export default function FormEmbed() {
       max_file_size: s.max_file_size,
       allowed_file_types: s.allowed_file_types,
       images_per_row: s.images_per_row,
+      mobile_images_per_row: s.mobile_images_per_row,
     }))
 
     return (
@@ -2175,7 +2178,7 @@ export default function FormEmbed() {
       )}
       
   <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
-  <div className={currentTheme.styles.card} style={{ marginBottom: '0', background: 'none' }}>
+  <div className={currentTheme.styles.card} style={{ marginBottom: '0', ...(isTransparent ? {} : { background: 'none' }) }}>
         {/* Client Header */}
     {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
@@ -3089,17 +3092,24 @@ export default function FormEmbed() {
           </div>
         ) : (
           <div 
-            className={`grid gap-4 mt-6 grid-auto-rows-fr ${!step.crop_images_to_square ? 'items-start' : ''} ${
-              step.images_per_row === 1 
-                ? 'grid-cols-1' 
-                : step.images_per_row === 2
-                ? 'grid-cols-1 sm:grid-cols-2'
-                : step.images_per_row === 3 
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
-                : step.images_per_row === 4
-                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
-            }`}
+            className={`grid gap-4 mt-6 grid-auto-rows-fr ${!step.crop_images_to_square ? 'items-start' : ''} ${(() => {
+              const desktop = step.images_per_row || 2
+              const mobile = step.mobile_images_per_row
+              if (mobile != null) {
+                // Explicit mobile setting: use clean 2-breakpoint layout
+                const mobileClass = mobile === 2 ? 'grid-cols-2' : mobile === 3 ? 'grid-cols-3' : 'grid-cols-1'
+                if (desktop === 1) return 'grid-cols-1'
+                if (desktop === mobile) return mobileClass
+                const desktopClass = desktop === 2 ? 'md:grid-cols-2' : desktop === 3 ? 'md:grid-cols-3' : desktop === 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
+                return `${mobileClass} ${desktopClass}`
+              }
+              // Legacy: preserve existing breakpoint behaviour
+              if (desktop === 1) return 'grid-cols-1'
+              if (desktop === 2) return 'grid-cols-1 sm:grid-cols-2'
+              if (desktop === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              if (desktop === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+              return 'grid-cols-1 sm:grid-cols-2'
+            })()}`}
           >
             {step.options.map((opt: any, index: number) => (
               <AnimatedImageCard

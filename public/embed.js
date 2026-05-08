@@ -158,14 +158,16 @@
       'max-width:' + (opts.popupWidth || '680px'),
       'max-height:90vh',
       'border-radius:12px',
-      'overflow:hidden',
+      'overflow-y:auto',
+      'overscroll-behavior:contain',
       'box-shadow:0 25px 60px rgba(0,0,0,0.4)',
       'background:#fff',
       'display:flex',
       'flex-direction:column',
       'transform:translateY(20px) scale(0.97)',
       'transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-      'box-sizing:border-box'
+      'box-sizing:border-box',
+      '-webkit-overflow-scrolling:touch'
     ].join(';');
 
     // Close button
@@ -205,6 +207,10 @@
     modal.appendChild(closeBtn);
     modal.appendChild(iframe);
     overlay.appendChild(modal);
+
+    // Prevent host-page scroll when interacting with the overlay/modal
+    overlay.addEventListener('wheel', function (e) { e.stopPropagation(); }, { passive: false });
+    overlay.addEventListener('touchmove', function (e) { e.stopPropagation(); }, { passive: false });
 
     // Click outside to close
     overlay.addEventListener('click', function (e) {

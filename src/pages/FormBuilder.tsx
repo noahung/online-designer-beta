@@ -85,7 +85,8 @@ type Step = {
   scale_type?: 'number' | 'star' // for opinion scale step
   scale_min?: number // minimum scale value (default 1)
   scale_max?: number // maximum scale value (default 10 for number, 5 for star)
-  images_per_row?: number // for image_selection step layout (default 2)
+  images_per_row?: number // for image_selection step layout (default 2) - desktop columns
+  mobile_images_per_row?: number // for image_selection step layout - mobile columns (default 1)
   crop_images_to_square?: boolean // whether to crop images to square aspect ratio (default true)
   // Frames plan specific fields
   frames_max_count?: number // maximum number of frames allowed (default 10)
@@ -848,6 +849,7 @@ export default function FormBuilder() {
         scale_min: step.scale_min,
         scale_max: step.scale_max,
         images_per_row: step.images_per_row,
+        mobile_images_per_row: step.mobile_images_per_row,
         crop_images_to_square: step.crop_images_to_square ?? true,
         frames_max_count: step.frames_max_count,
         frames_require_image: step.frames_require_image,
@@ -959,6 +961,7 @@ export default function FormBuilder() {
       scale_min: type === 'opinion_scale' ? 1 : undefined,
       scale_max: type === 'opinion_scale' ? 10 : undefined,
       images_per_row: type === 'image_selection' ? 2 : undefined, // Default 2 images per row
+      mobile_images_per_row: type === 'image_selection' ? 1 : undefined, // Default 1 column on mobile
       crop_images_to_square: type === 'image_selection' ? true : undefined, // Default to crop images to square
       // Frames plan defaults
       frames_max_count: type === 'frames_plan' ? 10 : undefined,
@@ -1168,6 +1171,7 @@ export default function FormBuilder() {
           scale_min: step.scale_min,
           scale_max: step.scale_max,
           images_per_row: step.images_per_row,
+          mobile_images_per_row: step.mobile_images_per_row,
           crop_images_to_square: step.crop_images_to_square,
           frames_max_count: step.frames_max_count,
           frames_require_image: step.frames_require_image,
@@ -1229,6 +1233,7 @@ export default function FormBuilder() {
         scale_min: template.scale_min,
         scale_max: template.scale_max,
         images_per_row: template.images_per_row,
+        mobile_images_per_row: template.mobile_images_per_row,
         crop_images_to_square: template.crop_images_to_square ?? true,
         frames_max_count: template.frames_max_count,
         frames_require_image: template.frames_require_image,
@@ -1268,6 +1273,7 @@ export default function FormBuilder() {
         scale_min: template.scale_min,
         scale_max: template.scale_max,
         images_per_row: template.images_per_row,
+        mobile_images_per_row: template.mobile_images_per_row,
         crop_images_to_square: template.crop_images_to_square ?? true,
         frames_max_count: template.frames_max_count,
         frames_require_image: template.frames_require_image,
@@ -1623,6 +1629,7 @@ export default function FormBuilder() {
             dimension_type: step.dimension_type,
             dimension_units: step.dimension_units,
             images_per_row: step.images_per_row,
+            mobile_images_per_row: step.mobile_images_per_row,
             crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
@@ -1664,6 +1671,7 @@ export default function FormBuilder() {
             dimension_type: step.dimension_type,
             dimension_units: step.dimension_units,
             images_per_row: step.images_per_row,
+            mobile_images_per_row: step.mobile_images_per_row,
             crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
@@ -2201,16 +2209,22 @@ export default function FormBuilder() {
                             items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
                             strategy={verticalListSortingStrategy}
                           >
-                            <div className={`grid gap-4 grid-auto-rows-fr ${!currentStep.crop_images_to_square ? 'items-start' : ''} ${currentStep.images_per_row === 1
-                              ? 'grid-cols-1'
-                              : currentStep.images_per_row === 2
-                                ? 'grid-cols-1 sm:grid-cols-2'
-                                : currentStep.images_per_row === 3
-                                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                                  : currentStep.images_per_row === 4
-                                    ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                                    : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
-                              }`}>
+                            <div className={`grid gap-4 grid-auto-rows-fr ${!currentStep.crop_images_to_square ? 'items-start' : ''} ${(() => {
+                                const desktop = currentStep.images_per_row || 2
+                                const mobile = currentStep.mobile_images_per_row
+                                if (mobile != null) {
+                                  const mobileClass = mobile === 2 ? 'grid-cols-2' : mobile === 3 ? 'grid-cols-3' : 'grid-cols-1'
+                                  if (desktop === 1) return 'grid-cols-1'
+                                  if (desktop === mobile) return mobileClass
+                                  const desktopClass = desktop === 2 ? 'md:grid-cols-2' : desktop === 3 ? 'md:grid-cols-3' : desktop === 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
+                                  return `${mobileClass} ${desktopClass}`
+                                }
+                                if (desktop === 1) return 'grid-cols-1'
+                                if (desktop === 2) return 'grid-cols-1 sm:grid-cols-2'
+                                if (desktop === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                if (desktop === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                                return 'grid-cols-1 sm:grid-cols-2'
+                              })()}`}>
                               {currentStep.options.map((option, optIndex) => (
                                 <SortableImageOptionItem
                                   key={`step-${selectedStepIndex}-option-${optIndex}`}
@@ -3796,7 +3810,7 @@ export default function FormBuilder() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                    }`}>Images per row</label>
+                    }`}>Desktop columns</label>
                   <select
                     value={steps[selectedStepIndex].images_per_row || 2}
                     onChange={(e) => updateStep(selectedStepIndex, {
@@ -3815,7 +3829,31 @@ export default function FormBuilder() {
                   </select>
                   <p className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
                     }`}>
-                    Controls how many image cards display per row. Use fewer for larger cards on mobile.
+                    Number of columns on wider screens (≥768px).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                    }`}>Mobile columns</label>
+                  <select
+                    value={steps[selectedStepIndex].mobile_images_per_row || 1}
+                    onChange={(e) => updateStep(selectedStepIndex, {
+                      ...steps[selectedStepIndex],
+                      mobile_images_per_row: parseInt(e.target.value)
+                    })}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                      : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                      }`}
+                  >
+                    <option value={1} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>1 (Default)</option>
+                    <option value={2} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>2 (Side by side)</option>
+                    <option value={3} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>3 (Compact)</option>
+                  </select>
+                  <p className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                    }`}>
+                    Number of columns on narrow screens (&lt;768px). Set to 2 to show 2 cards side-by-side on mobile.
                   </p>
                 </div>
 
