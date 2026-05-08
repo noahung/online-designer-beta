@@ -30,6 +30,17 @@
     return BASE_URL + '/form/' + formId;
   }
 
+  function buildFormUrl(formId, opts) {
+    var base = getFormUrl(formId);
+    var params = [];
+    if (opts.transparent === 'true' || opts.transparent === true) params.push('transparent=1');
+    if (opts.hideLogo === 'true' || opts.hideLogo === true) params.push('hide_logo=1');
+    if (opts.hideTitle === 'true' || opts.hideTitle === true) params.push('hide_title=1');
+    if (opts.hideDescription === 'true' || opts.hideDescription === true) params.push('hide_description=1');
+    if (opts.redirect) params.push('redirect=' + encodeURIComponent(opts.redirect));
+    return params.length ? base + '?' + params.join('&') : base;
+  }
+
   function applyContainerReset(el) {
     // Strict CSS reset so host-page styles don't bleed in
     el.style.cssText += [
@@ -45,7 +56,7 @@
 
   function createIframe(formId, opts) {
     var iframe = document.createElement('iframe');
-    iframe.src = getFormUrl(formId);
+    iframe.src = buildFormUrl(formId, opts);
     iframe.title = opts.title || 'Form';
     iframe.id = 'designer-iframe-' + formId + '-' + uid();
     iframe.setAttribute('data-designer-id', formId);
@@ -88,6 +99,10 @@
       title: el.getAttribute('data-title') || 'Form',
       lazy: el.getAttribute('data-lazy') !== 'false',
       transparent: el.getAttribute('data-transparent') || 'false',
+      hideLogo: el.getAttribute('data-hide-logo') || 'false',
+      hideTitle: el.getAttribute('data-hide-title') || 'false',
+      hideDescription: el.getAttribute('data-hide-description') || 'false',
+      redirect: el.getAttribute('data-redirect') || '',
       width: el.getAttribute('data-width') || '100%',
       minHeight: el.getAttribute('data-min-height') || '400'
     };
@@ -268,6 +283,10 @@
       title: el.getAttribute('data-title') || 'Form',
       lazy: el.getAttribute('data-lazy') !== 'false',
       transparent: el.getAttribute('data-transparent') || 'false',
+      hideLogo: el.getAttribute('data-hide-logo') || 'false',
+      hideTitle: el.getAttribute('data-hide-title') || 'false',
+      hideDescription: el.getAttribute('data-hide-description') || 'false',
+      redirect: el.getAttribute('data-redirect') || '',
       popupWidth: el.getAttribute('data-popup-width') || '680px',
       trigger: el.getAttribute('data-trigger') || 'click',
       delay: parseInt(el.getAttribute('data-delay') || '0', 10),
@@ -342,7 +361,10 @@
 
     var opts = {
       title: el.getAttribute('data-title') || 'Form',
-      transparent: el.getAttribute('data-transparent') || 'false'
+      transparent: el.getAttribute('data-transparent') || 'false',
+      hideLogo: el.getAttribute('data-hide-logo') || 'false',
+      hideTitle: el.getAttribute('data-hide-title') || 'false',
+      hideDescription: el.getAttribute('data-hide-description') || 'false'
     };
 
     var iframe = createIframe(formId, opts);
