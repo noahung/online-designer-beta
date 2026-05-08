@@ -1403,26 +1403,12 @@ export default function FormEmbed() {
           break
         
         case 'image_selection':
-          // First try the enriched data, then fallback to finding in options
+          // Show only the option label, no image
           if (answer.selected_option_label) {
-            answerContent = `
-              <div style="margin: 10px 0;">
-                ${answer.selected_option_image ? `<img src="${answer.selected_option_image}" alt="${answer.selected_option_label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">` : ''}
-                <p style="margin: 5px 0; font-weight: 600;">${answer.selected_option_label}</p>
-              </div>
-            `
+            answerContent = answer.selected_option_label
           } else {
             const selectedImage = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
-            if (selectedImage) {
-              answerContent = `
-                <div style="margin: 10px 0;">
-                  <img src="${selectedImage.image_url}" alt="${selectedImage.label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">
-                  <p style="margin: 5px 0; font-weight: 600;">${selectedImage.label}</p>
-                </div>
-              `
-            } else {
-              answerContent = 'No image selected'
-            }
+            answerContent = selectedImage?.label || answer.answer_text || 'No image selected'
           }
           break
         
