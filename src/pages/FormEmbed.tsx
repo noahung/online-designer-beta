@@ -204,6 +204,25 @@ export default function FormEmbed() {
   }, []);
   const { } = useAuth()
   const { id } = useParams()
+
+  // Embed display options passed via URL query params from embed.js
+  const _embedParams = new URLSearchParams(window.location.search)
+  const isTransparent = _embedParams.get('transparent') === '1' || _embedParams.get('transparent') === 'true'
+  const embedHideLogo = _embedParams.get('hide_logo') === '1'
+  const embedHideTitle = _embedParams.get('hide_title') === '1'
+  const embedHideDescription = _embedParams.get('hide_description') === '1'
+
+  // Make html + body transparent when requested so host site bg shows through
+  useEffect(() => {
+    if (isTransparent) {
+      document.documentElement.style.background = 'transparent'
+      document.body.style.background = 'transparent'
+      return () => {
+        document.documentElement.style.background = ''
+        document.body.style.background = ''
+      }
+    }
+  }, [])
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -2146,7 +2165,7 @@ export default function FormEmbed() {
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
   return (
-  <div ref={formContainerRef} className={`${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto', minHeight: 'fit-content', paddingBottom: '0' }}>
+  <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto', minHeight: 'fit-content', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
       {/* Soft UI decorations for soft-ui theme - only show within form bounds */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ height: 'fit-content', paddingBottom: '0' }}>
@@ -2158,10 +2177,11 @@ export default function FormEmbed() {
   <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
   <div className={currentTheme.styles.card} style={{ marginBottom: '0', background: 'none' }}>
         {/* Client Header */}
-  {formData?.clients && (
+    {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
             {/* Client Logo */}
-            {formData?.clients?.logo_url ? (
+            {!embedHideLogo && (
+              formData?.clients?.logo_url ? (
               <div className="flex justify-center mb-3">
                 <img 
                   src={formData?.clients?.logo_url}
@@ -2177,19 +2197,23 @@ export default function FormEmbed() {
                   </svg>
                 </div>
               </div>
-            )}
+            ))}
             
             {/* Client Name */}
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">{formData?.clients?.name}</h2>
+            {!embedHideTitle && (
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{formData?.clients?.name}</h2>
+            )}
             
             {/* Form Description */}
-            {formDescription && (
+            {!embedHideDescription && formDescription && (
               <p className="text-sm text-gray-600">{formDescription}</p>
             )}
           </div>
         )}
         
-        <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
+        {!embedHideTitle && (
+          <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
+        )}
         <p className={currentTheme.styles.text.body}>{step.title}</p>
         {step.description && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{step.description}</p>

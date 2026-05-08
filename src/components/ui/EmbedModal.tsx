@@ -17,6 +17,9 @@ interface EmbedConfig {
   maxWidth: string
   // Appearance
   transparent: boolean
+  hideLogo: boolean
+  hideTitle: boolean
+  hideDescription: boolean
   // Popup options
   popupTrigger: PopupTrigger
   popupDelay: number
@@ -49,6 +52,9 @@ const defaultConfig: EmbedConfig = {
   fixedHeight: '500',
   maxWidth: '100%',
   transparent: false,
+  hideLogo: false,
+  hideTitle: false,
+  hideDescription: false,
   popupTrigger: 'click',
   popupDelay: 5,
   buttonText: 'Get a Quote',
@@ -72,6 +78,9 @@ function generateCode(formId: string, config: EmbedConfig, baseUrl: string): str
     attrs.push(`data-title="${config.iframeTitle}"`)
   }
   if (config.transparent) attrs.push(`data-transparent="true"`)
+  if (config.hideLogo) attrs.push(`data-hide-logo="true"`)
+  if (config.hideTitle) attrs.push(`data-hide-title="true"`)
+  if (config.hideDescription) attrs.push(`data-hide-description="true"`)
   if (!config.lazy) attrs.push(`data-lazy="false"`)
 
   if (config.mode === 'inline') {
@@ -162,9 +171,48 @@ function CodeBlock({ code }: { code: string }) {
 
 // ─── Live Preview ─────────────────────────────────────────────────────────────
 
-function LivePreview({ config, formId, baseUrl }: { config: EmbedConfig; formId: string; baseUrl: string }) {
-  const formUrl = `${baseUrl}/form/${formId}`
+// Static form mock — no iframes, avoids Supabase auth state cross-contamination
+function FormMock({ transparent }: { transparent: boolean }) {
+  const bg = transparent ? 'transparent' : '#fff'
+  const border = transparent ? '1px dashed rgba(255,255,255,0.2)' : 'none'
+  return (
+    <div style={{ background: bg, border, borderRadius: 8, padding: '14px 16px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Header skeleton */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, paddingBottom: 10, borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 6, background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="white"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+        </div>
+        <div style={{ height: 10, width: 90, background: '#1a1a2e', borderRadius: 3, opacity: 0.7 }} />
+        <div style={{ height: 7, width: 130, background: '#e5e7eb', borderRadius: 3 }} />
+      </div>
+      {/* Question */}
+      <div style={{ height: 9, width: '75%', background: '#1f2937', borderRadius: 3, opacity: 0.8 }} />
+      {/* Image grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, flex: 1 }}>
+        {[0,1,2,3,4,5].map(i => (
+          <div key={i} style={{ borderRadius: 6, background: i === 1 ? 'none' : '#f3f4f6', border: i === 1 ? '2px solid #3B82F6' : '1px solid #e5e7eb', aspectRatio: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, background: i === 1 ? '#dbeafe' : '#e9eef5' }} />
+            <div style={{ height: 14, padding: '0 4px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ height: 5, width: '70%', background: '#9ca3af', borderRadius: 2 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Progress + buttons */}
+      <div>
+        <div style={{ height: 3, borderRadius: 2, background: '#e5e7eb', marginBottom: 8, overflow: 'hidden' }}>
+          <div style={{ width: '0%', height: '100%', background: '#3B82F6', borderRadius: 2 }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ height: 24, width: 60, background: '#e5e7eb', borderRadius: 5 }} />
+          <div style={{ height: 24, width: 60, background: '#3B82F6', borderRadius: 5 }} />
+        </div>
+      </div>
+    </div>
+  )
+}
 
+function LivePreview({ config }: { config: EmbedConfig }) {
   const mockNavBar = (
     <div style={{ background: '#1a1a2e', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} />
@@ -188,13 +236,8 @@ function LivePreview({ config, formId, baseUrl }: { config: EmbedConfig; formId:
     return (
       <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', background: '#0f172a', height: '100%', display: 'flex', flexDirection: 'column' }}>
         {mockNavBar}
-        <div style={{ flex: 1, position: 'relative' }}>
-          <iframe
-            src={formUrl}
-            title="Form preview"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', background: config.transparent ? 'transparent' : '#fff' }}
-            aria-label="Form full-page preview"
-          />
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <FormMock transparent={config.transparent} />
         </div>
       </div>
     )
@@ -237,14 +280,9 @@ function LivePreview({ config, formId, baseUrl }: { config: EmbedConfig; formId:
         </div>
         {/* Popup overlay preview */}
         <div style={{ margin: '0 12px 12px', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)', position: 'relative' }}>
-          <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0, zIndex: 1 }} />
+          <div style={{ background: 'rgba(0,0,0,0.5)', position: 'absolute', inset: 0, zIndex: 1, borderRadius: 8 }} />
           <div style={{ position: 'relative', zIndex: 2, background: '#fff', borderRadius: 6, overflow: 'hidden', margin: 8 }}>
-            <iframe
-              src={formUrl}
-              title="Popup form preview"
-              style={{ width: '100%', height: 120, border: 'none', display: 'block' }}
-              aria-label="Popup form preview"
-            />
+            <FormMock transparent={false} />
           </div>
         </div>
       </div>
@@ -264,16 +302,11 @@ function LivePreview({ config, formId, baseUrl }: { config: EmbedConfig; formId:
           margin: '0 auto',
           borderRadius: 8,
           overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: config.transparent ? '1px dashed rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.1)',
           background: config.transparent ? 'transparent' : '#fff',
           height: config.dimensionMode === 'fixed' ? `${Math.min(parseInt(config.fixedHeight), 200)}px` : 150
         }}>
-          <iframe
-            src={formUrl}
-            title="Inline form preview"
-            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-            aria-label="Inline form preview"
-          />
+          <FormMock transparent={config.transparent} />
         </div>
       </div>
     </div>
@@ -485,6 +518,58 @@ export default function EmbedModal({ formId, formName, isOpen, onClose }: EmbedM
                 </div>
               </Section>
 
+              {/* Header Content */}
+              <Section title="Header Content">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-white/60">Show Logo</p>
+                    <p className="text-xs text-white/30">Client logo / icon</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={toggleClass(!config.hideLogo)}
+                    onClick={() => update('hideLogo', !config.hideLogo)}
+                    role="switch"
+                    aria-checked={!config.hideLogo}
+                    aria-label="Show logo"
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${!config.hideLogo ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-white/60">Show Title</p>
+                    <p className="text-xs text-white/30">Form &amp; client name</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={toggleClass(!config.hideTitle)}
+                    onClick={() => update('hideTitle', !config.hideTitle)}
+                    role="switch"
+                    aria-checked={!config.hideTitle}
+                    aria-label="Show title"
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${!config.hideTitle ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-white/60">Show Description</p>
+                    <p className="text-xs text-white/30">Subtitle under client name</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={toggleClass(!config.hideDescription)}
+                    onClick={() => update('hideDescription', !config.hideDescription)}
+                    role="switch"
+                    aria-checked={!config.hideDescription}
+                    aria-label="Show description"
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${!config.hideDescription ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                  </button>
+                </div>
+              </Section>
+
               {/* Dimensions (inline only) */}
               {config.mode === 'inline' && (
                 <Section title="Dimensions">
@@ -589,7 +674,7 @@ export default function EmbedModal({ formId, formName, isOpen, onClose }: EmbedM
             </div>
             <div className="flex-1 p-4 overflow-auto">
               <div style={{ height: 340 }}>
-                <LivePreview config={config} formId={formId} baseUrl={baseUrl} />
+                <LivePreview config={config} />
               </div>
               <p className="text-xs text-white/20 text-center mt-2">
                 Preview shown at reduced scale. Actual embed uses full dimensions.

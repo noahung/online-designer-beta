@@ -1923,6 +1923,7 @@ export default function FormBuilder() {
               Form Theme
             </button>
             <button
+              type="button"
               onClick={() => setShowEmbedModal(true)}
               disabled={!formId}
               className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${theme === 'light'
