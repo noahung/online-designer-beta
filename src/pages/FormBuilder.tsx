@@ -1005,9 +1005,7 @@ export default function FormBuilder() {
     const stepToDuplicate = steps[index]
     const duplicatedStep: Step = {
       ...stepToDuplicate,
-      ...stepToDuplicate,
       id: `temp_${Date.now()}`, // Temporary ID for logic mapping before save
-      title: `${stepToDuplicate.title} (Copy)`,
       title: `${stepToDuplicate.title} (Copy)`,
       step_order: index + 2, // Insert after the current step
       options: stepToDuplicate.options.map(option => ({
@@ -1026,27 +1024,37 @@ export default function FormBuilder() {
   }
 
   // Undo/Redo functions
-  const saveToHistory = () => {
+  const historyTimeoutRef = React.useRef<NodeJS.Timeout>();
+  
+  const saveToHistory = React.useCallback(() => {
     if (isInitialLoad) return
-    setHistory(prev => ({
-      past: prev.present ? [...prev.past, prev.present] : prev.past,
-      present: {
-        steps,
-        selectedStepIndex,
-        name,
-        internalName,
-        description,
-        welcomeMessage,
-        clientId,
-        formTheme,
-        primaryButtonColor,
-        primaryButtonTextColor,
-        secondaryButtonColor,
-        secondaryButtonTextColor
-      },
-      future: []
-    }))
-  }
+    
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current)
+    }
+    
+    // Debounce history save by 500ms
+    historyTimeoutRef.current = setTimeout(() => {
+      setHistory(prev => ({
+        past: prev.present ? [...prev.past, prev.present] : prev.past,
+        present: {
+          steps,
+          selectedStepIndex,
+          name,
+          internalName,
+          description,
+          welcomeMessage,
+          clientId,
+          formTheme,
+          primaryButtonColor,
+          primaryButtonTextColor,
+          secondaryButtonColor,
+          secondaryButtonTextColor
+        },
+        future: []
+      }))
+    }, 500)
+  }, [isInitialLoad, steps, selectedStepIndex, name, internalName, description, welcomeMessage, clientId, formTheme, primaryButtonColor, primaryButtonTextColor, secondaryButtonColor, secondaryButtonTextColor])
 
   const undo = () => {
     setHistory(prev => {
