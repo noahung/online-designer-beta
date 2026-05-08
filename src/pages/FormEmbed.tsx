@@ -86,6 +86,12 @@ type Step = {
   frames_require_measurements?: boolean;
   enable_room_location?: boolean;
   enable_measurements?: boolean;
+  // Contact fields visibility
+  contact_show_phone?: boolean;
+  contact_show_address?: boolean;
+  contact_show_project_details?: boolean;
+  contact_show_preferred_contact?: boolean;
+  contact_show_file_upload?: boolean;
   loop_start_step_id?: string;
   loop_end_step_id?: string;
   loop_label?: string;
@@ -505,6 +511,12 @@ export default function FormEmbed() {
           frames_require_image: row.frames_require_image ?? true,
           frames_require_location: row.frames_require_location ?? true,
           frames_require_measurements: row.frames_require_measurements ?? false,
+          // Contact fields visibility (default all shown)
+          contact_show_phone: row.contact_show_phone ?? true,
+          contact_show_address: row.contact_show_address ?? true,
+          contact_show_project_details: row.contact_show_project_details ?? true,
+          contact_show_preferred_contact: row.contact_show_preferred_contact ?? true,
+          contact_show_file_upload: row.contact_show_file_upload ?? true,
           options: opts 
         }
       })
@@ -1918,6 +1930,20 @@ export default function FormEmbed() {
       console.log('📋 [FORM] Response ID:', responseId)
       console.log('🔗 [FORM] View responses at: https://designer.advertomedia.co.uk/responses')
 
+      // Notify parent page that form was submitted (used by embed.js to close popups)
+      window.parent.postMessage({ type: 'designerFormSubmitted', formId: id }, '*')
+
+      // If a redirect URL was passed via query param, tell parent to navigate there
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
+      if (redirectUrl) {
+        try {
+          const target = new URL(redirectUrl)
+          if (target.protocol === 'http:' || target.protocol === 'https:') {
+            window.parent.postMessage({ type: 'designerFormRedirect', url: redirectUrl }, '*')
+          }
+        } catch { /* invalid URL, ignore */ }
+      }
+
       setCurrentStepIndex(currentStepIndex + 1)
       return
     }
@@ -2266,6 +2292,7 @@ export default function FormEmbed() {
                   />
                 </div>
 
+                {(step.contact_show_phone ?? true) && (
                 <div>
                   <label htmlFor="phone" className={currentTheme.styles.text.label}>
                     Phone Number <span className="text-red-500">*</span>
@@ -2286,7 +2313,9 @@ export default function FormEmbed() {
                     required
                   />
                 </div>
+                )}
 
+                {(step.contact_show_address ?? true) && (
                 <div>
                   <label htmlFor="address" className={currentTheme.styles.text.label}>
                     Property Address <span className="text-red-500">*</span>
@@ -2307,7 +2336,9 @@ export default function FormEmbed() {
                     required
                   />
                 </div>
+                )}
 
+                {(step.contact_show_project_details ?? true) && (
                 <div>
                   <label htmlFor="projectDetails" className={currentTheme.styles.text.label}>
                     Project Details
@@ -2328,7 +2359,9 @@ export default function FormEmbed() {
                     className={`${currentTheme.styles.input} resize-none`}
                   />
                 </div>
+                )}
 
+                {(step.contact_show_preferred_contact ?? true) && (
                 <div>
                   <label htmlFor="preferredContact" className={currentTheme.styles.text.label}>
                     Preferred Contact Method <span className="text-red-500">*</span>
@@ -2352,7 +2385,9 @@ export default function FormEmbed() {
                     <option value="Both">Both</option>
                   </select>
                 </div>
+                )}
 
+                {(step.contact_show_file_upload ?? true) && (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
                      onClick={() => {
                        const input = document.createElement('input')
@@ -2381,6 +2416,7 @@ export default function FormEmbed() {
                     </p>
                   </div>
                 </div>
+                )}
 
                 {responses[currentStepIndex]?.file && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -2406,18 +2442,6 @@ export default function FormEmbed() {
                     </div>
                   </div>
                 )}
-
-                <div className="flex items-start space-x-2 pt-4">
-                  <input
-                    type="checkbox"
-                    id="consent"
-                    required
-                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="consent" className="text-sm text-gray-600 flex-1">
-                    <span className="text-orange-500">⚠️</span> I agree to be contacted by {formData?.clients?.name || 'the company'} regarding my enquiry <span className="text-red-500">*</span>
-                  </label>
-                </div>
               </div>
             </div>
           </div>

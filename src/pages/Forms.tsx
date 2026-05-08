@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import FolderSidebar from '../components/folders/FolderSidebar'
 import FormTypeSelectionModal from '../components/FormTypeSelectionModal'
+import EmbedModal from '../components/ui/EmbedModal'
 import FolderModal from '../components/folders/FolderModal'
 import FolderBadge from '../components/folders/FolderBadge'
 import BulkActions from '../components/folders/BulkActions'
@@ -76,6 +77,9 @@ export default function Forms() {
 
   // Form type selection modal
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false)
+
+  // Embed modal state
+  const [embedModalForm, setEmbedModalForm] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     fetchForms()
@@ -199,34 +203,8 @@ export default function Forms() {
   }
 
   const copyEmbedCode = (formId: string) => {
-    const baseUrl = window.location.origin;
-    // Use custom domain detection - if on custom domain, no basename needed
-    const isCustomDomain = window.location.hostname !== 'noahung.github.io';
-    const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
-    const embedCode = `<div style="width:100%;"><iframe id="designerFormIframe" src="${baseUrl}${basename}/form/${formId}" style="width:100%;border:none;min-height:400px;" allowfullscreen></iframe></div>
-<script>
-window.addEventListener("message", function(event) {
-  if (event.data && event.data.type === "designerFormHeight" && event.data.height) {
-    var iframe = document.getElementById("designerFormIframe");
-    if (iframe) {
-      var newHeight = Math.max(event.data.height, 200); // Ensure minimum height
-      iframe.style.height = newHeight + "px";
-      console.log('[Parent] Updated iframe height to:', newHeight);
-    }
-  }
-}, false);
-
-// Also listen for load events to ensure initial sizing
-document.addEventListener("DOMContentLoaded", function() {
-  var iframe = document.getElementById("designerFormIframe");
-  if (iframe) {
-    // Set a reasonable initial height
-    iframe.style.height = "400px";
-  }
-});
-</script>`;
-    navigator.clipboard.writeText(embedCode);
-    push({ type: 'success', message: 'Embed code copied to clipboard' });
+    const form = forms.find(f => f.id === formId)
+    setEmbedModalForm({ id: formId, name: form?.name || 'Form' })
   }
 
   const openEditModal = async (formId: string) => {
@@ -680,6 +658,16 @@ document.addEventListener("DOMContentLoaded", function() {
           }
         }}
       />
+
+      {/* Embed modal */}
+      {embedModalForm && (
+        <EmbedModal
+          formId={embedModalForm.id}
+          formName={embedModalForm.name}
+          isOpen={true}
+          onClose={() => setEmbedModalForm(null)}
+        />
+      )}
     </>
   )
 }

@@ -173,11 +173,11 @@ const FormCard: React.FC<FormCardProps> = ({
               ))}
             </select>
 
-            {/* Embed Code Button */}
+            {/* Embed Settings Button */}
             <button
               onClick={onCopyEmbed}
               className="p-3 text-gray-600 dark:text-white/60 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-200 dark:hover:border-blue-400/30"
-              title="Copy embed code"
+              title="Embed settings"
             >
               <Code className="w-5 h-5" />
             </button>

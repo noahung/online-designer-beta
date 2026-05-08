@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import FormPreview from '../components/FormPreview'
 import SingleStepPreview from '../components/SingleStepPreview'
 import SaveTemplateModal from '../components/templates/SaveTemplateModal'
+import EmbedModal from '../components/ui/EmbedModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
 import LogicBuilder from '../components/LogicBuilder'
 import GlobalFlowchart from '../components/GlobalFlowchart'
@@ -32,6 +33,7 @@ import {
   Palette,
   Frame,
   Copy,
+  Code,
   Undo,
   Redo,
   Repeat,
@@ -90,6 +92,12 @@ type Step = {
   frames_require_image?: boolean // whether image upload is required for each frame
   frames_require_location?: boolean // whether location text is required for each frame  
   frames_require_measurements?: boolean // whether measurements are required for each frame
+  // Contact fields visibility toggles
+  contact_show_phone?: boolean
+  contact_show_address?: boolean
+  contact_show_project_details?: boolean
+  contact_show_preferred_contact?: boolean
+  contact_show_file_upload?: boolean
   // Loop section specific fields
   loop_start_step_id?: string // for loop_section: ID of first step in loop
   loop_end_step_id?: string // for loop_section: ID of last step in loop
@@ -631,6 +639,7 @@ export default function FormBuilder() {
   const [showFormSettingsModal, setShowFormSettingsModal] = useState(false)
   const [showFormThemeModal, setShowFormThemeModal] = useState(false)
   const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
+  const [showEmbedModal, setShowEmbedModal] = useState(false)
 
   // Logic modal state
   const [showLogicBuilder, setShowLogicBuilder] = useState(false)
@@ -844,6 +853,11 @@ export default function FormBuilder() {
         frames_require_image: step.frames_require_image,
         frames_require_location: step.frames_require_location,
         frames_require_measurements: step.frames_require_measurements,
+        contact_show_phone: step.contact_show_phone,
+        contact_show_address: step.contact_show_address,
+        contact_show_project_details: step.contact_show_project_details,
+        contact_show_preferred_contact: step.contact_show_preferred_contact,
+        contact_show_file_upload: step.contact_show_file_upload,
         options: (step.form_options || [])
           .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
           .map((option: any) => ({
@@ -857,9 +871,9 @@ export default function FormBuilder() {
 
       setSteps(convertedSteps)
 
-      // Convert logic data to Map
+      // Convert logic data to Map (always reset to avoid stale keys after step ID changes)
+      const logicMap = new Map<string, StepLogic>()
       if (logicData && logicData.length > 0) {
-        const logicMap = new Map<string, StepLogic>()
         logicData.forEach((logic: any) => {
           logicMap.set(logic.step_id, {
             step_id: logic.step_id,
@@ -867,8 +881,8 @@ export default function FormBuilder() {
             default_action: logic.default_action || undefined
           })
         })
-        setStepLogicMap(logicMap)
       }
+      setStepLogicMap(logicMap)
 
       push({ type: 'success', message: 'Form loaded successfully' })
       setIsInitialLoad(false)
@@ -1097,6 +1111,7 @@ export default function FormBuilder() {
     if (stepIndex < 0 || stepIndex >= steps.length) return
     const step = steps[stepIndex]
     const newOption: Option = {
+      id: `temp_${Date.now()}`, // Temporary ID so logic rules can reference this option before it's saved
       label: `Option ${step.options.length + 1}`,
       description: '',
       imageFile: null
@@ -1315,7 +1330,7 @@ export default function FormBuilder() {
       let finalFormId = formId
 
       if (isEditing && formId) {
-        // Update existing form
+        // Update existing form metadata
         const { error: formErr } = await supabase.from('forms')
           .update({
             name,
@@ -1334,13 +1349,18 @@ export default function FormBuilder() {
 
         if (formErr) throw formErr
 
-        // Delete existing steps and options
-        const { error: deleteErr } = await supabase
-          .from('form_steps')
-          .delete()
-          .eq('form_id', formId)
+        // Delete all existing step logic first (will be re-inserted below with correct IDs)
+        await supabase.from('step_logic').delete().eq('form_id', formId)
 
-        if (deleteErr) throw deleteErr
+        // Delete steps that were removed from the editor
+        const { data: dbSteps } = await supabase.from('form_steps').select('id').eq('form_id', formId)
+        const currentRealStepIds = new Set(
+          steps.filter(s => s.id && !s.id.startsWith('temp_')).map(s => s.id!)
+        )
+        const stepIdsToDelete = (dbSteps || []).map(s => s.id).filter((id: string) => !currentRealStepIds.has(id))
+        if (stepIdsToDelete.length > 0) {
+          await supabase.from('form_steps').delete().in('id', stepIdsToDelete)
+        }
       } else {
         // Create new form
         const { data: formData, error: formErr } = await supabase.from('forms').insert([{
@@ -1361,45 +1381,83 @@ export default function FormBuilder() {
         finalFormId = formData.id
       }
 
-      // Prepare to collect new logic records correctly mapped to new step IDs
-      const logicToInsert: any[] = []
+      // Maps temp IDs -> new real UUIDs (only for newly inserted steps)
       const idMap = new Map<string, string>()
-      // Maps old option IDs -> new DB option IDs, keyed by old step ID
+      // Maps final step ID -> Map(old option ID -> new option ID)
       const optionIdMapByStep = new Map<string, Map<string, string>>()
 
-      // Create/recreate all steps
+      // Process each step: update existing ones in place (preserving UUIDs), insert new ones
       for (const step of steps) {
-        // Capture the old ID (or temp ID) to look up logic
         const oldStepId = step.id
+        let stepId: string
 
-        const { data: stepData, error: stepErr } = await supabase.from('form_steps').insert([{
+        if (step.id && !step.id.startsWith('temp_')) {
+          // Existing step: UPDATE in place to preserve UUID (keeps logic references intact)
+          stepId = step.id
+          const { error: stepErr } = await supabase.from('form_steps')
+            .update({
+              title: step.title,
+              description: step.description || null,
+              question_type: step.question_type,
+              is_required: step.is_required ?? true,
+              step_order: step.step_order,
+              max_file_size: step.max_file_size,
+              allowed_file_types: step.allowed_file_types,
+              dimension_type: step.dimension_type,
+              dimension_units: step.dimension_units,
+              scale_type: step.scale_type,
+              scale_min: step.scale_min,
+              scale_max: step.scale_max,
+              images_per_row: step.images_per_row,
+              crop_images_to_square: step.crop_images_to_square ?? true,
+              frames_max_count: step.frames_max_count,
+              frames_require_image: step.frames_require_image,
+              frames_require_location: step.frames_require_location,
+              frames_require_measurements: step.frames_require_measurements,
+              contact_show_phone: step.contact_show_phone,
+              contact_show_address: step.contact_show_address,
+              contact_show_project_details: step.contact_show_project_details,
+              contact_show_preferred_contact: step.contact_show_preferred_contact,
+              contact_show_file_upload: step.contact_show_file_upload
+            })
+            .eq('id', stepId)
+            .eq('form_id', finalFormId!)
+          if (stepErr) throw stepErr
 
-          form_id: finalFormId,
-          title: step.title,
-          description: step.description || null,
-          question_type: step.question_type,
-          is_required: step.is_required ?? true,
-          step_order: step.step_order,
-          max_file_size: step.max_file_size,
-          allowed_file_types: step.allowed_file_types,
-          dimension_type: step.dimension_type,
-          dimension_units: step.dimension_units,
-          scale_type: step.scale_type,
-          scale_min: step.scale_min,
-          scale_max: step.scale_max,
-          images_per_row: step.images_per_row,
-          crop_images_to_square: step.crop_images_to_square ?? true,
-          frames_max_count: step.frames_max_count,
-          frames_require_image: step.frames_require_image,
-          frames_require_location: step.frames_require_location,
-          frames_require_measurements: step.frames_require_measurements
-        }]).select().single()
-        if (stepErr) throw stepErr
-        const stepId = stepData.id
-
-        // Map old ID to new ID for logic updates
-        if (oldStepId) {
-          idMap.set(oldStepId, stepId)
+          // Delete existing options (will be recreated below)
+          const { error: delOptErr } = await supabase.from('form_options').delete().eq('step_id', stepId)
+          if (delOptErr) throw delOptErr
+        } else {
+          // New step: INSERT and track the temp→real ID mapping
+          const { data: stepData, error: stepErr } = await supabase.from('form_steps').insert([{
+            form_id: finalFormId,
+            title: step.title,
+            description: step.description || null,
+            question_type: step.question_type,
+            is_required: step.is_required ?? true,
+            step_order: step.step_order,
+            max_file_size: step.max_file_size,
+            allowed_file_types: step.allowed_file_types,
+            dimension_type: step.dimension_type,
+            dimension_units: step.dimension_units,
+            scale_type: step.scale_type,
+            scale_min: step.scale_min,
+            scale_max: step.scale_max,
+            images_per_row: step.images_per_row,
+            crop_images_to_square: step.crop_images_to_square ?? true,
+            frames_max_count: step.frames_max_count,
+            frames_require_image: step.frames_require_image,
+            frames_require_location: step.frames_require_location,
+            frames_require_measurements: step.frames_require_measurements,
+            contact_show_phone: step.contact_show_phone,
+            contact_show_address: step.contact_show_address,
+            contact_show_project_details: step.contact_show_project_details,
+            contact_show_preferred_contact: step.contact_show_preferred_contact,
+            contact_show_file_upload: step.contact_show_file_upload
+          }]).select().single()
+          if (stepErr) throw stepErr
+          stepId = stepData.id
+          if (oldStepId) idMap.set(oldStepId, stepId)
         }
 
         // Insert options - resolve image URLs first (uploads must be sequential), then batch insert
@@ -1436,30 +1494,39 @@ export default function FormBuilder() {
           ).select()
           if (optErr) throw optErr
 
-          // Track old->new option ID mapping for logic condition updates
+          // Track old->new option ID mapping for logic condition updates (keyed by final step ID)
           if (insertedOpts) {
-            const optionMap = optionIdMapByStep.get(oldStepId || stepId) || new Map<string, string>()
+            const optionMap = new Map<string, string>()
             resolvedOptions.forEach(({ opt }, idx) => {
               if (opt.id && insertedOpts[idx]?.id) {
                 optionMap.set(opt.id, insertedOpts[idx].id)
               }
             })
-            optionIdMapByStep.set(oldStepId || stepId, optionMap)
+            optionIdMapByStep.set(stepId, optionMap)
           }
         }
       }
 
-      // Process logic with correct ID mapping
-      stepLogicMap.forEach((logic, oldStepId) => {
-        const newStepId = idMap.get(oldStepId)
-        if (!newStepId) return
+      // Build and save step logic
+      const logicToInsert: any[] = []
+      stepLogicMap.forEach((logic, mapStepId) => {
+        // Resolve the final step ID:
+        // - temp IDs were newly created → look up in idMap
+        // - real UUIDs belong to existing steps → ID is unchanged
+        let finalStepId: string
+        if (idMap.has(mapStepId)) {
+          finalStepId = idMap.get(mapStepId)!
+        } else if (mapStepId && !mapStepId.startsWith('temp_')) {
+          finalStepId = mapStepId
+        } else {
+          return // Orphaned temp ID (step was removed), skip
+        }
 
-        const optionIdMap = optionIdMapByStep.get(oldStepId) || new Map<string, string>()
+        const optionIdMap = optionIdMapByStep.get(finalStepId) || new Map<string, string>()
 
-        // Update rules with new target IDs and option IDs
         const updatedRules = logic.rules.map(rule => ({
           ...rule,
-          step_id: newStepId,
+          step_id: finalStepId,
           conditions: rule.conditions.map(c => ({
             ...c,
             option_id: c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
@@ -1467,25 +1534,24 @@ export default function FormBuilder() {
           action: {
             ...rule.action,
             target_step_id: rule.action.target_step_id
-              ? idMap.get(rule.action.target_step_id) || rule.action.target_step_id
+              ? (idMap.get(rule.action.target_step_id) || rule.action.target_step_id)
               : undefined
           }
         }))
 
-        // Update default action with new target ID
         const updatedDefaultAction = logic.default_action ? {
           ...logic.default_action,
           action: {
             ...logic.default_action.action,
             target_step_id: logic.default_action.action.target_step_id
-              ? idMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id
+              ? (idMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id)
               : undefined
           }
         } : undefined
 
         if (updatedRules.length > 0 || updatedDefaultAction) {
           logicToInsert.push({
-            step_id: newStepId,
+            step_id: finalStepId,
             form_id: finalFormId,
             rules: updatedRules,
             default_action: updatedDefaultAction || null
@@ -1493,27 +1559,11 @@ export default function FormBuilder() {
         }
       })
 
-      // Save step logic
-      if (finalFormId) {
-        // Delete existing step logic for this form
-        await supabase
-          .from('step_logic')
-          .delete()
-          .eq('form_id', finalFormId)
-
-        // Insert new step logic
-        // Logic records collected in loop
-
-
-        if (logicToInsert.length > 0) {
-          const { error: logicErr } = await supabase
-            .from('step_logic')
-            .insert(logicToInsert)
-
-          if (logicErr) {
-            console.error('Error saving step logic:', logicErr)
-            push({ type: 'warning', message: 'Form saved but logic rules may not have been saved' })
-          }
+      if (logicToInsert.length > 0) {
+        const { error: logicErr } = await supabase.from('step_logic').insert(logicToInsert)
+        if (logicErr) {
+          console.error('Error saving step logic:', logicErr)
+          push({ type: 'info', message: 'Form saved but logic rules may not have been saved' })
         }
       }
 
@@ -1577,7 +1627,12 @@ export default function FormBuilder() {
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,
-            frames_require_measurements: step.frames_require_measurements
+            frames_require_measurements: step.frames_require_measurements,
+            contact_show_phone: step.contact_show_phone,
+            contact_show_address: step.contact_show_address,
+            contact_show_project_details: step.contact_show_project_details,
+            contact_show_preferred_contact: step.contact_show_preferred_contact,
+            contact_show_file_upload: step.contact_show_file_upload
           })
           .eq('id', stepId)
           .eq('form_id', formId)
@@ -1613,7 +1668,12 @@ export default function FormBuilder() {
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,
-            frames_require_measurements: step.frames_require_measurements
+            frames_require_measurements: step.frames_require_measurements,
+            contact_show_phone: step.contact_show_phone,
+            contact_show_address: step.contact_show_address,
+            contact_show_project_details: step.contact_show_project_details,
+            contact_show_preferred_contact: step.contact_show_preferred_contact,
+            contact_show_file_upload: step.contact_show_file_upload
           }])
           .select()
           .single()
@@ -1725,7 +1785,7 @@ export default function FormBuilder() {
              // Map rules to use new IDs
              const mappedRules = logic.rules.map(r => ({
                  ...r, 
-                 step_id: stepId,
+                 step_id: stepId!,
                  conditions: r.conditions.map(c => ({
                      ...c,
                      // Map option ID if it was recreated
@@ -1734,23 +1794,39 @@ export default function FormBuilder() {
              }))
 
              // Insert new logic
+             const updatedDefaultAction = logic.default_action ? {...logic.default_action, step_id: stepId!} : null
              const { error: logicErr } = await supabase.from('step_logic').insert({
                  step_id: stepId,
                  form_id: formId,
                  rules: mappedRules,
-                 default_action: logic.default_action ? {...logic.default_action, step_id: stepId} : null
+                 default_action: updatedDefaultAction
              })
              
-             if (logicErr) console.error('Error saving step logic:', logicErr)
-        }
-
-        // Update local map key if step ID changed (e.g. new step saved for first time)
-        if (oldStepId !== stepId && logic) {
+             if (logicErr) {
+                 console.error('Error saving step logic:', logicErr)
+             } else {
+                 // Update stepLogicMap with remapped option IDs so that:
+                 // 1. Re-opening the LogicBuilder shows the correct (current) option IDs
+                 // 2. Subsequent saveStep calls use current IDs in optionIdMap (not stale ones)
+                 const updatedLogic = {
+                     ...logic,
+                     step_id: stepId!,
+                     rules: mappedRules,
+                     default_action: updatedDefaultAction || undefined
+                 }
+                 setStepLogicMap(prev => {
+                     const newMap = new Map(prev)
+                     if (oldStepId !== stepId) newMap.delete(oldStepId)
+                     newMap.set(stepId!, updatedLogic)
+                     return newMap
+                 })
+             }
+        } else if (oldStepId !== stepId && logic) {
+             // Step ID changed (new step getting its first real DB ID) — update map key
              setStepLogicMap(prev => {
                  const newMap = new Map(prev)
                  newMap.delete(oldStepId)
-                 // Start using the real DB ID
-                 newMap.set(stepId, { ...logic, step_id: stepId })
+                 newMap.set(stepId!, { ...logic, step_id: stepId! })
                  return newMap
              })
         }
@@ -1847,17 +1923,15 @@ export default function FormBuilder() {
               Form Theme
             </button>
             <button
-              onClick={() => setShowButtonColoursModal(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
-                ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-200'
-                : 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 text-yellow-200 border border-yellow-400/30'
+              onClick={() => setShowEmbedModal(true)}
+              disabled={!formId}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${theme === 'light'
+                ? 'bg-gradient-to-r from-emerald-50 to-teal-100 hover:from-emerald-100 hover:to-teal-200 text-emerald-700 border border-emerald-200'
+                : 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 text-emerald-200 border border-emerald-400/30'
                 }`}
             >
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
-                <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-              </svg>
-              Button Colours
+              <Code className="w-4 h-4 mr-2" />
+              Embed Form
             </button>
             <button
               onClick={undo}
@@ -2804,6 +2878,106 @@ export default function FormBuilder() {
                     </div>
                   )}
 
+                  {/* Contact Fields Configuration */}
+                  {currentStep.question_type === 'contact_fields' && (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium text-white/90">Visible Fields</p>
+                        <p className="text-xs text-white/60">Name and Email are always shown. Toggle the optional fields below.</p>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Phone Number</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_phone: !(currentStep.contact_show_phone ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_phone ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_phone ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Property Address</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_address: !(currentStep.contact_show_address ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_address ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_address ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Project Details</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_project_details: !(currentStep.contact_show_project_details ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_project_details ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_project_details ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Preferred Contact Method</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_preferred_contact: !(currentStep.contact_show_preferred_contact ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_preferred_contact ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_preferred_contact ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2">
+                          <span className="text-white/90 text-sm">File Upload</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_file_upload: !(currentStep.contact_show_file_upload ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_file_upload ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_file_upload ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Loop Section Configuration */}
                   {currentStep.question_type === 'loop_section' && (
                     <div className="space-y-4">
@@ -3331,12 +3505,73 @@ export default function FormBuilder() {
                   </button>
                 ))}
               </div>
+
+              {/* Button Colours — merged into Form Theme */}
+              <div className={`mt-6 pt-6 border-t ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}>
+                <h3 className={`text-base font-semibold mb-4 flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                  <svg className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-yellow-600' : 'text-yellow-400'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  Button Colours
+                </h3>
+                <div className="space-y-5">
+                  {/* Next Button */}
+                  <div className="space-y-3">
+                    <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}>Next Button</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Background</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={primaryButtonColor} onChange={(e) => setPrimaryButtonColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={primaryButtonColor} onChange={(e) => setPrimaryButtonColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#3B82F6" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Text</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={primaryButtonTextColor} onChange={(e) => setPrimaryButtonTextColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={primaryButtonTextColor} onChange={(e) => setPrimaryButtonTextColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#FFFFFF" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Previous Button */}
+                  <div className="space-y-3">
+                    <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}>Previous Button</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Background</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={secondaryButtonColor} onChange={(e) => setSecondaryButtonColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={secondaryButtonColor} onChange={(e) => setSecondaryButtonColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#E5E7EB" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Text</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={secondaryButtonTextColor} onChange={(e) => setSecondaryButtonTextColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={secondaryButtonTextColor} onChange={(e) => setSecondaryButtonTextColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#374151" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Preview */}
+                  <div className={`p-3 rounded-lg border ${theme === 'light' ? 'bg-gray-50 border-gray-200' : 'bg-white/5 border-white/10'}`}>
+                    <div className={`text-xs mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Button Preview:</div>
+                    <div className="flex gap-3">
+                      <button type="button" style={{ backgroundColor: secondaryButtonColor, color: secondaryButtonTextColor }} className={`px-4 py-2 text-sm font-medium ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'}`}>Previous</button>
+                      <button type="button" style={{ backgroundColor: primaryButtonColor, color: primaryButtonTextColor }} className={`px-4 py-2 text-sm font-medium ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'}`}>Next</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Button Colours Modal */}
+      {/* Button Colours Modal — kept for backwards compat but no longer shown via top bar */}
       {showButtonColoursModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
@@ -3513,6 +3748,16 @@ export default function FormBuilder() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Embed Form Modal */}
+      {showEmbedModal && formId && (
+        <EmbedModal
+          formId={formId}
+          formName={name || 'Form'}
+          isOpen={showEmbedModal}
+          onClose={() => setShowEmbedModal(false)}
+        />
       )}
 
       {/* Layout Settings Modal */}

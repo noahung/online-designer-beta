@@ -813,3 +813,37 @@ img, video {
 .animate-slide-in {
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* ----------------------------------------- */
+/* ABSOLUTE ANIMATION & TRANSITION DISABLE   */
+/* ----------------------------------------- */
+*, *::before, *::after {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+[data-animate], [data-animate].visible {
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+/* ----------------------------------------- */
+/* ABSOLUTE ANIMATION & TRANSITION DISABLE   */
+/* ----------------------------------------- */
+*, *::before, *::after {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+[data-animate], [data-animate].visible {
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
