@@ -1,6 +1,9 @@
 -- Add loop section support to forms
 -- This enables repeatable sections where users can loop through questions multiple times
 
+-- Add loop_section to the question_type enum (must be done before inserting rows with this type)
+ALTER TYPE question_type ADD VALUE IF NOT EXISTS 'loop_section';
+
 -- Add loop configuration columns to form_steps table
 ALTER TABLE form_steps ADD COLUMN IF NOT EXISTS loop_start_step_id UUID REFERENCES form_steps(id) ON DELETE SET NULL;
 ALTER TABLE form_steps ADD COLUMN IF NOT EXISTS loop_end_step_id UUID REFERENCES form_steps(id) ON DELETE SET NULL;

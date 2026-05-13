@@ -1433,7 +1433,12 @@ export default function FormBuilder() {
               contact_show_address: step.contact_show_address,
               contact_show_project_details: step.contact_show_project_details,
               contact_show_preferred_contact: step.contact_show_preferred_contact,
-              contact_show_file_upload: step.contact_show_file_upload
+              contact_show_file_upload: step.contact_show_file_upload,
+              loop_start_step_id: step.loop_start_step_id || null,
+              loop_end_step_id: step.loop_end_step_id || null,
+              loop_label: step.loop_label || null,
+              loop_max_iterations: step.loop_max_iterations || null,
+              loop_button_text: step.loop_button_text || null
             })
             .eq('id', stepId)
             .eq('form_id', finalFormId!)
@@ -1469,7 +1474,12 @@ export default function FormBuilder() {
             contact_show_address: step.contact_show_address,
             contact_show_project_details: step.contact_show_project_details,
             contact_show_preferred_contact: step.contact_show_preferred_contact,
-            contact_show_file_upload: step.contact_show_file_upload
+            contact_show_file_upload: step.contact_show_file_upload,
+            loop_start_step_id: step.loop_start_step_id || null,
+            loop_end_step_id: step.loop_end_step_id || null,
+            loop_label: step.loop_label || null,
+            loop_max_iterations: step.loop_max_iterations || null,
+            loop_button_text: step.loop_button_text || null
           }]).select().single()
           if (stepErr) throw stepErr
           stepId = stepData.id
@@ -1620,7 +1630,7 @@ export default function FormBuilder() {
     setSaving(true)
     try {
       // Check if this step already exists in the database
-      let stepId = step.id
+      let stepId = step.id && !step.id.startsWith('temp_') ? step.id : undefined
 
       if (stepId) {
         // Update existing step
@@ -1649,7 +1659,12 @@ export default function FormBuilder() {
             contact_show_address: step.contact_show_address,
             contact_show_project_details: step.contact_show_project_details,
             contact_show_preferred_contact: step.contact_show_preferred_contact,
-            contact_show_file_upload: step.contact_show_file_upload
+            contact_show_file_upload: step.contact_show_file_upload,
+            loop_start_step_id: step.loop_start_step_id || null,
+            loop_end_step_id: step.loop_end_step_id || null,
+            loop_label: step.loop_label || null,
+            loop_max_iterations: step.loop_max_iterations || null,
+            loop_button_text: step.loop_button_text || null
           })
           .eq('id', stepId)
           .eq('form_id', formId)
@@ -1691,7 +1706,12 @@ export default function FormBuilder() {
             contact_show_address: step.contact_show_address,
             contact_show_project_details: step.contact_show_project_details,
             contact_show_preferred_contact: step.contact_show_preferred_contact,
-            contact_show_file_upload: step.contact_show_file_upload
+            contact_show_file_upload: step.contact_show_file_upload,
+            loop_start_step_id: step.loop_start_step_id || null,
+            loop_end_step_id: step.loop_end_step_id || null,
+            loop_label: step.loop_label || null,
+            loop_max_iterations: step.loop_max_iterations || null,
+            loop_button_text: step.loop_button_text || null
           }])
           .select()
           .single()

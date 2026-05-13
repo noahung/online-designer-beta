@@ -277,8 +277,10 @@ export default function FormEmbed() {
 
   // Loop tracking state
   const [loopIterations, setLoopIterations] = useState<Map<string, number>>(new Map()) // stepId -> current iteration count
-  const [currentIteration, setCurrentIteration] = useState<number>(0) // Current iteration number (0 = not in loop)
+  const [currentIteration, setCurrentIteration] = useState<number>(0) // Current iteration number (0 = first pass, 1+ = subsequent loops)
   const [loopHistory, setLoopHistory] = useState<Array<{loopStepId: string, iteration: number}>>([]) // Track loop navigation history
+  // Archived answers from completed loop iterations (saved before clearing for the next iteration)
+  const [archivedIterations, setArchivedIterations] = useState<Array<{stepIndex: number, iteration: number, answer: any}>>([])  
 
   const [formTheme, setFormTheme] = useState<string>('generic')
 
@@ -538,6 +540,12 @@ export default function FormEmbed() {
           contact_show_project_details: row.contact_show_project_details ?? true,
           contact_show_preferred_contact: row.contact_show_preferred_contact ?? true,
           contact_show_file_upload: row.contact_show_file_upload ?? true,
+          // Loop section configuration
+          loop_start_step_id: row.loop_start_step_id ?? null,
+          loop_end_step_id: row.loop_end_step_id ?? null,
+          loop_label: row.loop_label ?? null,
+          loop_max_iterations: row.loop_max_iterations ?? 10,
+          loop_button_text: row.loop_button_text ?? null,
           options: opts 
         }
       })
@@ -1814,6 +1822,72 @@ export default function FormEmbed() {
   // build answers and frame rows (for frames_plan)
   const answers = [] as any[]
   const frameRows = [] as any[]
+
+      // Helper: build an answer row from a step + response object
+      const buildAnswerRow = async (stepObj: typeof steps[0], ans: any, iterationNum: number) => {
+        let file_url = null
+        let file_name = null
+        let file_size = null
+
+        if (ans.file) {
+          try {
+            const filename = `responses/${responseId}/${stepObj.id}/${Date.now()}-${ans.file.name}`
+            const { error: uploadErr } = await supabase.storage.from('form-assets').upload(filename, ans.file)
+            if (uploadErr) {
+              console.error('File upload error:', uploadErr)
+              alert('File upload failed, but form will be submitted without the file')
+            } else {
+              const { data: publicUrl } = supabase.storage.from('form-assets').getPublicUrl(filename)
+              file_url = publicUrl.publicUrl
+              file_name = ans.file.name
+              file_size = ans.file.size
+            }
+          } catch (error) {
+            console.error('File upload error:', error)
+          }
+        }
+
+        answers.push({
+          response_id: responseId,
+          step_id: stepObj.id,
+          answer_text: ans.answer_text ?? null,
+          selected_option_id: ans.option_id ?? null,
+          file_url,
+          file_name,
+          file_size,
+          width: ans.width ? parseFloat(ans.width) : null,
+          height: ans.height ? parseFloat(ans.height) : null,
+          depth: ans.depth ? parseFloat(ans.depth) : null,
+          units: ans.units ?? null,
+          scale_rating: ans.scale_rating ?? null,
+          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null,
+          iteration_number: iterationNum
+        })
+
+        if (stepObj.question_type === 'frames_plan') {
+          const frames = (ans as any)?.frames || []
+          frames.forEach((f: any, idx: number) => {
+            if (f && (f.image_url || f.location_text || f.measurements_text)) {
+              frameRows.push({
+                response_id: responseId,
+                step_id: stepObj.id,
+                frame_number: f.frame_number ?? idx + 1,
+                image_url: f.image_url ?? null,
+                location_text: f.location_text ?? null,
+                measurements_text: f.measurements_text ?? null
+              })
+            }
+          })
+        }
+      }
+
+      // Process archived loop iteration answers first (earlier iterations)
+      for (const archived of archivedIterations) {
+        const stepObj = steps[archived.stepIndex]
+        if (!stepObj) continue
+        await buildAnswerRow(stepObj, archived.answer, archived.iteration)
+      }
+
       for (const [stepIndexStr, ans] of Object.entries(responses)) {
         const si = Number(stepIndexStr)
         const stepObj = steps[si]
@@ -1865,7 +1939,7 @@ export default function FormEmbed() {
           scale_rating: ans.scale_rating ?? null,
           // Frames count for frames_plan questions
           frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null,
-          // Loop iteration number (0 = not in loop, 1+ = iteration number)
+          // Loop iteration number (0 = first pass, 1+ = subsequent loops)
           iteration_number: (ans as any)?.iteration_number ?? 0
         })
 
@@ -3018,19 +3092,34 @@ export default function FormEmbed() {
                         onClick={() => {
                           // Increment iteration counter
                           const newIteration = currentIteration + 1
-                          setCurrentIteration(newIteration)
                           
-                          // Track this loop
-                          setLoopIterations(prev => new Map(prev).set(step.id!, newIteration))
-                          setLoopHistory(prev => [...prev, { loopStepId: step.id!, iteration: newIteration }])
-                          
-                          // Navigate back to loop start
                           if (step.loop_start_step_id) {
                             const startIndex = steps.findIndex(s => s.id === step.loop_start_step_id)
+                            const endIndex = steps.findIndex(s => s.id === step.loop_end_step_id)
+                            
                             if (startIndex !== -1) {
+                              // Archive the current iteration's responses before clearing them
+                              const toArchive: Array<{stepIndex: number, iteration: number, answer: any}> = []
+                              const loopEnd = endIndex !== -1 ? endIndex : currentStepIndex - 1
+                              for (let i = startIndex; i <= loopEnd; i++) {
+                                if (responses[i]) {
+                                  toArchive.push({ stepIndex: i, iteration: currentIteration, answer: responses[i] })
+                                }
+                              }
+                              if (toArchive.length > 0) {
+                                setArchivedIterations(prev => [...prev, ...toArchive])
+                              }
+                              
+                              // Update loop state
+                              setCurrentIteration(newIteration)
+                              setLoopIterations(prev => new Map(prev).set(step.id!, newIteration))
+                              setLoopHistory(prev => [...prev, { loopStepId: step.id!, iteration: newIteration }])
+                              
+                              // Add current step to navigation history
+                              setNavigationHistory(prev => [...prev, currentStepIndex])
+                              
+                              // Navigate back to loop start, clearing responses in the loop range
                               setCurrentStepIndex(startIndex)
-                              // Clear responses in loop range for new iteration
-                              const endIndex = steps.findIndex(s => s.id === step.loop_end_step_id)
                               if (endIndex !== -1) {
                                 setResponses(r => {
                                   const newResponses = { ...r }
@@ -3053,8 +3142,9 @@ export default function FormEmbed() {
                     <button
                       type="button"
                       onClick={() => {
-                        // Reset iteration counter
+                        // Reset iteration counter and add to navigation history
                         setCurrentIteration(0)
+                        setNavigationHistory(prev => [...prev, currentStepIndex])
                         
                         // Move to next step
                         if (currentStepIndex < steps.length - 1) {
