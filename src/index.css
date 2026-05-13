@@ -41,7 +41,8 @@ img, video {
 .animate-slide-up,
 .animate-slide-in-left,
 .animate-slide-in-right,
-.animate-scale-in {
+.animate-scale-in,
+.animate-background-gradient {
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
@@ -126,18 +127,22 @@ img, video {
 .backdrop-blur-xl,
 .backdrop-blur-lg,
 .backdrop-blur-2xl {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  /* contain: layout style paint !important; */
-  /* transform: translateZ(0) !important; */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .backdrop-blur-sm,
 .backdrop-blur {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  /* contain: layout style paint !important; */
-  /* transform: translateZ(0) !important; */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Disable blur when an element is being dragged or transformed continuously */
+[data-rbd-drag-handle-context-id],
+.is-dragging,
+.is-dragging * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Optimize rendering for transform elements */
@@ -811,4 +816,38 @@ img, video {
 
 .animate-slide-in {
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* ----------------------------------------- */
+/* ABSOLUTE ANIMATION & TRANSITION DISABLE   */
+/* ----------------------------------------- */
+*, *::before, *::after {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+[data-animate], [data-animate].visible {
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+/* ----------------------------------------- */
+/* ABSOLUTE ANIMATION & TRANSITION DISABLE   */
+/* ----------------------------------------- */
+*, *::before, *::after {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+[data-animate], [data-animate].visible {
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }

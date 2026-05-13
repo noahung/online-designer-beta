@@ -5,16 +5,21 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { useTheme } from '../contexts/ThemeContext'
 import FormPreview from '../components/FormPreview'
+import SingleStepPreview from '../components/SingleStepPreview'
 import SaveTemplateModal from '../components/templates/SaveTemplateModal'
+import EmbedModal from '../components/ui/EmbedModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
+import LogicBuilder from '../components/LogicBuilder'
+import GlobalFlowchart from '../components/GlobalFlowchart'
 import { formThemes } from '../lib/formThemes'
-import { 
-  ArrowLeft, 
-  Save, 
-  Eye, 
-  Plus, 
-  Image, 
-  FileText, 
+import { StepLogic } from '../types/formLogic'
+import {
+  ArrowLeft,
+  Save,
+  Eye,
+  Plus,
+  Image,
+  FileText,
   MessageSquare,
   Upload,
   X,
@@ -28,46 +33,48 @@ import {
   Palette,
   Frame,
   Copy,
+  Code,
   Undo,
   Redo,
+  Repeat,
   BookmarkPlus,
   FolderOpen,
   Settings
 } from 'lucide-react'
-import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
   useSensors,
   DragEndEvent
 } from '@dnd-kit/core'
-import { 
-  arrayMove, 
-  SortableContext, 
-  sortableKeyboardCoordinates, 
-  verticalListSortingStrategy 
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy
 } from '@dnd-kit/sortable'
-import { 
-  useSortable 
+import {
+  useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-type Option = { 
+type Option = {
   id?: string
   label: string
   description?: string
   imageFile?: File | null
   image_url?: string
-  jump_to_step?: number 
+  jump_to_step?: number
 }
 
-type Step = { 
+type Step = {
   id?: string
   title: string
   description?: string
-  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan'
+  question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
   is_required?: boolean
   step_order: number
   options: Option[]
@@ -78,13 +85,26 @@ type Step = {
   scale_type?: 'number' | 'star' // for opinion scale step
   scale_min?: number // minimum scale value (default 1)
   scale_max?: number // maximum scale value (default 10 for number, 5 for star)
-  images_per_row?: number // for image_selection step layout (default 2)
+  images_per_row?: number // for image_selection step layout (default 2) - desktop columns
+  mobile_images_per_row?: number // for image_selection step layout - mobile columns (default 1)
   crop_images_to_square?: boolean // whether to crop images to square aspect ratio (default true)
   // Frames plan specific fields
   frames_max_count?: number // maximum number of frames allowed (default 10)
   frames_require_image?: boolean // whether image upload is required for each frame
   frames_require_location?: boolean // whether location text is required for each frame  
   frames_require_measurements?: boolean // whether measurements are required for each frame
+  // Contact fields visibility toggles
+  contact_show_phone?: boolean
+  contact_show_address?: boolean
+  contact_show_project_details?: boolean
+  contact_show_preferred_contact?: boolean
+  contact_show_file_upload?: boolean
+  // Loop section specific fields
+  loop_start_step_id?: string // for loop_section: ID of first step in loop
+  loop_end_step_id?: string // for loop_section: ID of last step in loop
+  loop_label?: string // for loop_section: label for repeated item (e.g., "Window")
+  loop_max_iterations?: number // for loop_section: max times user can loop (default 10)
+  loop_button_text?: string // for loop_section: custom "Add Another" button text
 }
 
 interface StepTypeOption {
@@ -142,6 +162,12 @@ const stepTypes: StepTypeOption[] = [
     title: 'Frames Plan',
     description: 'Multiple frame upload with locations and measurements',
     icon: <Frame className="h-4 w-4" />
+  },
+  {
+    type: 'loop_section',
+    title: 'Loop Section',
+    description: 'Let users repeat a section multiple times',
+    icon: <Repeat className="h-4 w-4" />
   }
 ]
 
@@ -153,10 +179,11 @@ interface SortableStepItemProps {
   onClick: () => void
   onDelete: () => void
   onDuplicate: () => void
+  onPreview: () => void
   canDelete: boolean
 }
 
-function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, canDelete }: SortableStepItemProps) {
+function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, onPreview, canDelete }: SortableStepItemProps) {
   const {
     attributes,
     listeners,
@@ -177,11 +204,10 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
       ref={setNodeRef}
       style={style}
       data-step-index={index}
-      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${
-        isSelected
-          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
-          : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
-      } ${isDragging ? 'rotate-2 scale-105' : ''}`}
+      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${isSelected
+        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
+        : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
+        } ${isDragging ? 'rotate-2 scale-105' : ''}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3 flex-1">
@@ -204,6 +230,16 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onPreview()
+            }}
+            className="p-1 text-white/40 hover:text-green-300 hover:bg-green-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            title="Preview this step"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -242,12 +278,12 @@ interface SortableImageOptionItemProps {
   cropImagesToSquare?: boolean
 }
 
-function SortableImageOptionItem({ 
-  option, 
-  stepIndex, 
-  optionIndex, 
-  onUpdate, 
-  onDelete, 
+function SortableImageOptionItem({
+  option,
+  stepIndex,
+  optionIndex,
+  onUpdate,
+  onDelete,
   onFileChange,
   cropImagesToSquare = true
 }: SortableImageOptionItemProps) {
@@ -288,7 +324,7 @@ function SortableImageOptionItem({
 
     const files = Array.from(e.dataTransfer.files)
     const imageFile = files.find(file => file.type.startsWith('image/'))
-    
+
     if (imageFile) {
       onFileChange(stepIndex, optionIndex, imageFile)
     }
@@ -324,7 +360,7 @@ function SortableImageOptionItem({
       {/* Image Upload Area */}
       <div className={`p-4 flex-grow flex ${cropImagesToSquare ? 'aspect-square' : 'items-start'}`}>
         {option.image_url ? (
-          <div 
+          <div
             className={`relative ${cropImagesToSquare ? 'h-full w-full' : 'w-full'} group/image`}
             onDragOver={handleImageDragOver}
             onDragLeave={handleImageDragLeave}
@@ -333,11 +369,10 @@ function SortableImageOptionItem({
             <img
               src={option.image_url}
               alt="Option preview"
-              className={`rounded-lg border border-white/20 shadow-lg ${
-                cropImagesToSquare 
-                  ? 'h-full w-full object-cover' 
-                  : 'w-full object-contain'
-              } ${isDraggingOver ? 'opacity-50' : ''}`}
+              className={`rounded-lg border border-white/20 shadow-lg ${cropImagesToSquare
+                ? 'h-full w-full object-cover'
+                : 'w-full object-contain'
+                } ${isDraggingOver ? 'opacity-50' : ''}`}
             />
             {isDraggingOver && (
               <div className="absolute inset-0 bg-blue-500/20 border-2 border-dashed border-blue-400 rounded-lg flex items-center justify-center">
@@ -374,22 +409,19 @@ function SortableImageOptionItem({
             onDragOver={handleImageDragOver}
             onDragLeave={handleImageDragLeave}
             onDrop={handleImageDrop}
-            className={`h-full w-full border-2 border-dashed rounded-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105 ${
-              isDraggingOver
-                ? 'border-blue-400 bg-blue-500/20 scale-105'
-                : 'border-white/30 hover:border-cyan-400/50 hover:bg-cyan-500/10'
-            }`}
+            className={`h-full w-full border-2 border-dashed rounded-lg transition-all duration-200 flex flex-col items-center justify-center space-y-2 group-hover:scale-105 ${isDraggingOver
+              ? 'border-blue-400 bg-blue-500/20 scale-105'
+              : 'border-white/30 hover:border-cyan-400/50 hover:bg-cyan-500/10'
+              }`}
           >
-            <Upload className={`h-8 w-8 transition-colors duration-200 ${
-              isDraggingOver
-                ? 'text-blue-300'
-                : 'text-white/40 group-hover:text-cyan-300'
-            }`} />
-            <span className={`text-xs transition-colors duration-200 ${
-              isDraggingOver
-                ? 'text-blue-200 font-medium'
-                : 'text-white/50 group-hover:text-cyan-200'
-            }`}>
+            <Upload className={`h-8 w-8 transition-colors duration-200 ${isDraggingOver
+              ? 'text-blue-300'
+              : 'text-white/40 group-hover:text-cyan-300'
+              }`} />
+            <span className={`text-xs transition-colors duration-200 ${isDraggingOver
+              ? 'text-blue-200 font-medium'
+              : 'text-white/50 group-hover:text-cyan-200'
+              }`}>
               {isDraggingOver ? 'Drop image here' : 'Upload or drag image'}
             </span>
           </button>
@@ -413,21 +445,6 @@ function SortableImageOptionItem({
           className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs resize-none"
         />
 
-        {/* Jump to step */}
-        <div className="space-y-1">
-          <input
-            type="number"
-            min={1}
-            max={999}
-            value={option.jump_to_step ?? ''}
-            onChange={(e) => onUpdate(stepIndex, optionIndex, {
-              ...option,
-              jump_to_step: e.target.value ? Number(e.target.value) : undefined
-            })}
-            placeholder="Jump to step"
-            className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-xs"
-          />
-        </div>
       </div>
 
       {/* Delete button */}
@@ -450,12 +467,12 @@ interface SortableMultipleChoiceOptionItemProps {
   onDelete: (stepIndex: number, optionIndex: number) => void
 }
 
-function SortableMultipleChoiceOptionItem({ 
-  option, 
-  stepIndex, 
-  optionIndex, 
-  onUpdate, 
-  onDelete 
+function SortableMultipleChoiceOptionItem({
+  option,
+  stepIndex,
+  optionIndex,
+  onUpdate,
+  onDelete
 }: SortableMultipleChoiceOptionItemProps) {
   const {
     attributes,
@@ -516,21 +533,7 @@ function SortableMultipleChoiceOptionItem({
           </div>
         </div>
 
-        <div className="space-y-2 mt-4">
-          <label className="block text-xs text-white/70">Jump to step (optional)</label>
-          <input
-            type="number"
-            min={1}
-            max={999}
-            value={option.jump_to_step ?? ''}
-            onChange={(e) => onUpdate(stepIndex, optionIndex, {
-              ...option,
-              jump_to_step: e.target.value ? Number(e.target.value) : undefined
-            })}
-            placeholder="Step number"
-            className="w-24 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
-          />
-        </div>
+
       </div>
     </div>
   )
@@ -546,57 +549,51 @@ interface CollapsibleSectionProps {
   children: React.ReactNode
 }
 
-function CollapsibleSection({ 
-  title, 
-  icon, 
-  isCollapsed, 
-  onToggle, 
-  animationDelay = '0s', 
-  children 
+function CollapsibleSection({
+  title,
+  icon,
+  isCollapsed,
+  onToggle,
+  animationDelay = '0s',
+  children
 }: CollapsibleSectionProps) {
   const { theme } = useTheme()
-  
+
   return (
-    <div 
-      className={`backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-200 ${
-        theme === 'light' 
-          ? 'bg-white/80 border border-gray-200 shadow-lg' 
-          : 'bg-white/10 border border-white/20'
-      }`}
-      style={{animationDelay}}
+    <div
+      className={`backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-200 ${theme === 'light'
+        ? 'bg-white/80 border border-gray-200 shadow-lg'
+        : 'bg-white/10 border border-white/20'
+        }`}
+      style={{ animationDelay }}
     >
       <button
         onClick={onToggle}
-        className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors duration-200 ${
-          theme === 'light'
-            ? 'hover:bg-gray-50 text-gray-800'
-            : 'hover:bg-white/5 text-white'
-        }`}
+        className={`w-full px-6 py-4 flex items-center justify-between text-left transition-colors duration-200 ${theme === 'light'
+          ? 'hover:bg-gray-50 text-gray-800'
+          : 'hover:bg-white/5 text-white'
+          }`}
       >
-        <h3 className={`text-lg font-semibold flex items-center ${
-          theme === 'light' ? 'text-gray-800' : 'text-white'
-        }`}>
+        <h3 className={`text-lg font-semibold flex items-center ${theme === 'light' ? 'text-gray-800' : 'text-white'
+          }`}>
           {icon}
           {title}
         </h3>
         <div className="flex items-center">
           {isCollapsed ? (
-            <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${
-              theme === 'light' ? 'text-gray-500' : 'text-white/60'
-            }`} />
+            <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+              }`} />
           ) : (
-            <ChevronUp className={`w-5 h-5 transition-transform duration-200 ${
-              theme === 'light' ? 'text-gray-500' : 'text-white/60'
-            }`} />
+            <ChevronUp className={`w-5 h-5 transition-transform duration-200 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+              }`} />
           )}
         </div>
       </button>
-      
-      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-        isCollapsed 
-          ? 'max-h-0 opacity-0' 
-          : 'max-h-[5000px] opacity-100'
-      }`}>
+
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isCollapsed
+        ? 'max-h-0 opacity-0'
+        : 'max-h-[5000px] opacity-100'
+        }`}>
         <div className="px-6 pb-6">
           {children}
         </div>
@@ -628,6 +625,8 @@ export default function FormBuilder() {
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showSingleStepPreview, setShowSingleStepPreview] = useState(false)
+  const [previewStepIndex, setPreviewStepIndex] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
@@ -641,6 +640,12 @@ export default function FormBuilder() {
   const [showFormSettingsModal, setShowFormSettingsModal] = useState(false)
   const [showFormThemeModal, setShowFormThemeModal] = useState(false)
   const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
+  const [showEmbedModal, setShowEmbedModal] = useState(false)
+
+  // Logic modal state
+  const [showLogicBuilder, setShowLogicBuilder] = useState(false)
+  const [showGlobalFlowchart, setShowGlobalFlowchart] = useState(false)
+  const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
 
   // Undo/Redo state
   const [history, setHistory] = useState<{ past: any[]; present: any; future: any[] }>({
@@ -686,14 +691,14 @@ export default function FormBuilder() {
           step_order: index + 1
         }))
         setSteps(updatedSteps)
-        
+
         // Update selected index if needed
         if (selectedStepIndex === activeIndex) {
           setSelectedStepIndex(overIndex)
         } else if (selectedStepIndex === overIndex) {
           setSelectedStepIndex(activeIndex)
         }
-        
+
         saveToHistory()
       }
     }
@@ -706,16 +711,16 @@ export default function FormBuilder() {
     if (over && active.id !== over.id) {
       const activeId = active.id.toString()
       const overId = over.id.toString()
-      
+
       // Extract step index and option index from IDs like "step-0-option-1"
       const activeMatch = activeId.match(/step-(\d+)-option-(\d+)/)
       const overMatch = overId.match(/step-(\d+)-option-(\d+)/)
-      
+
       if (activeMatch && overMatch) {
         const stepIndex = parseInt(activeMatch[1])
         const activeOptionIndex = parseInt(activeMatch[2])
         const overOptionIndex = parseInt(overMatch[2])
-        
+
         if (activeOptionIndex !== overOptionIndex) {
           const step = steps[stepIndex]
           const newOptions = arrayMove(step.options, activeOptionIndex, overOptionIndex)
@@ -725,7 +730,7 @@ export default function FormBuilder() {
     }
   }
 
-  useEffect(() => { 
+  useEffect(() => {
     if (user) {
       fetchClients()
       if (formId) {
@@ -774,7 +779,7 @@ export default function FormBuilder() {
 
   const loadExistingForm = async () => {
     if (!formId || !user) return
-    
+
     setLoading(true)
     try {
       // Load form data
@@ -805,18 +810,28 @@ export default function FormBuilder() {
 
       if (stepsError) throw stepsError
 
+      // Load step logic
+      const { data: logicData, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError && logicError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error loading step logic:', logicError)
+      }
+
       // Set form data
-  setName(formData.name)
-  setInternalName(formData.internal_name || '')
-  setDescription(formData.description)
-  setWelcomeMessage(formData.welcome_message || '')
-  setClientId(formData.client_id)
-  setFormTheme(formData.form_theme || 'generic')
-  setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
-  setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
-  setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
-  setSecondaryButtonTextColor(formData.secondary_button_text_color || '#374151')
-  setIsEditing(true)
+      setName(formData.name)
+      setInternalName(formData.internal_name || '')
+      setDescription(formData.description)
+      setWelcomeMessage(formData.welcome_message || '')
+      setClientId(formData.client_id)
+      setFormTheme(formData.form_theme || 'generic')
+      setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
+      setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
+      setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
+      setSecondaryButtonTextColor(formData.secondary_button_text_color || '#374151')
+      setIsEditing(true)
 
       // Convert database steps to component format
       const convertedSteps: Step[] = (stepsData || []).map(step => ({
@@ -834,23 +849,43 @@ export default function FormBuilder() {
         scale_min: step.scale_min,
         scale_max: step.scale_max,
         images_per_row: step.images_per_row,
+        mobile_images_per_row: step.mobile_images_per_row,
         crop_images_to_square: step.crop_images_to_square ?? true,
         frames_max_count: step.frames_max_count,
         frames_require_image: step.frames_require_image,
         frames_require_location: step.frames_require_location,
         frames_require_measurements: step.frames_require_measurements,
+        contact_show_phone: step.contact_show_phone,
+        contact_show_address: step.contact_show_address,
+        contact_show_project_details: step.contact_show_project_details,
+        contact_show_preferred_contact: step.contact_show_preferred_contact,
+        contact_show_file_upload: step.contact_show_file_upload,
         options: (step.form_options || [])
           .sort((a: any, b: any) => (a.option_order || 0) - (b.option_order || 0))
           .map((option: any) => ({
-          id: option.id,
-          label: option.label,
-          description: '',
-          image_url: option.image_url,
-          jump_to_step: option.jump_to_step
-        }))
+            id: option.id,
+            label: option.label,
+            description: '',
+            image_url: option.image_url,
+            jump_to_step: option.jump_to_step
+          }))
       }))
 
       setSteps(convertedSteps)
+
+      // Convert logic data to Map (always reset to avoid stale keys after step ID changes)
+      const logicMap = new Map<string, StepLogic>()
+      if (logicData && logicData.length > 0) {
+        logicData.forEach((logic: any) => {
+          logicMap.set(logic.step_id, {
+            step_id: logic.step_id,
+            rules: logic.rules || [],
+            default_action: logic.default_action || undefined
+          })
+        })
+      }
+      setStepLogicMap(logicMap)
+
       push({ type: 'success', message: 'Form loaded successfully' })
       setIsInitialLoad(false)
     } catch (error) {
@@ -869,18 +904,18 @@ export default function FormBuilder() {
       const { error: accessError } = await supabase.storage
         .from(bucketName)
         .list('', { limit: 1 })
-        
+
       if (accessError) {
         console.error(`Error accessing bucket ${bucketName}:`, accessError)
-        
+
         // If bucket doesn't exist, try to create it
         if (accessError.message.includes('not found') || accessError.message.includes('does not exist')) {
           console.log(`Attempting to create bucket: ${bucketName}`)
           const { error: createError } = await supabase.storage.createBucket(bucketName, { public: true })
           if (createError) {
             console.error(`Error creating bucket ${bucketName}:`, createError)
-            push({ 
-              type: 'error', 
+            push({
+              type: 'error',
               message: `Could not create storage bucket "${bucketName}": ${createError.message}`
             })
             return false
@@ -888,22 +923,22 @@ export default function FormBuilder() {
           push({ type: 'success', message: `✅ Storage bucket "${bucketName}" created successfully` })
           return true
         } else {
-          push({ 
-            type: 'error', 
+          push({
+            type: 'error',
             message: `Cannot access storage bucket "${bucketName}": ${accessError.message}`
           })
           return false
         }
       }
-      
+
       // Bucket exists and is accessible
       console.log(`Bucket ${bucketName} is accessible`)
       return true
-      
+
     } catch (error) {
       console.error('Error checking bucket:', error)
-      push({ 
-        type: 'error', 
+      push({
+        type: 'error',
         message: `Storage error: ${error}. Make sure the "${bucketName}" bucket exists in Supabase Storage.`
       })
       return false
@@ -926,18 +961,20 @@ export default function FormBuilder() {
       scale_min: type === 'opinion_scale' ? 1 : undefined,
       scale_max: type === 'opinion_scale' ? 10 : undefined,
       images_per_row: type === 'image_selection' ? 2 : undefined, // Default 2 images per row
+      mobile_images_per_row: type === 'image_selection' ? 1 : undefined, // Default 1 column on mobile
       crop_images_to_square: type === 'image_selection' ? true : undefined, // Default to crop images to square
       // Frames plan defaults
       frames_max_count: type === 'frames_plan' ? 10 : undefined,
       frames_require_image: type === 'frames_plan' ? true : undefined,
       frames_require_location: type === 'frames_plan' ? true : undefined,
-      frames_require_measurements: type === 'frames_plan' ? true : undefined
+      frames_require_measurements: type === 'frames_plan' ? true : undefined,
+      id: `temp_${Date.now()}` // Temporary ID for logic mapping before save
     }
     const newSteps = [...steps, newStep]
     setSteps(newSteps)
     setSelectedStepIndex(newSteps.length - 1)
     saveToHistory()
-    
+
     // Scroll to the newly added step after a short delay to ensure DOM is updated
     setTimeout(() => {
       const stepElement = document.querySelector(`[data-step-index="${newSteps.length - 1}"]`)
@@ -968,7 +1005,7 @@ export default function FormBuilder() {
     const stepToDuplicate = steps[index]
     const duplicatedStep: Step = {
       ...stepToDuplicate,
-      id: undefined, // Remove id so it's treated as new
+      id: `temp_${Date.now()}`, // Temporary ID for logic mapping before save
       title: `${stepToDuplicate.title} (Copy)`,
       step_order: index + 2, // Insert after the current step
       options: stepToDuplicate.options.map(option => ({
@@ -987,37 +1024,47 @@ export default function FormBuilder() {
   }
 
   // Undo/Redo functions
-  const saveToHistory = () => {
+  const historyTimeoutRef = React.useRef<NodeJS.Timeout>();
+  
+  const saveToHistory = React.useCallback(() => {
     if (isInitialLoad) return
-    setHistory(prev => ({
-      past: prev.present ? [...prev.past, prev.present] : prev.past,
-      present: {
-        steps,
-        selectedStepIndex,
-        name,
-        internalName,
-        description,
-        welcomeMessage,
-        clientId,
-        formTheme,
-        primaryButtonColor,
-        primaryButtonTextColor,
-        secondaryButtonColor,
-        secondaryButtonTextColor
-      },
-      future: []
-    }))
-  }
+    
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current)
+    }
+    
+    // Debounce history save by 500ms
+    historyTimeoutRef.current = setTimeout(() => {
+      setHistory(prev => ({
+        past: prev.present ? [...prev.past, prev.present] : prev.past,
+        present: {
+          steps,
+          selectedStepIndex,
+          name,
+          internalName,
+          description,
+          welcomeMessage,
+          clientId,
+          formTheme,
+          primaryButtonColor,
+          primaryButtonTextColor,
+          secondaryButtonColor,
+          secondaryButtonTextColor
+        },
+        future: []
+      }))
+    }, 500)
+  }, [isInitialLoad, steps, selectedStepIndex, name, internalName, description, welcomeMessage, clientId, formTheme, primaryButtonColor, primaryButtonTextColor, secondaryButtonColor, secondaryButtonTextColor])
 
   const undo = () => {
     setHistory(prev => {
       if (prev.past.length === 0) return prev
-      
+
       const previous = prev.past[prev.past.length - 1]
       if (!previous) return prev
-      
+
       const newPast = prev.past.slice(0, -1)
-      
+
       // Restore state
       setSteps(previous.steps || [])
       setSelectedStepIndex(previous.selectedStepIndex || null)
@@ -1031,7 +1078,7 @@ export default function FormBuilder() {
       setPrimaryButtonTextColor(previous.primaryButtonTextColor || '#FFFFFF')
       setSecondaryButtonColor(previous.secondaryButtonColor || '#E5E7EB')
       setSecondaryButtonTextColor(previous.secondaryButtonTextColor || '#374151')
-      
+
       return {
         past: newPast,
         present: previous,
@@ -1043,12 +1090,12 @@ export default function FormBuilder() {
   const redo = () => {
     setHistory(prev => {
       if (prev.future.length === 0) return prev
-      
+
       const next = prev.future[0]
       if (!next) return prev
-      
+
       const newFuture = prev.future.slice(1)
-      
+
       // Restore state
       setSteps(next.steps || [])
       setSelectedStepIndex(next.selectedStepIndex || null)
@@ -1062,7 +1109,7 @@ export default function FormBuilder() {
       setPrimaryButtonTextColor(next.primaryButtonTextColor || '#FFFFFF')
       setSecondaryButtonColor(next.secondaryButtonColor || '#E5E7EB')
       setSecondaryButtonTextColor(next.secondaryButtonTextColor || '#374151')
-      
+
       return {
         past: prev.present ? [...prev.past, prev.present] : prev.past,
         present: next,
@@ -1075,6 +1122,7 @@ export default function FormBuilder() {
     if (stepIndex < 0 || stepIndex >= steps.length) return
     const step = steps[stepIndex]
     const newOption: Option = {
+      id: `temp_${Date.now()}`, // Temporary ID so logic rules can reference this option before it's saved
       label: `Option ${step.options.length + 1}`,
       description: '',
       imageFile: null
@@ -1131,6 +1179,7 @@ export default function FormBuilder() {
           scale_min: step.scale_min,
           scale_max: step.scale_max,
           images_per_row: step.images_per_row,
+          mobile_images_per_row: step.mobile_images_per_row,
           crop_images_to_square: step.crop_images_to_square,
           frames_max_count: step.frames_max_count,
           frames_require_image: step.frames_require_image,
@@ -1176,7 +1225,7 @@ export default function FormBuilder() {
 
     try {
       const currentStep = steps[selectedStepIndex]
-      
+
       // Create updated step with template data
       const updatedStep: Step = {
         ...currentStep,
@@ -1192,6 +1241,7 @@ export default function FormBuilder() {
         scale_min: template.scale_min,
         scale_max: template.scale_max,
         images_per_row: template.images_per_row,
+        mobile_images_per_row: template.mobile_images_per_row,
         crop_images_to_square: template.crop_images_to_square ?? true,
         frames_max_count: template.frames_max_count,
         frames_require_image: template.frames_require_image,
@@ -1231,6 +1281,7 @@ export default function FormBuilder() {
         scale_min: template.scale_min,
         scale_max: template.scale_max,
         images_per_row: template.images_per_row,
+        mobile_images_per_row: template.mobile_images_per_row,
         crop_images_to_square: template.crop_images_to_square ?? true,
         frames_max_count: template.frames_max_count,
         frames_require_image: template.frames_require_image,
@@ -1262,9 +1313,9 @@ export default function FormBuilder() {
     const step = steps[stepIndex]
     const option = step.options[optionIndex]
     if (!option) return
-    
+
     const preview = file ? URL.createObjectURL(file) : undefined
-    
+
     // Auto-generate label from filename if current label is default/empty
     let newLabel = option.label
     if (file && (!option.label || option.label.match(/^Option \d+$/))) {
@@ -1274,7 +1325,7 @@ export default function FormBuilder() {
         .replace(/[-_]/g, ' ') // Replace dashes and underscores with spaces
         .replace(/\b\w/g, c => c.toUpperCase()) // Capitalize first letter of each word
     }
-    
+
     const updatedOption = {
       ...option,
       imageFile: file,
@@ -1293,12 +1344,12 @@ export default function FormBuilder() {
       let finalFormId = formId
 
       if (isEditing && formId) {
-        // Update existing form
+        // Update existing form metadata
         const { error: formErr } = await supabase.from('forms')
-          .update({ 
-            name, 
+          .update({
+            name,
             internal_name: internalName,
-            description, 
+            description,
             client_id: clientId,
             welcome_message: welcomeMessage,
             form_theme: formTheme,
@@ -1309,23 +1360,28 @@ export default function FormBuilder() {
           })
           .eq('id', formId)
           .eq('user_id', user.id)
-        
+
         if (formErr) throw formErr
 
-        // Delete existing steps and options
-        const { error: deleteErr } = await supabase
-          .from('form_steps')
-          .delete()
-          .eq('form_id', formId)
-        
-        if (deleteErr) throw deleteErr
+        // Delete all existing step logic first (will be re-inserted below with correct IDs)
+        await supabase.from('step_logic').delete().eq('form_id', formId)
+
+        // Delete steps that were removed from the editor
+        const { data: dbSteps } = await supabase.from('form_steps').select('id').eq('form_id', formId)
+        const currentRealStepIds = new Set(
+          steps.filter(s => s.id && !s.id.startsWith('temp_')).map(s => s.id!)
+        )
+        const stepIdsToDelete = (dbSteps || []).map(s => s.id).filter((id: string) => !currentRealStepIds.has(id))
+        if (stepIdsToDelete.length > 0) {
+          await supabase.from('form_steps').delete().in('id', stepIdsToDelete)
+        }
       } else {
         // Create new form
-        const { data: formData, error: formErr } = await supabase.from('forms').insert([{ 
-          name, 
+        const { data: formData, error: formErr } = await supabase.from('forms').insert([{
+          name,
           internal_name: internalName,
-          description, 
-          client_id: clientId, 
+          description,
+          client_id: clientId,
           user_id: user.id,
           welcome_message: welcomeMessage,
           form_theme: formTheme,
@@ -1334,97 +1390,219 @@ export default function FormBuilder() {
           secondary_button_color: secondaryButtonColor,
           secondary_button_text_color: secondaryButtonTextColor
         }]).select().single()
-        
+
         if (formErr) throw formErr
         finalFormId = formData.id
       }
 
-      // Create/recreate all steps
-      for (const step of steps) {
-        const { data: stepData, error: stepErr } = await supabase.from('form_steps').insert([{ 
-          form_id: finalFormId, 
-          title: step.title,
-          description: step.description || null,
-          question_type: step.question_type, 
-          is_required: step.is_required ?? true, 
-          step_order: step.step_order,
-          max_file_size: step.max_file_size,
-          allowed_file_types: step.allowed_file_types,
-          dimension_type: step.dimension_type,
-          dimension_units: step.dimension_units,
-          scale_type: step.scale_type,
-          scale_min: step.scale_min,
-          scale_max: step.scale_max,
-          images_per_row: step.images_per_row,
-          crop_images_to_square: step.crop_images_to_square ?? true,
-          frames_max_count: step.frames_max_count,
-          frames_require_image: step.frames_require_image,
-          frames_require_location: step.frames_require_location,
-          frames_require_measurements: step.frames_require_measurements
-        }]).select().single()
-        if (stepErr) throw stepErr
-        const stepId = stepData.id
+      // Maps temp IDs -> new real UUIDs (only for newly inserted steps)
+      const idMap = new Map<string, string>()
+      // Maps final step ID -> Map(old option ID -> new option ID)
+      const optionIdMapByStep = new Map<string, Map<string, string>>()
 
-        // Insert options (upload images if provided)
-        for (const opt of step.options) {
+      // Process each step: update existing ones in place (preserving UUIDs), insert new ones
+      for (const step of steps) {
+        const oldStepId = step.id
+        let stepId: string
+
+        if (step.id && !step.id.startsWith('temp_')) {
+          // Existing step: UPDATE in place to preserve UUID (keeps logic references intact)
+          stepId = step.id
+          const { error: stepErr } = await supabase.from('form_steps')
+            .update({
+              title: step.title,
+              description: step.description || null,
+              question_type: step.question_type,
+              is_required: step.is_required ?? true,
+              step_order: step.step_order,
+              max_file_size: step.max_file_size,
+              allowed_file_types: step.allowed_file_types,
+              dimension_type: step.dimension_type,
+              dimension_units: step.dimension_units,
+              scale_type: step.scale_type,
+              scale_min: step.scale_min,
+              scale_max: step.scale_max,
+              images_per_row: step.images_per_row,
+              mobile_images_per_row: step.mobile_images_per_row,
+              crop_images_to_square: step.crop_images_to_square ?? true,
+              frames_max_count: step.frames_max_count,
+              frames_require_image: step.frames_require_image,
+              frames_require_location: step.frames_require_location,
+              frames_require_measurements: step.frames_require_measurements,
+              contact_show_phone: step.contact_show_phone,
+              contact_show_address: step.contact_show_address,
+              contact_show_project_details: step.contact_show_project_details,
+              contact_show_preferred_contact: step.contact_show_preferred_contact,
+              contact_show_file_upload: step.contact_show_file_upload,
+              loop_start_step_id: step.loop_start_step_id || null,
+              loop_end_step_id: step.loop_end_step_id || null,
+              loop_label: step.loop_label || null,
+              loop_max_iterations: step.loop_max_iterations || null,
+              loop_button_text: step.loop_button_text || null
+            })
+            .eq('id', stepId)
+            .eq('form_id', finalFormId!)
+          if (stepErr) throw stepErr
+
+          // Delete existing options (will be recreated below)
+          const { error: delOptErr } = await supabase.from('form_options').delete().eq('step_id', stepId)
+          if (delOptErr) throw delOptErr
+        } else {
+          // New step: INSERT and track the temp→real ID mapping
+          const { data: stepData, error: stepErr } = await supabase.from('form_steps').insert([{
+            form_id: finalFormId,
+            title: step.title,
+            description: step.description || null,
+            question_type: step.question_type,
+            is_required: step.is_required ?? true,
+            step_order: step.step_order,
+            max_file_size: step.max_file_size,
+            allowed_file_types: step.allowed_file_types,
+            dimension_type: step.dimension_type,
+            dimension_units: step.dimension_units,
+            scale_type: step.scale_type,
+            scale_min: step.scale_min,
+            scale_max: step.scale_max,
+            images_per_row: step.images_per_row,
+            mobile_images_per_row: step.mobile_images_per_row,
+            crop_images_to_square: step.crop_images_to_square ?? true,
+            frames_max_count: step.frames_max_count,
+            frames_require_image: step.frames_require_image,
+            frames_require_location: step.frames_require_location,
+            frames_require_measurements: step.frames_require_measurements,
+            contact_show_phone: step.contact_show_phone,
+            contact_show_address: step.contact_show_address,
+            contact_show_project_details: step.contact_show_project_details,
+            contact_show_preferred_contact: step.contact_show_preferred_contact,
+            contact_show_file_upload: step.contact_show_file_upload,
+            loop_start_step_id: step.loop_start_step_id || null,
+            loop_end_step_id: step.loop_end_step_id || null,
+            loop_label: step.loop_label || null,
+            loop_max_iterations: step.loop_max_iterations || null,
+            loop_button_text: step.loop_button_text || null
+          }]).select().single()
+          if (stepErr) throw stepErr
+          stepId = stepData.id
+          if (oldStepId) idMap.set(oldStepId, stepId)
+        }
+
+        // Insert options - resolve image URLs first (uploads must be sequential), then batch insert
+        const resolvedOptions: Array<{ opt: typeof step.options[0]; image_url: string | null; order: number }> = []
+        for (let oi = 0; oi < step.options.length; oi++) {
+          const opt = step.options[oi]
           let image_url = opt.image_url || null
           if (opt.imageFile) {
-            // Try direct upload without policy checks first
             const bucket = 'form-assets'
             const filename = `${user.id}/${finalFormId}/${stepId}/${Date.now()}-${opt.imageFile.name}`
-            
-            console.log('Attempting direct upload to:', bucket, filename)
             const { error: upErr } = await supabase.storage.from(bucket).upload(filename, opt.imageFile)
-            
             if (upErr) {
               console.error('Upload error details:', upErr)
               push({ type: 'error', message: `Image upload failed: ${upErr.message}` })
-              // Fall back to placeholder
               image_url = `https://via.placeholder.com/300x200?text=${encodeURIComponent(opt.label)}`
             } else {
-              // Success! Get the public URL
               const { data: pub } = await supabase.storage.from(bucket).getPublicUrl(filename)
               image_url = pub?.publicUrl || `https://via.placeholder.com/300x200?text=${encodeURIComponent(opt.label)}`
-              console.log('Upload successful, URL:', image_url)
-              push({ type: 'success', message: 'Image uploaded successfully!' })
             }
-            
-            /* TODO: Re-enable when storage is working
-            const bucket = 'form-assets'
-            
-            // Ensure bucket exists before uploading
-            const bucketReady = await ensureBucketExists(bucket)
-            if (!bucketReady) {
-              push({ type: 'error', message: 'Storage bucket not available. Please check your Supabase configuration.' })
-              continue // Skip this image and continue with the form save
-            }
-            
-            const filename = `${user.id}/${finalFormId}/${stepId}/${Date.now()}-${opt.imageFile.name}`
-            const { error: upErr } = await supabase.storage.from(bucket).upload(filename, opt.imageFile)
-            if (upErr) {
-              console.error('Upload error details:', upErr)
-              push({ type: 'error', message: `Image upload failed: ${upErr.message || 'Unknown error'}` })
-            } else {
-              // for public buckets, get the public URL and store that for direct use in the embed
-              const { data: pub } = await supabase.storage.from(bucket).getPublicUrl(filename)
-              image_url = (pub ?? { publicUrl: filename }).publicUrl
-            }
-            */
           }
+          resolvedOptions.push({ opt, image_url, order: oi + 1 })
+        }
 
-          const { error: optErr } = await supabase.from('form_options').insert([{ 
-            step_id: stepId, 
-            label: opt.label, 
-            image_url, 
-            jump_to_step: opt.jump_to_step ?? null,
-            option_order: step.options.indexOf(opt) + 1
-          }])
+        // Batch insert all options for this step in one DB call
+        if (resolvedOptions.length > 0) {
+          const { data: insertedOpts, error: optErr } = await supabase.from('form_options').insert(
+            resolvedOptions.map(({ opt, image_url, order }) => ({
+              step_id: stepId,
+              label: opt.label,
+              image_url,
+              jump_to_step: opt.jump_to_step ?? null,
+              option_order: order
+            }))
+          ).select()
           if (optErr) throw optErr
+
+          // Track old->new option ID mapping for logic condition updates (keyed by final step ID)
+          if (insertedOpts) {
+            const optionMap = new Map<string, string>()
+            resolvedOptions.forEach(({ opt }, idx) => {
+              if (opt.id && insertedOpts[idx]?.id) {
+                optionMap.set(opt.id, insertedOpts[idx].id)
+              }
+            })
+            optionIdMapByStep.set(stepId, optionMap)
+          }
+        }
+      }
+
+      // Build and save step logic
+      const logicToInsert: any[] = []
+      stepLogicMap.forEach((logic, mapStepId) => {
+        // Resolve the final step ID:
+        // - temp IDs were newly created → look up in idMap
+        // - real UUIDs belong to existing steps → ID is unchanged
+        let finalStepId: string
+        if (idMap.has(mapStepId)) {
+          finalStepId = idMap.get(mapStepId)!
+        } else if (mapStepId && !mapStepId.startsWith('temp_')) {
+          finalStepId = mapStepId
+        } else {
+          return // Orphaned temp ID (step was removed), skip
+        }
+
+        const optionIdMap = optionIdMapByStep.get(finalStepId) || new Map<string, string>()
+
+        const updatedRules = logic.rules.map(rule => ({
+          ...rule,
+          step_id: finalStepId,
+          conditions: rule.conditions.map(c => ({
+            ...c,
+            option_id: c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
+          })),
+          action: {
+            ...rule.action,
+            target_step_id: rule.action.target_step_id
+              ? (idMap.get(rule.action.target_step_id) || rule.action.target_step_id)
+              : undefined
+          }
+        }))
+
+        const updatedDefaultAction = logic.default_action ? {
+          ...logic.default_action,
+          action: {
+            ...logic.default_action.action,
+            target_step_id: logic.default_action.action.target_step_id
+              ? (idMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id)
+              : undefined
+          }
+        } : undefined
+
+        if (updatedRules.length > 0 || updatedDefaultAction) {
+          logicToInsert.push({
+            step_id: finalStepId,
+            form_id: finalFormId,
+            rules: updatedRules,
+            default_action: updatedDefaultAction || null
+          })
+        }
+      })
+
+      if (logicToInsert.length > 0) {
+        const { error: logicErr } = await supabase.from('step_logic').insert(logicToInsert)
+        if (logicErr) {
+          console.error('Error saving step logic:', logicErr)
+          push({ type: 'info', message: 'Form saved but logic rules may not have been saved' })
         }
       }
 
       push({ type: 'success', message: isEditing ? 'Form updated successfully' : 'Form created successfully' })
-      // Stay on the same page after saving
+
+      // Reload form to sync IDs
+      if (finalFormId) {
+        if (!isEditing) {
+          navigate(`/forms/${finalFormId}`)
+        } else {
+          loadExistingForm()
+        }
+      }
     } catch (error) {
       console.error('Error saving form:', error)
       push({ type: 'error', message: 'Error saving form' })
@@ -1438,7 +1616,7 @@ export default function FormBuilder() {
       push({ type: 'error', message: 'You must be signed in' })
       return
     }
-    
+
     const step = steps[stepIndex]
     if (!step) return
 
@@ -1452,16 +1630,16 @@ export default function FormBuilder() {
     setSaving(true)
     try {
       // Check if this step already exists in the database
-      let stepId = step.id
-      
+      let stepId = step.id && !step.id.startsWith('temp_') ? step.id : undefined
+
       if (stepId) {
         // Update existing step
         const { error: stepErr } = await supabase.from('form_steps')
-          .update({ 
+          .update({
             title: step.title,
             description: step.description || null,
-            question_type: step.question_type, 
-            is_required: step.is_required ?? true, 
+            question_type: step.question_type,
+            is_required: step.is_required ?? true,
             step_order: step.step_order,
             max_file_size: step.max_file_size,
             allowed_file_types: step.allowed_file_types,
@@ -1471,15 +1649,26 @@ export default function FormBuilder() {
             dimension_type: step.dimension_type,
             dimension_units: step.dimension_units,
             images_per_row: step.images_per_row,
+            mobile_images_per_row: step.mobile_images_per_row,
             crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,
-            frames_require_measurements: step.frames_require_measurements
+            frames_require_measurements: step.frames_require_measurements,
+            contact_show_phone: step.contact_show_phone,
+            contact_show_address: step.contact_show_address,
+            contact_show_project_details: step.contact_show_project_details,
+            contact_show_preferred_contact: step.contact_show_preferred_contact,
+            contact_show_file_upload: step.contact_show_file_upload,
+            loop_start_step_id: step.loop_start_step_id || null,
+            loop_end_step_id: step.loop_end_step_id || null,
+            loop_label: step.loop_label || null,
+            loop_max_iterations: step.loop_max_iterations || null,
+            loop_button_text: step.loop_button_text || null
           })
           .eq('id', stepId)
           .eq('form_id', formId)
-        
+
         if (stepErr) throw stepErr
 
         // Delete existing options for this step
@@ -1487,17 +1676,17 @@ export default function FormBuilder() {
           .from('form_options')
           .delete()
           .eq('step_id', stepId)
-        
+
         if (deleteOptErr) throw deleteOptErr
       } else {
         // Create new step
         const { data: stepData, error: stepErr } = await supabase.from('form_steps')
-          .insert([{ 
-            form_id: formId, 
+          .insert([{
+            form_id: formId,
             title: step.title,
             description: step.description || null,
-            question_type: step.question_type, 
-            is_required: step.is_required ?? true, 
+            question_type: step.question_type,
+            is_required: step.is_required ?? true,
             step_order: step.step_order,
             max_file_size: step.max_file_size,
             allowed_file_types: step.allowed_file_types,
@@ -1507,15 +1696,26 @@ export default function FormBuilder() {
             dimension_type: step.dimension_type,
             dimension_units: step.dimension_units,
             images_per_row: step.images_per_row,
+            mobile_images_per_row: step.mobile_images_per_row,
             crop_images_to_square: step.crop_images_to_square ?? true,
             frames_max_count: step.frames_max_count,
             frames_require_image: step.frames_require_image,
             frames_require_location: step.frames_require_location,
-            frames_require_measurements: step.frames_require_measurements
+            frames_require_measurements: step.frames_require_measurements,
+            contact_show_phone: step.contact_show_phone,
+            contact_show_address: step.contact_show_address,
+            contact_show_project_details: step.contact_show_project_details,
+            contact_show_preferred_contact: step.contact_show_preferred_contact,
+            contact_show_file_upload: step.contact_show_file_upload,
+            loop_start_step_id: step.loop_start_step_id || null,
+            loop_end_step_id: step.loop_end_step_id || null,
+            loop_label: step.loop_label || null,
+            loop_max_iterations: step.loop_max_iterations || null,
+            loop_button_text: step.loop_button_text || null
           }])
           .select()
           .single()
-        
+
         if (stepErr) throw stepErr
         stepId = stepData.id
 
@@ -1525,6 +1725,10 @@ export default function FormBuilder() {
         setSteps(updatedSteps)
       }
 
+      // Track option ID mapping for logic updates
+      const optionIdMap = new Map<string, string>()
+      const newOptionsWithIds: Array<any> = []
+
       // Insert/recreate options
       for (const opt of step.options) {
         let image_url = opt.image_url || null
@@ -1532,10 +1736,10 @@ export default function FormBuilder() {
           // Try direct upload without policy checks first
           const bucket = 'form-assets'
           const filename = `${user.id}/${formId}/${stepId}/${Date.now()}-${opt.imageFile.name}`
-          
+
           console.log('Attempting direct upload to:', bucket, filename)
           const { error: upErr } = await supabase.storage.from(bucket).upload(filename, opt.imageFile)
-          
+
           if (upErr) {
             console.error('Upload error details:', upErr)
             push({ type: 'error', message: `Image upload failed: ${upErr.message}` })
@@ -1548,7 +1752,7 @@ export default function FormBuilder() {
             console.log('Upload successful, URL:', image_url)
             push({ type: 'success', message: 'Image uploaded successfully!' })
           }
-          
+
           /* TODO: Re-enable when storage is working
           const bucket = 'form-assets'
           
@@ -1571,14 +1775,99 @@ export default function FormBuilder() {
           */
         }
 
-        const { error: optErr } = await supabase.from('form_options').insert([{ 
-          step_id: stepId, 
-          label: opt.label, 
-          image_url, 
+        const { data: optData, error: optErr } = await supabase.from('form_options').insert([{
+          step_id: stepId,
+          label: opt.label,
+          image_url,
           jump_to_step: opt.jump_to_step ?? null,
           option_order: step.options.indexOf(opt) + 1
-        }])
+        }]).select().single()
+        
         if (optErr) throw optErr
+
+        // Map old option ID to new option ID
+        if (optData) {
+          if (opt.id) optionIdMap.set(opt.id, optData.id)
+          newOptionsWithIds.push({ ...opt, id: optData.id, image_url })
+        }
+      }
+
+      // Update local state with new IDs immediately!
+      // This fixes the issue where subsequent logic edits use old/undefined IDs
+      setSteps(prevSteps => {
+        const newSteps = [...prevSteps]
+        newSteps[stepIndex] = { 
+          ...newSteps[stepIndex], 
+          id: stepId,
+          options: newOptionsWithIds 
+        }
+        return newSteps
+      })
+
+      // Handle Step Logic
+      // We must save logic here because saveStep recreates IDs which breaks existing logic links
+      const oldStepId = step.id // Use original ID to look up logic
+      if (oldStepId && stepLogicMap.has(oldStepId)) {
+        const logic = stepLogicMap.get(oldStepId)
+        
+        // Check for temp IDs in targets (safeguard)
+        const hasTempTargets = logic?.rules.some(r => r.action.target_step_id?.startsWith('temp_')) ||
+                               logic?.default_action?.action.target_step_id?.startsWith('temp_')
+
+        if (hasTempTargets) {
+             push({ type: 'warning', message: 'Logic saved locally. Use "Save Form" to persist links to new steps.' })
+        } else if (logic && (logic.rules.length > 0 || logic.default_action)) {
+             // Delete existing logic for this step first
+             await supabase.from('step_logic').delete().eq('step_id', stepId)
+             
+             // Map rules to use new IDs
+             const mappedRules = logic.rules.map(r => ({
+                 ...r, 
+                 step_id: stepId!,
+                 conditions: r.conditions.map(c => ({
+                     ...c,
+                     // Map option ID if it was recreated
+                     option_id: c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
+                 }))
+             }))
+
+             // Insert new logic
+             const updatedDefaultAction = logic.default_action ? {...logic.default_action, step_id: stepId!} : null
+             const { error: logicErr } = await supabase.from('step_logic').insert({
+                 step_id: stepId,
+                 form_id: formId,
+                 rules: mappedRules,
+                 default_action: updatedDefaultAction
+             })
+             
+             if (logicErr) {
+                 console.error('Error saving step logic:', logicErr)
+             } else {
+                 // Update stepLogicMap with remapped option IDs so that:
+                 // 1. Re-opening the LogicBuilder shows the correct (current) option IDs
+                 // 2. Subsequent saveStep calls use current IDs in optionIdMap (not stale ones)
+                 const updatedLogic = {
+                     ...logic,
+                     step_id: stepId!,
+                     rules: mappedRules,
+                     default_action: updatedDefaultAction || undefined
+                 }
+                 setStepLogicMap(prev => {
+                     const newMap = new Map(prev)
+                     if (oldStepId !== stepId) newMap.delete(oldStepId)
+                     newMap.set(stepId!, updatedLogic)
+                     return newMap
+                 })
+             }
+        } else if (oldStepId !== stepId && logic) {
+             // Step ID changed (new step getting its first real DB ID) — update map key
+             setStepLogicMap(prev => {
+                 const newMap = new Map(prev)
+                 newMap.delete(oldStepId)
+                 newMap.set(stepId!, { ...logic, step_id: stepId! })
+                 return newMap
+             })
+        }
       }
 
       push({ type: 'success', message: `Step "${step.title}" saved successfully` })
@@ -1595,19 +1884,16 @@ export default function FormBuilder() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#111111]">
-        <div className={`backdrop-blur-xl rounded-2xl p-8 text-center animate-pulse ${
-          theme === 'light'
-            ? 'bg-white/80 border border-gray-200 shadow-lg'
-            : 'bg-white/10 border border-white/20'
-        }`}>
-          <div className={`animate-spin rounded-full h-12 w-12 border-2 mx-auto mb-4 ${
-            theme === 'light'
-              ? 'border-gray-300 border-t-blue-600'
-              : 'border-white/30 border-t-white'
-          }`}></div>
-          <p className={`font-medium ${
-            theme === 'light' ? 'text-gray-700' : 'text-white/80'
-          }`}>Loading form builder...</p>
+        <div className={`backdrop-blur-xl rounded-2xl p-8 text-center animate-pulse ${theme === 'light'
+          ? 'bg-white/80 border border-gray-200 shadow-lg'
+          : 'bg-white/10 border border-white/20'
+          }`}>
+          <div className={`animate-spin rounded-full h-12 w-12 border-2 mx-auto mb-4 ${theme === 'light'
+            ? 'border-gray-300 border-t-blue-600'
+            : 'border-white/30 border-t-white'
+            }`}></div>
+          <p className={`font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'
+            }`}>Loading form builder...</p>
         </div>
       </div>
     )
@@ -1616,35 +1902,31 @@ export default function FormBuilder() {
   return (
     <div className="min-h-screen bg-[#111111]">
       {/* Header */}
-      <div className={`border-b backdrop-blur-xl px-6 py-4 ${
-        theme === 'light'
-          ? 'border-gray-200 bg-white/80'
-          : 'border-white/10 bg-white/10'
-      }`}>
+      <div className={`border-b backdrop-blur-xl px-6 py-4 ${theme === 'light'
+        ? 'border-gray-200 bg-white/80'
+        : 'border-white/10 bg-white/10'
+        }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigate('/forms')}
-              className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                theme === 'light'
-                  ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  : 'text-white/60 hover:text-white hover:bg-white/10'
-              }`}
+              className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
+                ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className={`text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-                theme === 'light'
-                  ? 'from-gray-800 via-blue-600 to-purple-600'
-                  : 'from-white via-orange-100 to-red-200'
-              }`}>
+              <h1 className={`text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${theme === 'light'
+                ? 'from-gray-800 via-blue-600 to-purple-600'
+                : 'from-white via-orange-100 to-red-200'
+                }`}>
                 {isEditing ? 'Edit Form: ' : 'Create Form: '}{name || 'Untitled Form'}
               </h1>
               {clientId && (
-                <p className={`mt-1 ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>
+                <p className={`mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                  }`}>
                   {clients.find(c => c.id === clientId)?.name}
                 </p>
               )}
@@ -1660,48 +1942,43 @@ export default function FormBuilder() {
             </button>
             <button
               onClick={() => setShowFormSettingsModal(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 border border-blue-200'
-                  : 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 text-blue-200 border border-blue-400/30'
-              }`}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
+                ? 'bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 border border-blue-200'
+                : 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 text-blue-200 border border-blue-400/30'
+                }`}
             >
               <FileText className="h-4 w-4 mr-2" />
               Form Settings
             </button>
             <button
               onClick={() => setShowFormThemeModal(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200'
-                  : 'bg-gradient-to-r from-purple-500/20 to-purple-600/20 hover:from-purple-500/30 hover:to-purple-600/30 text-purple-200 border border-purple-400/30'
-              }`}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
+                ? 'bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200'
+                : 'bg-gradient-to-r from-purple-500/20 to-purple-600/20 hover:from-purple-500/30 hover:to-purple-600/30 text-purple-200 border border-purple-400/30'
+                }`}
             >
               <Palette className="h-4 w-4 mr-2" />
               Form Theme
             </button>
             <button
-              onClick={() => setShowButtonColoursModal(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200 text-yellow-700 border border-yellow-200'
-                  : 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 text-yellow-200 border border-yellow-400/30'
-              }`}
+              type="button"
+              onClick={() => setShowEmbedModal(true)}
+              disabled={!formId}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${theme === 'light'
+                ? 'bg-gradient-to-r from-emerald-50 to-teal-100 hover:from-emerald-100 hover:to-teal-200 text-emerald-700 border border-emerald-200'
+                : 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 text-emerald-200 border border-emerald-400/30'
+                }`}
             >
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
-                <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-              </svg>
-              Button Colours
+              <Code className="w-4 h-4 mr-2" />
+              Embed Form
             </button>
             <button
               onClick={undo}
               disabled={history.past.length === 0}
-              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
-                  : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
-              }`}
+              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
+                ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
+                : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
+                }`}
               title="Undo last action"
             >
               <Undo className="h-4 w-4" />
@@ -1709,22 +1986,32 @@ export default function FormBuilder() {
             <button
               onClick={redo}
               disabled={history.future.length === 0}
-              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
-                  : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
-              }`}
+              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
+                ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
+                : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
+                }`}
               title="Redo last undone action"
             >
               <Redo className="h-4 w-4" />
             </button>
             <button
+              onClick={() => setShowGlobalFlowchart(true)}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
+                ? 'bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 text-teal-700 border border-teal-200'
+                : 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 hover:from-teal-500/30 hover:to-teal-600/30 text-teal-200 border border-teal-400/30'
+                }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Logic Map
+            </button>
+            <button
               onClick={() => setShowPreview(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 text-purple-700 border border-purple-200'
-                  : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
-              }`}
+              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
+                ? 'bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 text-purple-700 border border-purple-200'
+                : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
+                }`}
             >
               <Eye className="mr-2 h-4 w-4" />
               Preview
@@ -1732,11 +2019,10 @@ export default function FormBuilder() {
             <button
               onClick={save}
               disabled={saving}
-              className={`inline-flex items-center px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-                theme === 'light'
-                  ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
-                  : 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
-              }`}
+              className={`inline-flex items-center px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
+                : 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
+                }`}
             >
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Form'}
@@ -1747,11 +2033,10 @@ export default function FormBuilder() {
 
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar */}
-        <div className={`w-[400px] border-r overflow-y-auto ${
-          theme === 'light'
-            ? 'border-gray-200 bg-white/60 backdrop-blur-sm'
-            : 'border-white/10 bg-white/5 backdrop-blur-sm'
-        }`}>
+        <div className={`w-[400px] border-r overflow-y-auto ${theme === 'light'
+          ? 'border-gray-200 bg-white/60 backdrop-blur-sm'
+          : 'border-white/10 bg-white/5 backdrop-blur-sm'
+          }`}>
           <div className="p-6 pb-24 space-y-6">
             {/* Form Steps */}
             <CollapsibleSection
@@ -1762,63 +2047,67 @@ export default function FormBuilder() {
               animationDelay="0.1s"
             >
               <div className="space-y-4">
-              <DndContext 
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="space-y-3">
-                  <SortableContext 
-                    items={steps.map((_, index) => `step-${index}`)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {steps.map((step, index) => (
-                      <SortableStepItem
-                        key={`step-${index}`}
-                        step={step}
-                        index={index}
-                        isSelected={selectedStepIndex === index}
-                        onClick={() => setSelectedStepIndex(index)}
-                        onDelete={() => deleteStep(index)}
-                        onDuplicate={() => duplicateStep(index)}
-                        canDelete={steps.length > 1}
-                      />
-                    ))}
-                  </SortableContext>
-                  
-                  {steps.length === 0 && (
-                    <div className="text-center py-8">
-                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-                        <Plus className="w-6 h-6 text-white/60" />
-                      </div>
-                      <p className="text-sm text-white/70 mb-6">Create a step to start building your form</p>
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {stepTypes.map((stepType) => (
-                          <button
-                            key={stepType.type}
-                            onClick={() => addStep(stepType.type)}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
-                          >
-                            {stepType.icon}
-                            <span className="ml-2 text-sm">{stepType.title}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </DndContext>
-              
-              {/* Add Step Button at bottom of list */}
-              {steps.length > 0 && (
-                <button
-                  onClick={() => setShowStepTypeDropdown(true)}
-                  className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border-2 border-dashed border-blue-400/30 hover:border-blue-400/50 text-blue-200 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-sm mt-3"
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Step
-                </button>
-              )}
+                  <div className="space-y-3">
+                    <SortableContext
+                      items={steps.map((_, index) => `step-${index}`)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {steps.map((step, index) => (
+                        <SortableStepItem
+                          key={`step-${index}`}
+                          step={step}
+                          index={index}
+                          isSelected={selectedStepIndex === index}
+                          onClick={() => setSelectedStepIndex(index)}
+                          onDelete={() => deleteStep(index)}
+                          onDuplicate={() => duplicateStep(index)}
+                          onPreview={() => {
+                            setPreviewStepIndex(index)
+                            setShowSingleStepPreview(true)
+                          }}
+                          canDelete={steps.length > 1}
+                        />
+                      ))}
+                    </SortableContext>
+
+                    {steps.length === 0 && (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
+                          <Plus className="w-6 h-6 text-white/60" />
+                        </div>
+                        <p className="text-sm text-white/70 mb-6">Create a step to start building your form</p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {stepTypes.map((stepType) => (
+                            <button
+                              key={stepType.type}
+                              onClick={() => addStep(stepType.type)}
+                              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                            >
+                              {stepType.icon}
+                              <span className="ml-2 text-sm">{stepType.title}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </DndContext>
+
+                {/* Add Step Button at bottom of list */}
+                {steps.length > 0 && (
+                  <button
+                    onClick={() => setShowStepTypeDropdown(true)}
+                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border-2 border-dashed border-blue-400/30 hover:border-blue-400/50 text-blue-200 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-sm mt-3"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Step
+                  </button>
+                )}
               </div>
             </CollapsibleSection>
           </div>
@@ -1828,27 +2117,24 @@ export default function FormBuilder() {
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
             {currentStep ? (
-              <div className={`backdrop-blur-xl rounded-2xl p-6 ${
-                theme === 'light'
-                  ? 'bg-white/90 border border-gray-200 shadow-lg'
-                  : 'bg-white/10 border border-white/20'
-              }`}>
+              <div className={`backdrop-blur-xl rounded-2xl p-6 ${theme === 'light'
+                ? 'bg-white/90 border border-gray-200 shadow-lg'
+                : 'bg-white/10 border border-white/20'
+                }`}>
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className={`text-xl font-semibold bg-gradient-to-r bg-clip-text text-transparent ${
-                    theme === 'light'
-                      ? 'from-gray-800 to-blue-600'
-                      : 'from-white to-blue-200'
-                  }`}>
+                  <h2 className={`text-xl font-semibold bg-gradient-to-r bg-clip-text text-transparent ${theme === 'light'
+                    ? 'from-gray-800 to-blue-600'
+                    : 'from-white to-blue-200'
+                    }`}>
                     Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}
                   </h2>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShowLoadTemplateModal(true)}
-                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        theme === 'light'
-                          ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-                          : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30'
-                      }`}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
+                        ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                        : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30'
+                        }`}
                       title="Load from template"
                     >
                       <FolderOpen className="w-4 h-4 mr-1.5" />
@@ -1856,11 +2142,10 @@ export default function FormBuilder() {
                     </button>
                     <button
                       onClick={() => setShowSaveTemplateModal(true)}
-                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        theme === 'light'
-                          ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-                          : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/30'
-                      }`}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
+                        ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                        : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/30'
+                        }`}
                       title="Save as template"
                     >
                       <BookmarkPlus className="w-4 h-4 mr-1.5" />
@@ -1869,51 +2154,64 @@ export default function FormBuilder() {
                     {currentStep.question_type === 'image_selection' && (
                       <button
                         onClick={() => setShowLayoutSettingsModal(true)}
-                        className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                          theme === 'light'
-                            ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-                            : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-400/30'
-                        }`}
+                        className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
+                          ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
+                          : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-400/30'
+                          }`}
                         title="Layout settings"
                       >
                         <Settings className="w-4 h-4 mr-1.5" />
                         Layout Settings
                       </button>
                     )}
+                    <button
+                      onClick={() => setShowLogicBuilder(true)}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
+                        ? 'bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 text-purple-700'
+                        : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-300 border border-purple-400/30'
+                        }`}
+                      title="Add conditional logic"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Logic
+                      {stepLogicMap.get(currentStep.id || '')?.rules.length ? (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+                          {stepLogicMap.get(currentStep.id || '')?.rules.length}
+                        </span>
+                      ) : null}
+                    </button>
                   </div>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${
-                      theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                    }`}>Step Title</label>
+                    <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                      }`}>Step Title</label>
                     <input
                       type="text"
-                      value={currentStep.title} 
+                      value={currentStep.title}
                       onChange={(e) => updateStep(selectedStepIndex!, { ...currentStep, title: e.target.value })}
                       placeholder="What are you looking for?"
-                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                        theme === 'light'
-                          ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                          : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                      }`}
+                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
+                        ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                        }`}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${
-                      theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                    }`}>Description (Optional)</label>
+                    <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                      }`}>Description (Optional)</label>
                     <textarea
-                      value={currentStep.description || ''} 
+                      value={currentStep.description || ''}
                       onChange={(e) => updateStep(selectedStepIndex!, { ...currentStep, description: e.target.value })}
                       placeholder="Add a short description or helpful text..."
                       rows={2}
-                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
-                        theme === 'light'
-                          ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                          : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                      }`}
+                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${theme === 'light'
+                        ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
+                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                        }`}
                     />
                   </div>
 
@@ -1929,29 +2227,34 @@ export default function FormBuilder() {
                           Add Option
                         </button>
                       </div>
-                      
+
                       {/* Grid layout for image selection options */}
                       {currentStep.question_type === 'image_selection' ? (
-                        <DndContext 
+                        <DndContext
                           sensors={sensors}
                           collisionDetection={closestCenter}
                           onDragEnd={handleOptionDragEnd}
                         >
-                          <SortableContext 
+                          <SortableContext
                             items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
                             strategy={verticalListSortingStrategy}
                           >
-                            <div className={`grid gap-4 grid-auto-rows-fr ${!currentStep.crop_images_to_square ? 'items-start' : ''} ${
-                              currentStep.images_per_row === 1
-                                ? 'grid-cols-1'
-                                : currentStep.images_per_row === 2
-                                ? 'grid-cols-1 sm:grid-cols-2'
-                                : currentStep.images_per_row === 3
-                                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                                : currentStep.images_per_row === 4
-                                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                                : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
-                            }`}>
+                            <div className={`grid gap-4 grid-auto-rows-fr ${!currentStep.crop_images_to_square ? 'items-start' : ''} ${(() => {
+                                const desktop = currentStep.images_per_row || 2
+                                const mobile = currentStep.mobile_images_per_row
+                                if (mobile != null) {
+                                  const mobileClass = mobile === 2 ? 'grid-cols-2' : mobile === 3 ? 'grid-cols-3' : 'grid-cols-1'
+                                  if (desktop === 1) return 'grid-cols-1'
+                                  if (desktop === mobile) return mobileClass
+                                  const desktopClass = desktop === 2 ? 'md:grid-cols-2' : desktop === 3 ? 'md:grid-cols-3' : desktop === 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
+                                  return `${mobileClass} ${desktopClass}`
+                                }
+                                if (desktop === 1) return 'grid-cols-1'
+                                if (desktop === 2) return 'grid-cols-1 sm:grid-cols-2'
+                                if (desktop === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                if (desktop === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                                return 'grid-cols-1 sm:grid-cols-2'
+                              })()}`}>
                               {currentStep.options.map((option, optIndex) => (
                                 <SortableImageOptionItem
                                   key={`step-${selectedStepIndex}-option-${optIndex}`}
@@ -1969,12 +2272,12 @@ export default function FormBuilder() {
                         </DndContext>
                       ) : (
                         /* Sortable layout for multiple choice options */
-                        <DndContext 
+                        <DndContext
                           sensors={sensors}
                           collisionDetection={closestCenter}
                           onDragEnd={handleOptionDragEnd}
                         >
-                          <SortableContext 
+                          <SortableContext
                             items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
                             strategy={verticalListSortingStrategy}
                           >
@@ -2001,7 +2304,7 @@ export default function FormBuilder() {
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">File Upload Preview</label>
                         <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
-                          <div 
+                          <div
                             className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-cyan-400/50 transition-colors cursor-pointer"
                           >
                             <div className="flex flex-col items-center space-y-4">
@@ -2042,9 +2345,9 @@ export default function FormBuilder() {
                             min={1}
                             max={100}
                             value={currentStep.max_file_size || 5}
-                            onChange={(e) => updateStep(selectedStepIndex!, { 
-                              ...currentStep, 
-                              max_file_size: Number(e.target.value) || 5 
+                            onChange={(e) => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              max_file_size: Number(e.target.value) || 5
                             })}
                             className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                           />
@@ -2053,9 +2356,9 @@ export default function FormBuilder() {
                           <label className="block text-sm font-medium text-white/90">Required</label>
                           <select
                             value={currentStep.is_required ? 'true' : 'false'}
-                            onChange={(e) => updateStep(selectedStepIndex!, { 
-                              ...currentStep, 
-                              is_required: e.target.value === 'true' 
+                            onChange={(e) => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              is_required: e.target.value === 'true'
                             })}
                             className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                           >
@@ -2064,7 +2367,7 @@ export default function FormBuilder() {
                           </select>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Allowed File Types</label>
                         <div className="grid grid-cols-2 gap-2">
@@ -2074,7 +2377,7 @@ export default function FormBuilder() {
                               checked={(currentStep.allowed_file_types || []).includes('image/*')}
                               onChange={(e) => {
                                 const types = currentStep.allowed_file_types || []
-                                const newTypes = e.target.checked 
+                                const newTypes = e.target.checked
                                   ? [...types.filter(t => t !== 'image/*'), 'image/*']
                                   : types.filter(t => t !== 'image/*')
                                 updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
@@ -2089,7 +2392,7 @@ export default function FormBuilder() {
                               checked={(currentStep.allowed_file_types || []).includes('application/pdf')}
                               onChange={(e) => {
                                 const types = currentStep.allowed_file_types || []
-                                const newTypes = e.target.checked 
+                                const newTypes = e.target.checked
                                   ? [...types.filter(t => t !== 'application/pdf'), 'application/pdf']
                                   : types.filter(t => t !== 'application/pdf')
                                 updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
@@ -2105,7 +2408,7 @@ export default function FormBuilder() {
                               onChange={(e) => {
                                 const types = currentStep.allowed_file_types || []
                                 const wordTypes = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-                                const newTypes = e.target.checked 
+                                const newTypes = e.target.checked
                                   ? [...types.filter(t => !wordTypes.includes(t)), ...wordTypes]
                                   : types.filter(t => !wordTypes.includes(t))
                                 updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
@@ -2120,7 +2423,7 @@ export default function FormBuilder() {
                               checked={(currentStep.allowed_file_types || []).includes('text/*')}
                               onChange={(e) => {
                                 const types = currentStep.allowed_file_types || []
-                                const newTypes = e.target.checked 
+                                const newTypes = e.target.checked
                                   ? [...types.filter(t => t !== 'text/*'), 'text/*']
                                   : types.filter(t => t !== 'text/*')
                                 updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
@@ -2151,14 +2454,14 @@ export default function FormBuilder() {
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Required</label>
                         <select
                           value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, { 
-                            ...currentStep, 
-                            is_required: e.target.value === 'true' 
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            is_required: e.target.value === 'true'
                           })}
                           className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                         >
@@ -2175,7 +2478,7 @@ export default function FormBuilder() {
                         <label className="block text-sm font-medium text-white/90">Dimensions Preview</label>
                         <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
                           <div className="text-sm text-white/70 mb-4">Enter measurements</div>
-                          
+
                           {/* Dimension Type Preview */}
                           <div className="space-y-3 mb-4">
                             <div className="flex items-center space-x-6">
@@ -2252,7 +2555,7 @@ export default function FormBuilder() {
                               </div>
                             )}
                           </div>
-                          
+
                           {currentStep.is_required && (
                             <p className="text-xs text-white/60 mt-2">* These fields are required</p>
                           )}
@@ -2268,8 +2571,8 @@ export default function FormBuilder() {
                               name="dimensionType"
                               value="2d"
                               checked={currentStep.dimension_type === '2d'}
-                              onChange={(e) => updateStep(selectedStepIndex!, { 
-                                ...currentStep, 
+                              onChange={(e) => updateStep(selectedStepIndex!, {
+                                ...currentStep,
                                 dimension_type: e.target.value as '2d' | '3d'
                               })}
                               className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
@@ -2282,8 +2585,8 @@ export default function FormBuilder() {
                               name="dimensionType"
                               value="3d"
                               checked={currentStep.dimension_type === '3d'}
-                              onChange={(e) => updateStep(selectedStepIndex!, { 
-                                ...currentStep, 
+                              onChange={(e) => updateStep(selectedStepIndex!, {
+                                ...currentStep,
                                 dimension_type: e.target.value as '2d' | '3d'
                               })}
                               className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
@@ -2292,14 +2595,14 @@ export default function FormBuilder() {
                           </label>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Default Units</label>
                         <select
                           value={currentStep.dimension_units || 'mm'}
-                          onChange={(e) => updateStep(selectedStepIndex!, { 
-                            ...currentStep, 
-                            dimension_units: e.target.value 
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            dimension_units: e.target.value
                           })}
                           className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                         >
@@ -2310,14 +2613,14 @@ export default function FormBuilder() {
                           <option value="ft" className="bg-slate-800">Feet (ft)</option>
                         </select>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Required</label>
                         <select
                           value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, { 
-                            ...currentStep, 
-                            is_required: e.target.value === 'true' 
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            is_required: e.target.value === 'true'
                           })}
                           className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                         >
@@ -2381,8 +2684,8 @@ export default function FormBuilder() {
                               name="scaleType"
                               value="number"
                               checked={currentStep.scale_type === 'number'}
-                              onChange={(e) => updateStep(selectedStepIndex!, { 
-                                ...currentStep, 
+                              onChange={(e) => updateStep(selectedStepIndex!, {
+                                ...currentStep,
                                 scale_type: e.target.value as 'number' | 'star',
                                 scale_min: 1,
                                 scale_max: e.target.value === 'number' ? 10 : 5
@@ -2397,8 +2700,8 @@ export default function FormBuilder() {
                               name="scaleType"
                               value="star"
                               checked={currentStep.scale_type === 'star'}
-                              onChange={(e) => updateStep(selectedStepIndex!, { 
-                                ...currentStep, 
+                              onChange={(e) => updateStep(selectedStepIndex!, {
+                                ...currentStep,
                                 scale_type: e.target.value as 'number' | 'star',
                                 scale_min: 1,
                                 scale_max: e.target.value === 'number' ? 10 : 5
@@ -2409,7 +2712,7 @@ export default function FormBuilder() {
                           </label>
                         </div>
                       </div>
-                      
+
                       {currentStep.scale_type === 'number' && (
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -2419,9 +2722,9 @@ export default function FormBuilder() {
                               min={1}
                               max={9}
                               value={currentStep.scale_min || 1}
-                              onChange={(e) => updateStep(selectedStepIndex!, { 
-                                ...currentStep, 
-                                scale_min: Number(e.target.value) || 1 
+                              onChange={(e) => updateStep(selectedStepIndex!, {
+                                ...currentStep,
+                                scale_min: Number(e.target.value) || 1
                               })}
                               className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                             />
@@ -2433,23 +2736,23 @@ export default function FormBuilder() {
                               min={2}
                               max={10}
                               value={currentStep.scale_max || 10}
-                              onChange={(e) => updateStep(selectedStepIndex!, { 
-                                ...currentStep, 
-                                scale_max: Number(e.target.value) || 10 
+                              onChange={(e) => updateStep(selectedStepIndex!, {
+                                ...currentStep,
+                                scale_max: Number(e.target.value) || 10
                               })}
                               className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                             />
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Required</label>
                         <select
                           value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, { 
-                            ...currentStep, 
-                            is_required: e.target.value === 'true' 
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            is_required: e.target.value === 'true'
                           })}
                           className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                         >
@@ -2485,7 +2788,7 @@ export default function FormBuilder() {
                             {/* Sample frame preview */}
                             <div className="border border-white/20 rounded-lg p-4 bg-white/5">
                               <h4 className="text-lg font-medium text-white/90 mb-4">Frame 1</h4>
-                              
+
                               <div className="space-y-4">
                                 {/* Image Upload Preview */}
                                 {currentStep.frames_require_image !== false && (
@@ -2508,7 +2811,7 @@ export default function FormBuilder() {
                                     </div>
                                   </div>
                                 )}
-                                
+
                                 {/* Location Input Preview */}
                                 {currentStep.frames_require_location !== false && (
                                   <div>
@@ -2523,7 +2826,7 @@ export default function FormBuilder() {
                                     />
                                   </div>
                                 )}
-                                
+
                                 {/* Measurements Input Preview */}
                                 {currentStep.frames_require_measurements !== false && (
                                   <div>
@@ -2551,9 +2854,9 @@ export default function FormBuilder() {
                           min={1}
                           max={50}
                           value={currentStep.frames_max_count || 10}
-                          onChange={(e) => updateStep(selectedStepIndex!, { 
-                            ...currentStep, 
-                            frames_max_count: Number(e.target.value) || 10 
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            frames_max_count: Number(e.target.value) || 10
                           })}
                           className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                         />
@@ -2562,54 +2865,54 @@ export default function FormBuilder() {
 
                       <div className="space-y-3">
                         <p className="text-sm font-medium text-white/90">Required Fields for Each Frame</p>
-                        
+
                         <label className="flex items-center space-x-3">
                           <input
                             type="checkbox"
                             checked={currentStep.frames_require_image !== false}
-                            onChange={(e) => updateStep(selectedStepIndex!, { 
-                              ...currentStep, 
-                              frames_require_image: e.target.checked 
+                            onChange={(e) => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              frames_require_image: e.target.checked
                             })}
                             className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
                           />
                           <span className="text-white/90">Image Upload</span>
                         </label>
-                        
+
                         <label className="flex items-center space-x-3">
                           <input
                             type="checkbox"
                             checked={currentStep.frames_require_location !== false}
-                            onChange={(e) => updateStep(selectedStepIndex!, { 
-                              ...currentStep, 
-                              frames_require_location: e.target.checked 
+                            onChange={(e) => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              frames_require_location: e.target.checked
                             })}
                             className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
                           />
                           <span className="text-white/90">Location (e.g., bedroom)</span>
                         </label>
-                        
+
                         <label className="flex items-center space-x-3">
                           <input
                             type="checkbox"
                             checked={currentStep.frames_require_measurements !== false}
-                            onChange={(e) => updateStep(selectedStepIndex!, { 
-                              ...currentStep, 
-                              frames_require_measurements: e.target.checked 
+                            onChange={(e) => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              frames_require_measurements: e.target.checked
                             })}
                             className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
                           />
                           <span className="text-white/90">Measurements</span>
                         </label>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-white/90">Required</label>
                         <select
                           value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, { 
-                            ...currentStep, 
-                            is_required: e.target.value === 'true' 
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            is_required: e.target.value === 'true'
                           })}
                           className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
                         >
@@ -2620,16 +2923,247 @@ export default function FormBuilder() {
                     </div>
                   )}
 
+                  {/* Contact Fields Configuration */}
+                  {currentStep.question_type === 'contact_fields' && (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium text-white/90">Visible Fields</p>
+                        <p className="text-xs text-white/60">Name and Email are always shown. Toggle the optional fields below.</p>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Phone Number</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_phone: !(currentStep.contact_show_phone ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_phone ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_phone ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Property Address</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_address: !(currentStep.contact_show_address ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_address ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_address ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Project Details</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_project_details: !(currentStep.contact_show_project_details ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_project_details ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_project_details ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2 border-b border-white/10">
+                          <span className="text-white/90 text-sm">Preferred Contact Method</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_preferred_contact: !(currentStep.contact_show_preferred_contact ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_preferred_contact ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_preferred_contact ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+
+                        <label className="flex items-center justify-between py-2">
+                          <span className="text-white/90 text-sm">File Upload</span>
+                          <button
+                            type="button"
+                            onClick={() => updateStep(selectedStepIndex!, {
+                              ...currentStep,
+                              contact_show_file_upload: !(currentStep.contact_show_file_upload ?? true)
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              (currentStep.contact_show_file_upload ?? true) ? 'bg-blue-500' : 'bg-white/20'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              (currentStep.contact_show_file_upload ?? true) ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loop Section Configuration */}
+                  {currentStep.question_type === 'loop_section' && (
+                    <div className="space-y-4">
+                      <div className="bg-blue-500/10 border border-blue-400/30 rounded-xl p-4 mb-4">
+                        <div className="flex items-start gap-3">
+                          <Repeat className="w-5 h-5 text-blue-300 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-200 mb-1">Loop Section</p>
+                            <p className="text-xs text-blue-300/80">
+                              This allows users to repeat a set of questions multiple times. For example, add multiple windows, properties, or team members in a single form submission.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Item Label</label>
+                        <input
+                          type="text"
+                          value={currentStep.loop_label || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            loop_label: e.target.value
+                          })}
+                          placeholder="e.g., Window, Property, Frame"
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">What are users adding? (e.g., "Window" becomes "Add Another Window")</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Loop Start Step</label>
+                        <select
+                          value={currentStep.loop_start_step_id || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            loop_start_step_id: e.target.value
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="" className="bg-slate-800">Select start step...</option>
+                          {steps
+                            .filter((s, i) => i < selectedStepIndex!)
+                            .map((step, idx) => (
+                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
+                                {idx + 1}. {step.title}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-white/60">First step users will see when they loop back</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Loop End Step</label>
+                        <select
+                          value={currentStep.loop_end_step_id || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            loop_end_step_id: e.target.value
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        >
+                          <option value="" className="bg-slate-800">Select end step...</option>
+                          {steps
+                            .filter((s, i) => i < selectedStepIndex!)
+                            .map((step, idx) => (
+                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
+                                {idx + 1}. {step.title}
+                              </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-white/60">Last step before returning to this loop section</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Maximum Iterations</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={currentStep.loop_max_iterations || 10}
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            loop_max_iterations: Number(e.target.value) || 10
+                          })}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Maximum times user can repeat this section</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-white/90">Button Text (Optional)</label>
+                        <input
+                          type="text"
+                          value={currentStep.loop_button_text || ''}
+                          onChange={(e) => updateStep(selectedStepIndex!, {
+                            ...currentStep,
+                            loop_button_text: e.target.value
+                          })}
+                          placeholder={`Add Another ${currentStep.loop_label || 'Item'}`}
+                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        />
+                        <p className="text-xs text-white/60">Custom button text (leave empty for default)</p>
+                      </div>
+
+                      {/* Loop Preview */}
+                      {currentStep.loop_start_step_id && currentStep.loop_end_step_id && (
+                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 mt-4">
+                          <p className="text-sm font-medium text-white/90 mb-3">Loop Preview:</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm text-white/70">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold">
+                                {steps.findIndex(s => s.id === currentStep.loop_start_step_id) + 1}
+                              </span>
+                              <span>→</span>
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold">
+                                {steps.findIndex(s => s.id === currentStep.loop_end_step_id) + 1}
+                              </span>
+                              <Repeat className="w-4 h-4 text-white/50 ml-2" />
+                              <span className="text-xs text-white/50">
+                                (repeats up to {currentStep.loop_max_iterations || 10} times)
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/60">
+                              Users will see: "{currentStep.loop_button_text || `Add Another ${currentStep.loop_label || 'Item'}`}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Save Step Button */}
                   <div className="flex justify-end pt-6 mt-6 border-t border-white/20">
                     <button
-                      onClick={() => saveStep(selectedStepIndex!)} 
+                      onClick={() => saveStep(selectedStepIndex!)}
                       disabled={saving}
-                      className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isEditing && formId 
-                          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-blue-200 border border-blue-400/30 shadow-blue-500/25' 
-                          : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-green-500/25 hover:shadow-green-500/40'
-                      }`}
+                      className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${isEditing && formId
+                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-blue-200 border border-blue-400/30 shadow-blue-500/25'
+                        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-green-500/25 hover:shadow-green-500/40'
+                        }`}
                     >
                       <Save className="mr-2 h-4 w-4" />
                       {saving ? 'Saving...' : (isEditing && formId ? 'Save Step' : 'Save Form & Step')}
@@ -2638,26 +3172,21 @@ export default function FormBuilder() {
                 </div>
               </div>
             ) : (
-              <div className={`backdrop-blur-xl rounded-2xl p-12 text-center ${
-                theme === 'light'
-                  ? 'bg-white/90 border border-gray-200 shadow-lg'
-                  : 'bg-white/10 border border-white/20'
-              }`}>
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border ${
-                  theme === 'light'
-                    ? 'bg-gray-50 border-gray-200'
-                    : 'bg-white/10 border-white/20'
+              <div className={`backdrop-blur-xl rounded-2xl p-12 text-center ${theme === 'light'
+                ? 'bg-white/90 border border-gray-200 shadow-lg'
+                : 'bg-white/10 border border-white/20'
                 }`}>
-                  <MessageSquare className={`w-8 h-8 ${
-                    theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                  }`} />
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border ${theme === 'light'
+                  ? 'bg-gray-50 border-gray-200'
+                  : 'bg-white/10 border-white/20'
+                  }`}>
+                  <MessageSquare className={`w-8 h-8 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                    }`} />
                 </div>
-                <h3 className={`text-xl font-semibold mb-3 ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>No step selected</h3>
-                <p className={`mb-8 text-lg ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>Create a step to start building your form</p>
+                <h3 className={`text-xl font-semibold mb-3 ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>No step selected</h3>
+                <p className={`mb-8 text-lg ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                  }`}>Create a step to start building your form</p>
                 <div className="flex flex-wrap justify-center gap-4 mb-6">
                   {stepTypes.map((stepType) => (
                     <button
@@ -2673,11 +3202,10 @@ export default function FormBuilder() {
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowLoadTemplateModal(true)}
-                    className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 ${
-                      theme === 'light'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
-                        : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
-                    }`}
+                    className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 ${theme === 'light'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                      : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
+                      }`}
                   >
                     <FolderOpen className="w-5 h-5 mr-2" />
                     Create from Template
@@ -2692,29 +3220,25 @@ export default function FormBuilder() {
       {/* Add Step Type Modal */}
       {showStepTypeDropdown && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
-            theme === 'light'
-              ? 'bg-white border border-gray-200'
-              : 'bg-slate-800 border border-white/20'
-          }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
-              theme === 'light'
-                ? 'bg-white/95 border-gray-200'
-                : 'bg-slate-800/95 border-white/20'
+          <div className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
+            ? 'bg-white border border-gray-200'
+            : 'bg-slate-800 border border-white/20'
             }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
+              ? 'bg-white/95 border-gray-200'
+              : 'bg-slate-800/95 border-white/20'
+              }`}>
               <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
+                <h2 className={`text-xl font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
                   Choose Step Type
                 </h2>
                 <button
                   onClick={() => setShowStepTypeDropdown(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                    theme === 'light'
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-white/60 hover:text-white hover:bg-white/10'
-                  }`}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2729,56 +3253,47 @@ export default function FormBuilder() {
                       addStep(stepType.type)
                       setShowStepTypeDropdown(false)
                     }}
-                    className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${
-                      theme === 'light'
-                        ? 'bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 hover:shadow-md'
-                        : 'bg-white/5 hover:bg-white/10 border-white/20 hover:border-blue-400/50'
-                    }`}
+                    className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${theme === 'light'
+                      ? 'bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 hover:shadow-md'
+                      : 'bg-white/5 hover:bg-white/10 border-white/20 hover:border-blue-400/50'
+                      }`}
                   >
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${
-                      theme === 'light' ? 'bg-blue-50' : 'bg-blue-500/20'
-                    }`}>
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-500/20'
+                      }`}>
                       <div className={theme === 'light' ? 'text-blue-600' : 'text-blue-300'}>
                         {stepType.icon}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold text-base mb-1 ${
-                        theme === 'light' ? 'text-gray-900' : 'text-white'
-                      }`}>{stepType.title}</p>
-                      <p className={`text-sm ${
-                        theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                      }`}>{stepType.description}</p>
+                      <p className={`font-semibold text-base mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>{stepType.title}</p>
+                      <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                        }`}>{stepType.description}</p>
                     </div>
                   </button>
                 ))}
-                
+
                 {/* Create from Template Option */}
                 <button
                   onClick={() => {
                     setShowStepTypeDropdown(false)
                     setShowLoadTemplateModal(true)
                   }}
-                  className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${
-                    theme === 'light'
-                      ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300 hover:shadow-md'
-                      : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-400/30 hover:border-purple-400/50'
-                  }`}
+                  className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${theme === 'light'
+                    ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300 hover:shadow-md'
+                    : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-400/30 hover:border-purple-400/50'
+                    }`}
                 >
-                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${
-                    theme === 'light' ? 'bg-purple-100' : 'bg-purple-500/20'
-                  }`}>
-                    <FolderOpen className={`w-6 h-6 ${
-                      theme === 'light' ? 'text-purple-600' : 'text-purple-300'
-                    }`} />
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${theme === 'light' ? 'bg-purple-100' : 'bg-purple-500/20'
+                    }`}>
+                    <FolderOpen className={`w-6 h-6 ${theme === 'light' ? 'text-purple-600' : 'text-purple-300'
+                      }`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-semibold text-base mb-1 ${
-                      theme === 'light' ? 'text-gray-900' : 'text-white'
-                    }`}>Create from Template</p>
-                    <p className={`text-sm ${
-                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                    }`}>Use a saved template to create a new step</p>
+                    <p className={`font-semibold text-base mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                      }`}>Create from Template</p>
+                    <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                      }`}>Use a saved template to create a new step</p>
                   </div>
                 </button>
               </div>
@@ -2794,6 +3309,21 @@ export default function FormBuilder() {
         formId={formId}
         formName={name}
       />
+
+      {/* Single Step Preview Modal */}
+      {previewStepIndex !== null && (
+        <SingleStepPreview
+          isOpen={showSingleStepPreview}
+          onClose={() => {
+            setShowSingleStepPreview(false)
+            setPreviewStepIndex(null)
+          }}
+          step={steps[previewStepIndex]}
+          stepNumber={previewStepIndex + 1}
+          primaryColor={primaryButtonColor}
+          secondaryColor={secondaryButtonColor}
+        />
+      )}
 
       {/* Save Template Modal */}
       <SaveTemplateModal
@@ -2813,30 +3343,26 @@ export default function FormBuilder() {
       {/* Form Settings Modal */}
       {showFormSettingsModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
-            theme === 'light'
-              ? 'bg-white border border-gray-200'
-              : 'bg-slate-800 border border-white/20'
-          }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
-              theme === 'light'
-                ? 'bg-white/95 border-gray-200'
-                : 'bg-slate-800/95 border-white/20'
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
+            ? 'bg-white border border-gray-200'
+            : 'bg-slate-800 border border-white/20'
             }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
+              ? 'bg-white/95 border-gray-200'
+              : 'bg-slate-800/95 border-white/20'
+              }`}>
               <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold flex items-center ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
+                <h2 className={`text-xl font-semibold flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
                   <FileText className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
                   Form Settings
                 </h2>
                 <button
                   onClick={() => setShowFormSettingsModal(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                    theme === 'light'
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-white/60 hover:text-white hover:bg-white/10'
-                  }`}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2844,81 +3370,71 @@ export default function FormBuilder() {
             </div>
             <div className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className={`block text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                }`}>Form Title</label>
+                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Form Title</label>
                 <input
                   type="text"
-                  value={name} 
+                  value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter form title"
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                    theme === 'light'
-                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                  }`}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
+                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                 />
               </div>
               <div className="space-y-2">
-                <label className={`block text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                }`}>Internal Name (Admin Only)</label>
+                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Internal Name (Admin Only)</label>
                 <input
                   type="text"
                   value={internalName}
                   onChange={e => setInternalName(e.target.value)}
                   placeholder="Internal name for admin use only"
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                    theme === 'light'
-                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-orange-500 shadow-sm'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-orange-400'
-                  }`}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
+                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-orange-500 shadow-sm'
+                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-orange-400'
+                    }`}
                 />
               </div>
               <div className="space-y-2">
-                <label className={`block text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                }`}>Description</label>
+                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Brief description of your form"
                   rows={3}
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
-                    theme === 'light'
-                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                  }`}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${theme === 'light'
+                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                 />
               </div>
               <div className="space-y-2">
-                <label className={`block text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                }`}>Welcome Message</label>
+                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Welcome Message</label>
                 <textarea
                   value={welcomeMessage}
                   onChange={(e) => setWelcomeMessage(e.target.value)}
                   placeholder="Welcome message for form users"
                   rows={3}
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${
-                    theme === 'light'
-                      ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                  }`}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${theme === 'light'
+                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                 />
               </div>
               <div className="space-y-2">
-                <label className={`block text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                }`}>Client</label>
-                <select 
-                  value={clientId ?? ''} 
+                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                  }`}>Client</label>
+                <select
+                  value={clientId ?? ''}
                   onChange={e => setClientId(e.target.value)}
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${
-                    theme === 'light'
-                      ? 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                      : 'bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-blue-400'
-                  }`}
+                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
+                    ? 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
+                    : 'bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-blue-400'
+                    }`}
                 >
                   <option value="" className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>Select client</option>
                   {clients.map(c => <option key={c.id} value={c.id} className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>{c.name}</option>)}
@@ -2932,113 +3448,98 @@ export default function FormBuilder() {
       {/* Form Theme Modal */}
       {showFormThemeModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
-            theme === 'light'
-              ? 'bg-white border border-gray-200'
-              : 'bg-slate-800 border border-white/20'
-          }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
-              theme === 'light'
-                ? 'bg-white/95 border-gray-200'
-                : 'bg-slate-800/95 border-white/20'
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
+            ? 'bg-white border border-gray-200'
+            : 'bg-slate-800 border border-white/20'
             }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
+              ? 'bg-white/95 border-gray-200'
+              : 'bg-slate-800/95 border-white/20'
+              }`}>
               <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold flex items-center ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
+                <h2 className={`text-xl font-semibold flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
                   <Palette className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />
                   Form Theme
                 </h2>
                 <button
                   onClick={() => setShowFormThemeModal(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                    theme === 'light'
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-white/60 hover:text-white hover:bg-white/10'
-                  }`}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <p className={`text-sm mb-4 ${
-                theme === 'light' ? 'text-gray-600' : 'text-white/70'
-              }`}>Choose how your form appears to users</p>
+              <p className={`text-sm mb-4 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                }`}>Choose how your form appears to users</p>
               <div className="grid grid-cols-1 gap-3">
                 {Object.entries(formThemes).map(([themeKey, themeData]) => (
                   <button
                     key={themeKey}
                     onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
-                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${
-                      formTheme === themeKey
-                        ? theme === 'light'
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-purple-400 bg-purple-400/20'
-                        : theme === 'light'
-                          ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
-                          : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
-                    }`}
+                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${formTheme === themeKey
+                      ? theme === 'light'
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-purple-400 bg-purple-400/20'
+                      : theme === 'light'
+                        ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
+                        : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                      }`}
                   >
                     {themeKey === 'soft-ui' && (
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/10 to-purple-100/10 pointer-events-none" />
                     )}
-                    
+
                     <div className="relative flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className={`font-semibold mb-1 ${
-                          theme === 'light' ? 'text-gray-900' : 'text-white'
-                        }`}>{themeData.name}</h4>
-                        <p className={`text-sm mb-4 ${
-                          theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                        }`}>{themeData.description}</p>
-                        
+                        <h4 className={`font-semibold mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                          }`}>{themeData.name}</h4>
+                        <p className={`text-sm mb-4 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                          }`}>{themeData.description}</p>
+
                         <div className="space-y-3">
-                          <div className={`p-3 ${
-                            themeKey === 'soft-ui' 
-                              ? 'bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20' 
-                              : 'bg-white/90 rounded-lg border border-gray-200'
-                          }`}>
-                            <div className={`h-3 mb-2 ${
-                              themeKey === 'soft-ui' 
-                                ? 'bg-white/60 backdrop-blur-sm rounded-xl border border-white/30' 
-                                : 'bg-gray-100 border border-gray-300 rounded-md'
-                            }`} />
-                            
+                          <div className={`p-3 ${themeKey === 'soft-ui'
+                            ? 'bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20'
+                            : 'bg-white/90 rounded-lg border border-gray-200'
+                            }`}>
+                            <div className={`h-3 mb-2 ${themeKey === 'soft-ui'
+                              ? 'bg-white/60 backdrop-blur-sm rounded-xl border border-white/30'
+                              : 'bg-gray-100 border border-gray-300 rounded-md'
+                              }`} />
+
                             <div className="flex gap-2 mt-3">
-                              <div className={`h-2.5 w-16 ${
-                                themeKey === 'soft-ui' 
-                                  ? 'bg-white/70 backdrop-blur-sm rounded-full border border-white/40' 
-                                  : 'bg-gray-300 rounded-md'
-                              }`} />
-                              <div className={`h-2.5 w-12 ${
-                                themeKey === 'soft-ui' 
-                                  ? 'bg-gradient-to-r from-blue-400/80 to-purple-500/80 rounded-full shadow-sm' 
-                                  : themeData.preview.primaryColor + ' rounded-md'
-                              }`} />
+                              <div className={`h-2.5 w-16 ${themeKey === 'soft-ui'
+                                ? 'bg-white/70 backdrop-blur-sm rounded-full border border-white/40'
+                                : 'bg-gray-300 rounded-md'
+                                }`} />
+                              <div className={`h-2.5 w-12 ${themeKey === 'soft-ui'
+                                ? 'bg-gradient-to-r from-blue-400/80 to-purple-500/80 rounded-full shadow-sm'
+                                : themeData.preview.primaryColor + ' rounded-md'
+                                }`} />
                             </div>
                           </div>
-                          
+
                           <div className="space-y-1">
-                            <div className={`h-2 rounded ${
-                              themeKey === 'soft-ui' 
-                                ? 'bg-gradient-to-r from-slate-700/40 to-slate-500/40' 
-                                : 'bg-gray-700/60'
-                            }`} style={{width: '70%'}} />
-                            <div className={`h-1.5 rounded ${
-                              themeKey === 'soft-ui' 
-                                ? 'bg-slate-400/40' 
-                                : 'bg-gray-500/60'
-                            }`} style={{width: '50%'}} />
+                            <div className={`h-2 rounded ${themeKey === 'soft-ui'
+                              ? 'bg-gradient-to-r from-slate-700/40 to-slate-500/40'
+                              : 'bg-gray-700/60'
+                              }`} style={{ width: '70%' }} />
+                            <div className={`h-1.5 rounded ${themeKey === 'soft-ui'
+                              ? 'bg-slate-400/40'
+                              : 'bg-gray-500/60'
+                              }`} style={{ width: '50%' }} />
                           </div>
                         </div>
                       </div>
-                      
+
                       {formTheme === themeKey && (
                         <div className="flex-shrink-0 ml-4">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                            theme === 'light' ? 'bg-purple-600' : 'bg-purple-400'
-                          }`}>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${theme === 'light' ? 'bg-purple-600' : 'bg-purple-400'
+                            }`}>
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -3049,28 +3550,86 @@ export default function FormBuilder() {
                   </button>
                 ))}
               </div>
+
+              {/* Button Colours — merged into Form Theme */}
+              <div className={`mt-6 pt-6 border-t ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}>
+                <h3 className={`text-base font-semibold mb-4 flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                  <svg className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-yellow-600' : 'text-yellow-400'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  Button Colours
+                </h3>
+                <div className="space-y-5">
+                  {/* Next Button */}
+                  <div className="space-y-3">
+                    <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}>Next Button</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Background</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={primaryButtonColor} onChange={(e) => setPrimaryButtonColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={primaryButtonColor} onChange={(e) => setPrimaryButtonColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#3B82F6" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Text</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={primaryButtonTextColor} onChange={(e) => setPrimaryButtonTextColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={primaryButtonTextColor} onChange={(e) => setPrimaryButtonTextColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#FFFFFF" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Previous Button */}
+                  <div className="space-y-3">
+                    <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}>Previous Button</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Background</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={secondaryButtonColor} onChange={(e) => setSecondaryButtonColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={secondaryButtonColor} onChange={(e) => setSecondaryButtonColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#E5E7EB" />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Text</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={secondaryButtonTextColor} onChange={(e) => setSecondaryButtonTextColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
+                          <input type="text" value={secondaryButtonTextColor} onChange={(e) => setSecondaryButtonTextColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#374151" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Preview */}
+                  <div className={`p-3 rounded-lg border ${theme === 'light' ? 'bg-gray-50 border-gray-200' : 'bg-white/5 border-white/10'}`}>
+                    <div className={`text-xs mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Button Preview:</div>
+                    <div className="flex gap-3">
+                      <button type="button" style={{ backgroundColor: secondaryButtonColor, color: secondaryButtonTextColor }} className={`px-4 py-2 text-sm font-medium ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'}`}>Previous</button>
+                      <button type="button" style={{ backgroundColor: primaryButtonColor, color: primaryButtonTextColor }} className={`px-4 py-2 text-sm font-medium ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'}`}>Next</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Button Colours Modal */}
+      {/* Button Colours Modal — kept for backwards compat but no longer shown via top bar */}
       {showButtonColoursModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
-            theme === 'light'
-              ? 'bg-white border border-gray-200'
-              : 'bg-slate-800 border border-white/20'
-          }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${
-              theme === 'light'
-                ? 'bg-white/95 border-gray-200'
-                : 'bg-slate-800/95 border-white/20'
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
+            ? 'bg-white border border-gray-200'
+            : 'bg-slate-800 border border-white/20'
             }`}>
+            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
+              ? 'bg-white/95 border-gray-200'
+              : 'bg-slate-800/95 border-white/20'
+              }`}>
               <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold flex items-center ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
+                <h2 className={`text-xl font-semibold flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
                   <svg className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-yellow-600' : 'text-yellow-400'}`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
                     <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -3079,11 +3638,10 @@ export default function FormBuilder() {
                 </h2>
                 <button
                   onClick={() => setShowButtonColoursModal(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                    theme === 'light'
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-white/60 hover:text-white hover:bg-white/10'
-                  }`}
+                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
+                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -3092,59 +3650,52 @@ export default function FormBuilder() {
             <div className="p-6 space-y-6">
               {/* Primary Button Colors */}
               <div className="space-y-3">
-                <div className={`text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/80'
-                }`}>Next Button</div>
+                <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'
+                  }`}>Next Button</div>
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <label className={`block text-xs font-medium ${
-                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                    }`}>Background Color</label>
+                    <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                      }`}>Background Color</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={primaryButtonColor}
                         onChange={(e) => setPrimaryButtonColor(e.target.value)}
-                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
-                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
-                        }`}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                          }`}
                       />
                       <input
                         type="text"
                         value={primaryButtonColor}
                         onChange={(e) => setPrimaryButtonColor(e.target.value)}
-                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
-                          theme === 'light'
-                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
-                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
-                        }`}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light'
+                          ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                          : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                          }`}
                         placeholder="#3B82F6"
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <label className={`block text-xs font-medium ${
-                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                    }`}>Text Color</label>
+                    <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                      }`}>Text Color</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={primaryButtonTextColor}
                         onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
-                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
-                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
-                        }`}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                          }`}
                       />
                       <input
                         type="text"
                         value={primaryButtonTextColor}
                         onChange={(e) => setPrimaryButtonTextColor(e.target.value)}
-                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
-                          theme === 'light'
-                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
-                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
-                        }`}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light'
+                          ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                          : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                          }`}
                         placeholder="#FFFFFF"
                       />
                     </div>
@@ -3154,59 +3705,52 @@ export default function FormBuilder() {
 
               {/* Secondary Button Colors */}
               <div className="space-y-3">
-                <div className={`text-sm font-medium ${
-                  theme === 'light' ? 'text-gray-700' : 'text-white/80'
-                }`}>Previous Button</div>
+                <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'
+                  }`}>Previous Button</div>
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <label className={`block text-xs font-medium ${
-                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                    }`}>Background Color</label>
+                    <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                      }`}>Background Color</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={secondaryButtonColor}
                         onChange={(e) => setSecondaryButtonColor(e.target.value)}
-                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
-                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
-                        }`}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                          }`}
                       />
                       <input
                         type="text"
                         value={secondaryButtonColor}
                         onChange={(e) => setSecondaryButtonColor(e.target.value)}
-                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
-                          theme === 'light'
-                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
-                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
-                        }`}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light'
+                          ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                          : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                          }`}
                         placeholder="#E5E7EB"
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <label className={`block text-xs font-medium ${
-                      theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                    }`}>Text Color</label>
+                    <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                      }`}>Text Color</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={secondaryButtonTextColor}
                         onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
-                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${
-                          theme === 'light' ? 'border-gray-300' : 'border-white/20'
-                        }`}
+                        className={`w-10 h-10 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'
+                          }`}
                       />
                       <input
                         type="text"
                         value={secondaryButtonTextColor}
                         onChange={(e) => setSecondaryButtonTextColor(e.target.value)}
-                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${
-                          theme === 'light'
-                            ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
-                            : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
-                        }`}
+                        className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light'
+                          ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                          : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                          }`}
                         placeholder="#374151"
                       />
                     </div>
@@ -3215,14 +3759,12 @@ export default function FormBuilder() {
               </div>
 
               {/* Color Preview */}
-              <div className={`p-4 rounded-lg border ${
-                theme === 'light'
-                  ? 'bg-gray-50 border-gray-200'
-                  : 'bg-white/5 border-white/10'
-              }`}>
-                <div className={`text-xs mb-3 ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>Button Preview:</div>
+              <div className={`p-4 rounded-lg border ${theme === 'light'
+                ? 'bg-gray-50 border-gray-200'
+                : 'bg-white/5 border-white/10'
+                }`}>
+                <div className={`text-xs mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                  }`}>Button Preview:</div>
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -3230,9 +3772,8 @@ export default function FormBuilder() {
                       backgroundColor: secondaryButtonColor,
                       color: secondaryButtonTextColor
                     }}
-                    className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                      formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
-                    }`}
+                    className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
+                      }`}
                   >
                     Previous
                   </button>
@@ -3242,9 +3783,8 @@ export default function FormBuilder() {
                       backgroundColor: primaryButtonColor,
                       color: primaryButtonTextColor
                     }}
-                    className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${
-                      formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
-                    }`}
+                    className={`px-4 py-2 text-sm font-medium transition-colors duration-200 ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'
+                      }`}
                   >
                     Next
                   </button>
@@ -3255,95 +3795,117 @@ export default function FormBuilder() {
         </div>
       )}
 
+      {/* Embed Form Modal */}
+      {showEmbedModal && formId && (
+        <EmbedModal
+          formId={formId}
+          formName={name || 'Form'}
+          isOpen={showEmbedModal}
+          onClose={() => setShowEmbedModal(false)}
+        />
+      )}
+
       {/* Layout Settings Modal */}
       {showLayoutSettingsModal && selectedStepIndex !== null && steps[selectedStepIndex]?.question_type === 'image_selection' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className={`relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ${
-            theme === 'light'
-              ? 'bg-white'
-              : 'bg-gradient-to-br from-gray-900 to-gray-800 border border-white/10'
-          }`}>
-            <div className={`flex items-center justify-between px-6 py-4 border-b ${
-              theme === 'light' ? 'border-gray-200 bg-gray-50' : 'border-white/10 bg-white/5'
+          <div className={`relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ${theme === 'light'
+            ? 'bg-white'
+            : 'bg-gradient-to-br from-gray-900 to-gray-800 border border-white/10'
             }`}>
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${theme === 'light' ? 'border-gray-200 bg-gray-50' : 'border-white/10 bg-white/5'
+              }`}>
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  theme === 'light' ? 'bg-orange-100' : 'bg-orange-500/20'
-                }`}>
-                  <Settings className={`w-5 h-5 ${
-                    theme === 'light' ? 'text-orange-600' : 'text-orange-400'
-                  }`} />
+                <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-orange-100' : 'bg-orange-500/20'
+                  }`}>
+                  <Settings className={`w-5 h-5 ${theme === 'light' ? 'text-orange-600' : 'text-orange-400'
+                    }`} />
                 </div>
-                <h2 className={`text-xl font-semibold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
+                <h2 className={`text-xl font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                  }`}>
                   Layout Settings
                 </h2>
               </div>
               <button
                 onClick={() => setShowLayoutSettingsModal(false)}
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === 'light'
-                    ? 'hover:bg-gray-200 text-gray-500'
-                    : 'hover:bg-white/10 text-white/70'
-                }`}
+                className={`p-2 rounded-lg transition-colors ${theme === 'light'
+                  ? 'hover:bg-gray-200 text-gray-500'
+                  : 'hover:bg-white/10 text-white/70'
+                  }`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Images per row</label>
+                  <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                    }`}>Desktop columns</label>
                   <select
                     value={steps[selectedStepIndex].images_per_row || 2}
-                    onChange={(e) => updateStep(selectedStepIndex, { 
-                      ...steps[selectedStepIndex], 
-                      images_per_row: parseInt(e.target.value) 
+                    onChange={(e) => updateStep(selectedStepIndex, {
+                      ...steps[selectedStepIndex],
+                      images_per_row: parseInt(e.target.value)
                     })}
-                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      theme === 'light'
-                        ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
-                        : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                      : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                      }`}
                   >
                     <option value={1} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>1 (Full width)</option>
                     <option value={2} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>2 (Default)</option>
                     <option value={3} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>3 (Compact)</option>
                     <option value={4} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>4 (Grid)</option>
                   </select>
-                  <p className={`text-xs ${
-                    theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                  }`}>
-                    Controls how many image cards display per row. Use fewer for larger cards on mobile.
+                  <p className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                    }`}>
+                    Number of columns on wider screens (≥768px).
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className={`block text-sm font-medium ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Crop images to square</label>
+                  <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                    }`}>Mobile columns</label>
+                  <select
+                    value={steps[selectedStepIndex].mobile_images_per_row || 1}
+                    onChange={(e) => updateStep(selectedStepIndex, {
+                      ...steps[selectedStepIndex],
+                      mobile_images_per_row: parseInt(e.target.value)
+                    })}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                      : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                      }`}
+                  >
+                    <option value={1} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>1 (Default)</option>
+                    <option value={2} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>2 (Side by side)</option>
+                    <option value={3} className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>3 (Compact)</option>
+                  </select>
+                  <p className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                    }`}>
+                    Number of columns on narrow screens (&lt;768px). Set to 2 to show 2 cards side-by-side on mobile.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                    }`}>Crop images to square</label>
                   <select
                     value={steps[selectedStepIndex].crop_images_to_square ? 'true' : 'false'}
-                    onChange={(e) => updateStep(selectedStepIndex, { 
-                      ...steps[selectedStepIndex], 
-                      crop_images_to_square: e.target.value === 'true' 
+                    onChange={(e) => updateStep(selectedStepIndex, {
+                      ...steps[selectedStepIndex],
+                      crop_images_to_square: e.target.value === 'true'
                     })}
-                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      theme === 'light'
-                        ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
-                        : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
-                    }`}
+                    className={`w-full px-4 py-3 border rounded-xl text-sm focus:ring-2 focus:border-transparent transition-all duration-200 ${theme === 'light'
+                      ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500'
+                      : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'
+                      }`}
                   >
                     <option value="true" className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>Yes (Default)</option>
                     <option value="false" className={theme === 'light' ? 'bg-white' : 'bg-gray-800'}>No - Show full image ratio</option>
                   </select>
-                  <p className={`text-xs ${
-                    theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                  }`}>
+                  <p className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                    }`}>
                     When "No", images display in their original aspect ratio with top alignment.
                   </p>
                 </div>
@@ -3354,11 +3916,10 @@ export default function FormBuilder() {
               }">
                 <button
                   onClick={() => setShowLayoutSettingsModal(false)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    theme === 'light'
-                      ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                      : 'bg-white/10 hover:bg-white/20 text-white'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${theme === 'light'
+                    ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    : 'bg-white/10 hover:bg-white/20 text-white'
+                    }`}
                 >
                   Done
                 </button>
@@ -3366,6 +3927,41 @@ export default function FormBuilder() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Logic Builder Modal */}
+      {showLogicBuilder && currentStep && (
+        <LogicBuilder
+          currentStep={currentStep}
+          allSteps={steps}
+          stepLogic={stepLogicMap.get(currentStep.id || '') || null}
+          onSave={(logic) => {
+            setStepLogicMap(prev => {
+              const newMap = new Map(prev)
+              newMap.set(currentStep.id || '', logic)
+              return newMap
+            })
+            push({ type: 'success', message: 'Logic rules saved successfully' })
+          }}
+          onClose={() => setShowLogicBuilder(false)}
+        />
+      )}
+
+      {/* Global Flowchart Modal */}
+      {showGlobalFlowchart && (
+        <GlobalFlowchart
+          steps={steps}
+          stepLogicMap={stepLogicMap}
+          onClose={() => setShowGlobalFlowchart(false)}
+          onEditLogic={(step) => {
+            const index = steps.findIndex(s => s.id === step.id)
+            if (index !== -1) {
+              setSelectedStepIndex(index)
+              setShowGlobalFlowchart(false) // Close map to open editor
+              setShowLogicBuilder(true)
+            }
+          }}
+        />
       )}
     </div>
   )

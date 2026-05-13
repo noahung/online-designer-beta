@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabase'
 import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { StepLogic } from '../types/formLogic'
+import SinglePageFormEmbed from '../components/single-page/SinglePageFormEmbed'
+import type { RenderedField } from '../components/single-page/FieldRenderer'
 
 // Extend window interface for height update timeout
 declare global {
@@ -75,6 +78,7 @@ type Step = {
   scale_min?: number;
   scale_max?: number;
   images_per_row?: number;
+  mobile_images_per_row?: number;
   crop_images_to_square?: boolean;
   frames_count?: number;
   frames_max_count?: number;
@@ -83,6 +87,17 @@ type Step = {
   frames_require_measurements?: boolean;
   enable_room_location?: boolean;
   enable_measurements?: boolean;
+  // Contact fields visibility
+  contact_show_phone?: boolean;
+  contact_show_address?: boolean;
+  contact_show_project_details?: boolean;
+  contact_show_preferred_contact?: boolean;
+  contact_show_file_upload?: boolean;
+  loop_start_step_id?: string;
+  loop_end_step_id?: string;
+  loop_label?: string;
+  loop_max_iterations?: number;
+  loop_button_text?: string;
 }
 
 export default function FormEmbed() {
@@ -190,6 +205,25 @@ export default function FormEmbed() {
   }, []);
   const { } = useAuth()
   const { id } = useParams()
+
+  // Embed display options passed via URL query params from embed.js
+  const _embedParams = new URLSearchParams(window.location.search)
+  const isTransparent = _embedParams.get('transparent') === '1' || _embedParams.get('transparent') === 'true'
+  const embedHideLogo = _embedParams.get('hide_logo') === '1'
+  const embedHideTitle = _embedParams.get('hide_title') === '1'
+  const embedHideDescription = _embedParams.get('hide_description') === '1'
+
+  // Make html + body transparent when requested so host site bg shows through
+  useEffect(() => {
+    if (isTransparent) {
+      document.documentElement.style.background = 'transparent'
+      document.body.style.background = 'transparent'
+      return () => {
+        document.documentElement.style.background = ''
+        document.body.style.background = ''
+      }
+    }
+  }, [])
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -238,6 +272,15 @@ export default function FormEmbed() {
       measurements_text?: string;
     }>;
   }>>({})
+  
+  const [stepLogicMap, setStepLogicMap] = useState<Map<string, StepLogic>>(new Map())
+
+  // Loop tracking state
+  const [loopIterations, setLoopIterations] = useState<Map<string, number>>(new Map()) // stepId -> current iteration count
+  const [currentIteration, setCurrentIteration] = useState<number>(0) // Current iteration number (0 = first pass, 1+ = subsequent loops)
+  const [loopHistory, setLoopHistory] = useState<Array<{loopStepId: string, iteration: number}>>([]) // Track loop navigation history
+  // Archived answers from completed loop iterations (saved before clearing for the next iteration)
+  const [archivedIterations, setArchivedIterations] = useState<Array<{stepIndex: number, iteration: number, answer: any}>>([])  
 
   const [formTheme, setFormTheme] = useState<string>('generic')
 
@@ -369,6 +412,8 @@ export default function FormEmbed() {
           user_id,
           client_id,
           form_theme,
+          form_type,
+          welcome_message,
           primary_button_color,
           primary_button_text_color,
           secondary_button_color,
@@ -482,18 +527,54 @@ export default function FormEmbed() {
           scale_min: row.scale_min,
           scale_max: row.scale_max,
           images_per_row: row.images_per_row,
+          mobile_images_per_row: row.mobile_images_per_row,
           crop_images_to_square: row.crop_images_to_square ?? true,
           // Frames plan configuration (default when null/undefined)
           frames_max_count: row.frames_max_count ?? 10,
           frames_require_image: row.frames_require_image ?? true,
           frames_require_location: row.frames_require_location ?? true,
           frames_require_measurements: row.frames_require_measurements ?? false,
+          // Contact fields visibility (default all shown)
+          contact_show_phone: row.contact_show_phone ?? true,
+          contact_show_address: row.contact_show_address ?? true,
+          contact_show_project_details: row.contact_show_project_details ?? true,
+          contact_show_preferred_contact: row.contact_show_preferred_contact ?? true,
+          contact_show_file_upload: row.contact_show_file_upload ?? true,
+          // Loop section configuration
+          loop_start_step_id: row.loop_start_step_id ?? null,
+          loop_end_step_id: row.loop_end_step_id ?? null,
+          loop_label: row.loop_label ?? null,
+          loop_max_iterations: row.loop_max_iterations ?? 10,
+          loop_button_text: row.loop_button_text ?? null,
           options: opts 
         }
       })
       
       console.log('Mapped steps:', mapped)
       setSteps(mapped)
+      
+      // Load step logic
+      const { data: logicData, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError && logicError.code !== 'PGRST116') { // Ignore "not found" errors
+        console.error('Error loading step logic:', logicError)
+      }
+
+      if (logicData && logicData.length > 0) {
+        const logicMap = new Map<string, StepLogic>()
+        logicData.forEach((logic: any) => {
+          logicMap.set(logic.step_id, {
+            step_id: logic.step_id,
+            rules: logic.rules || [],
+            default_action: logic.default_action || undefined
+          })
+        })
+        setStepLogicMap(logicMap)
+        console.log('Loaded step logic:', logicMap)
+      }
     } catch (err) {
       console.error('Unexpected error loading form:', err)
       setError('An unexpected error occurred while loading the form')
@@ -502,18 +583,135 @@ export default function FormEmbed() {
     }
   }
 
+  // Helper function to evaluate logic rules and determine next step
+  const evaluateLogicRules = (currentStepId: string, response: any): number | null => {
+    console.log('🔍 [FORM] Evaluating logic for step:', currentStepId)
+    const logic = stepLogicMap.get(currentStepId)
+    if (!logic) {
+      console.log('   No logic found for this step')
+      return null
+    }
+
+    // Check if we should ignore logic (no rules and default action is just 'next step' without specific target)
+    if (logic.rules.length === 0 && !logic.default_action) {
+        console.log('   Logic object exists but is empty')
+        return null
+    }
+
+    console.log('   Found logic:', logic)
+    console.log('   User response:', response)
+
+    // Evaluate rules in order
+    if (logic.rules.length > 0) {
+      for (const rule of logic.rules) {
+        let allConditionsMet = true
+
+        // A rule with zero conditions should never auto-match — skip it
+        if (rule.conditions.length === 0) {
+          console.log('   ⚠️ Rule has no conditions, skipping:', rule.id)
+          continue
+        }
+
+        // Check all conditions (AND logic)
+        for (const condition of rule.conditions) {
+          if (condition.field_type === 'option') {
+            // Handle both Option object (from selectOption) and response object (from responses state)
+            const selectedId = response?.id || response?.option_id
+            console.log(`   Rule ${rule.id}: condition.option_id="${condition.option_id}" vs selectedId="${selectedId}" → ${condition.option_id === selectedId ? 'MATCH' : 'NO MATCH'}`)
+            if (condition.option_id !== selectedId) {
+              allConditionsMet = false
+              break
+            }
+          } else {
+            // Non-option condition types are not yet evaluated — treat as unmet so rule is skipped
+            console.log(`   Rule ${rule.id}: condition field_type "${condition.field_type}" not supported yet, skipping rule`)
+            allConditionsMet = false
+            break
+          }
+        }
+
+        // If all conditions met, apply this rule's action
+        if (allConditionsMet) {
+          console.log('   ✅ Rule matched:', rule)
+          // Handle "go to end" action explicitly
+          if (rule.action.type === 'go_to_end') {
+            console.log('   Action: Go to end')
+            return steps.length
+          }
+          
+          // Handle "go to step" action
+          if (rule.action.target_step_id) {
+            const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
+            console.log('   Action: Go to step ID', rule.action.target_step_id, 'Index:', targetIdx)
+            return targetIdx >= 0 ? targetIdx : null
+          }
+        }
+      }
+    }
+
+    // If no rules matched, check default action
+    if (logic.default_action) {
+      console.log('   Checking default action:', logic.default_action)
+      // Handle "go to end" default action
+      if (logic.default_action.action.type === 'go_to_end') {
+        console.log('   Default Action: Go to end')
+        return steps.length
+      }
+
+      if (logic.default_action.action.target_step_id) {
+        const targetIdx = steps.findIndex(s => s.id === logic.default_action.action.target_step_id)
+        console.log('   Default Action: Go to step ID', logic.default_action.action.target_step_id, 'Index:', targetIdx)
+        return targetIdx >= 0 ? targetIdx : null
+      }
+    }
+
+    console.log('   No matching rules and no valid default action target')
+    return null
+  }
+
   const selectOption = (option: Option) => {
-    setResponses(r => ({ ...r, [currentStepIndex]: { ...(r[currentStepIndex] || {}), option_id: option.id } }))
+    setResponses(r => ({ 
+      ...r, 
+      [currentStepIndex]: { 
+        ...(r[currentStepIndex] || {}), 
+        option_id: option.id,
+        iteration_number: currentIteration
+      } 
+    }))
     
     // Auto-advance to next step after a brief delay for better UX
     setTimeout(() => {
-      // branching: jump to step if defined (1-based step indexes stored in DB)
-      if (option.jump_to_step) {
-        // find index for jump_to_step
+      const currentStep = steps[currentStepIndex]
+      
+      // First check new logic rules system
+      if (currentStep.id) {
+        const logicTargetIdx = evaluateLogicRules(currentStep.id, option)
+        if (logicTargetIdx !== null) {
+          const targetStep = steps[logicTargetIdx]
+          
+          // Check if both current and target steps are image selection steps
+          if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+            setPreviousStepIndex(currentStepIndex)
+            setAnimationDirection('forward')
+            setIsAnimating(true)
+            setTimeout(() => {
+              setNavigationHistory(prev => [...prev, currentStepIndex])
+              setCurrentStepIndex(logicTargetIdx)
+              setTimeout(() => setIsAnimating(false), 300)
+            }, 150)
+          } else {
+            setNavigationHistory(prev => [...prev, currentStepIndex])
+            setCurrentStepIndex(logicTargetIdx)
+          }
+          return
+        }
+      }
+      
+      // Fallback to old jump_to_step system (for backward compatibility)
+      // Only proceed if NO new logic exists for this step to prevent conflicts
+      if (option.jump_to_step && (!currentStep.id || !stepLogicMap.has(currentStep.id))) {
         const idx = steps.findIndex(s => s.step_order === option.jump_to_step)
         if (idx >= 0) {
-          // Check if both current and target steps are image selection steps
-          const currentStep = steps[currentStepIndex]
           const targetStep = steps[idx]
           if (currentStep?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
             setPreviousStepIndex(currentStepIndex)
@@ -525,7 +723,6 @@ export default function FormEmbed() {
               setTimeout(() => setIsAnimating(false), 300)
             }, 150)
           } else {
-            // Add current step to history before jumping
             setNavigationHistory(prev => [...prev, currentStepIndex])
             setCurrentStepIndex(idx)
           }
@@ -1214,26 +1411,12 @@ export default function FormEmbed() {
           break
         
         case 'image_selection':
-          // First try the enriched data, then fallback to finding in options
+          // Show only the option label, no image
           if (answer.selected_option_label) {
-            answerContent = `
-              <div style="margin: 10px 0;">
-                ${answer.selected_option_image ? `<img src="${answer.selected_option_image}" alt="${answer.selected_option_label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">` : ''}
-                <p style="margin: 5px 0; font-weight: 600;">${answer.selected_option_label}</p>
-              </div>
-            `
+            answerContent = answer.selected_option_label
           } else {
             const selectedImage = answer.options?.find((opt: any) => opt.id === answer.selected_option_id)
-            if (selectedImage) {
-              answerContent = `
-                <div style="margin: 10px 0;">
-                  <img src="${selectedImage.image_url}" alt="${selectedImage.label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">
-                  <p style="margin: 5px 0; font-weight: 600;">${selectedImage.label}</p>
-                </div>
-              `
-            } else {
-              answerContent = 'No image selected'
-            }
+            answerContent = selectedImage?.label || answer.answer_text || 'No image selected'
           }
           break
         
@@ -1639,6 +1822,72 @@ export default function FormEmbed() {
   // build answers and frame rows (for frames_plan)
   const answers = [] as any[]
   const frameRows = [] as any[]
+
+      // Helper: build an answer row from a step + response object
+      const buildAnswerRow = async (stepObj: typeof steps[0], ans: any, iterationNum: number) => {
+        let file_url = null
+        let file_name = null
+        let file_size = null
+
+        if (ans.file) {
+          try {
+            const filename = `responses/${responseId}/${stepObj.id}/${Date.now()}-${ans.file.name}`
+            const { error: uploadErr } = await supabase.storage.from('form-assets').upload(filename, ans.file)
+            if (uploadErr) {
+              console.error('File upload error:', uploadErr)
+              alert('File upload failed, but form will be submitted without the file')
+            } else {
+              const { data: publicUrl } = supabase.storage.from('form-assets').getPublicUrl(filename)
+              file_url = publicUrl.publicUrl
+              file_name = ans.file.name
+              file_size = ans.file.size
+            }
+          } catch (error) {
+            console.error('File upload error:', error)
+          }
+        }
+
+        answers.push({
+          response_id: responseId,
+          step_id: stepObj.id,
+          answer_text: ans.answer_text ?? null,
+          selected_option_id: ans.option_id ?? null,
+          file_url,
+          file_name,
+          file_size,
+          width: ans.width ? parseFloat(ans.width) : null,
+          height: ans.height ? parseFloat(ans.height) : null,
+          depth: ans.depth ? parseFloat(ans.depth) : null,
+          units: ans.units ?? null,
+          scale_rating: ans.scale_rating ?? null,
+          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null,
+          iteration_number: iterationNum
+        })
+
+        if (stepObj.question_type === 'frames_plan') {
+          const frames = (ans as any)?.frames || []
+          frames.forEach((f: any, idx: number) => {
+            if (f && (f.image_url || f.location_text || f.measurements_text)) {
+              frameRows.push({
+                response_id: responseId,
+                step_id: stepObj.id,
+                frame_number: f.frame_number ?? idx + 1,
+                image_url: f.image_url ?? null,
+                location_text: f.location_text ?? null,
+                measurements_text: f.measurements_text ?? null
+              })
+            }
+          })
+        }
+      }
+
+      // Process archived loop iteration answers first (earlier iterations)
+      for (const archived of archivedIterations) {
+        const stepObj = steps[archived.stepIndex]
+        if (!stepObj) continue
+        await buildAnswerRow(stepObj, archived.answer, archived.iteration)
+      }
+
       for (const [stepIndexStr, ans] of Object.entries(responses)) {
         const si = Number(stepIndexStr)
         const stepObj = steps[si]
@@ -1689,7 +1938,9 @@ export default function FormEmbed() {
           // Opinion scale rating
           scale_rating: ans.scale_rating ?? null,
           // Frames count for frames_plan questions
-          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null
+          frames_count: stepObj.question_type === 'frames_plan' ? (ans as any)?.frames_count ?? null : null,
+          // Loop iteration number (0 = first pass, 1+ = subsequent loops)
+          iteration_number: (ans as any)?.iteration_number ?? 0
         })
 
         // Collect frames_plan rows
@@ -1760,7 +2011,44 @@ export default function FormEmbed() {
       console.log('📋 [FORM] Response ID:', responseId)
       console.log('🔗 [FORM] View responses at: https://designer.advertomedia.co.uk/responses')
 
+      // Notify parent page that form was submitted (used by embed.js to close popups)
+      window.parent.postMessage({ type: 'designerFormSubmitted', formId: id }, '*')
+
+      // If a redirect URL was passed via query param, tell parent to navigate there
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
+      if (redirectUrl) {
+        try {
+          const target = new URL(redirectUrl)
+          if (target.protocol === 'http:' || target.protocol === 'https:') {
+            window.parent.postMessage({ type: 'designerFormRedirect', url: redirectUrl }, '*')
+          }
+        } catch { /* invalid URL, ignore */ }
+      }
+
       setCurrentStepIndex(currentStepIndex + 1)
+      return
+    }
+
+    // Check for conditional logic before navigating
+    const currentStepLogic = step.id ? evaluateLogicRules(step.id, responses[currentStepIndex]) : null
+    if (currentStepLogic !== null) {
+      console.log('🔀 [FORM] Logic rule matched! Navigating to step index:', currentStepLogic)
+      
+      setNavigationHistory(prev => [...prev, currentStepIndex])
+      
+      // Trigger animation if moving between image selection steps
+      const targetStep = steps[currentStepLogic]
+      if (step?.question_type === 'image_selection' && targetStep?.question_type === 'image_selection') {
+        setPreviousStepIndex(currentStepIndex)
+        setAnimationDirection('forward')
+        setIsAnimating(true)
+        setTimeout(() => {
+          setCurrentStepIndex(currentStepLogic)
+          setTimeout(() => setIsAnimating(false), 300)
+        }, 150)
+      } else {
+        setCurrentStepIndex(currentStepLogic)
+      }
       return
     }
 
@@ -1793,9 +2081,18 @@ export default function FormEmbed() {
     if (navigationHistory.length > 1) {
       // Go back to the previous step in history
       const newHistory = [...navigationHistory]
-      newHistory.pop() // Remove current step
-      const previousStep = newHistory[newHistory.length - 1]
+      const previousStep = newHistory.pop()! // The popped value IS the step to return to
       setNavigationHistory(newHistory)
+
+      // Clear responses for all steps after the destination so stale answers
+      // from the previous navigation path cannot trigger incorrect logic rules
+      setResponses(r => {
+        const updated = { ...r }
+        for (let i = previousStep + 1; i < steps.length; i++) {
+          delete updated[i]
+        }
+        return updated
+      })
 
       // Trigger animation for image selection steps
       const currentStep = steps[currentStepIndex]
@@ -1883,11 +2180,55 @@ export default function FormEmbed() {
     )
   }
 
+  // ── Single-page form branch ───────────────────────────────────────────────
+  if (formData?.form_type === 'single_page') {
+    // Map form_steps to RenderedField[]
+    const renderedFields: RenderedField[] = steps.map((s: any) => ({
+      id: s.id,
+      field_type: s.question_type as any,
+      label: s.title,
+      description: s.description || '',
+      placeholder: s.placeholder || '',
+      is_required: s.is_required ?? false,
+      field_order: s.step_order,
+      options: (s.options || []).map((o: any) => ({
+        id: o.id,
+        label: o.label,
+        description: o.description || '',
+        image_url: o.image_url,
+      })),
+      allow_multiple: (s as any).allow_multiple ?? false,
+      scale_min: s.scale_min,
+      scale_max: s.scale_max,
+      scale_min_label: (s as any).scale_min_label || '',
+      scale_max_label: (s as any).scale_max_label || '',
+      number_min: (s as any).number_min,
+      number_max: (s as any).number_max,
+      max_file_size: s.max_file_size,
+      allowed_file_types: s.allowed_file_types,
+      images_per_row: s.images_per_row,
+      mobile_images_per_row: s.mobile_images_per_row,
+    }))
+
+    return (
+      <SinglePageFormEmbed
+        formId={formData.id}
+        formName={formName}
+        fields={renderedFields}
+        formData={formData}
+        primaryColor={formData?.clients?.primary_color || formColors.primaryButtonColor}
+        primaryButtonColor={formColors.primaryButtonColor}
+        primaryButtonTextColor={formColors.primaryButtonTextColor}
+        welcomeMessage={formData?.welcome_message || ''}
+      />
+    )
+  }
+
   const step = steps[currentStepIndex]
   const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
   return (
-  <div ref={formContainerRef} className={`${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto', minHeight: 'fit-content', paddingBottom: '0' }}>
+  <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto', minHeight: 'fit-content', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
       {/* Soft UI decorations for soft-ui theme - only show within form bounds */}
       {formTheme === 'soft-ui' && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ height: 'fit-content', paddingBottom: '0' }}>
@@ -1897,12 +2238,13 @@ export default function FormEmbed() {
       )}
       
   <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
-  <div className={currentTheme.styles.card} style={{ marginBottom: '0', background: 'none' }}>
+  <div className={currentTheme.styles.card} style={{ marginBottom: '0', ...(isTransparent ? {} : { background: 'none' }) }}>
         {/* Client Header */}
-  {formData?.clients && (
+    {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
             {/* Client Logo */}
-            {formData?.clients?.logo_url ? (
+            {!embedHideLogo && (
+              formData?.clients?.logo_url ? (
               <div className="flex justify-center mb-3">
                 <img 
                   src={formData?.clients?.logo_url}
@@ -1918,22 +2260,26 @@ export default function FormEmbed() {
                   </svg>
                 </div>
               </div>
-            )}
+            ))}
             
             {/* Client Name */}
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">{formData?.clients?.name}</h2>
+            {!embedHideTitle && (
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{formData?.clients?.name}</h2>
+            )}
             
             {/* Form Description */}
-            {formDescription && (
+            {!embedHideDescription && formDescription && (
               <p className="text-sm text-gray-600">{formDescription}</p>
             )}
           </div>
         )}
         
-        <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
+        {!embedHideTitle && (
+          <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
+        )}
         <p className={currentTheme.styles.text.body}>{step.title}</p>
         {step.description && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
         )}
 
         <div className={currentTheme.styles.progress}>
@@ -2033,6 +2379,7 @@ export default function FormEmbed() {
                   />
                 </div>
 
+                {(step.contact_show_phone ?? true) && (
                 <div>
                   <label htmlFor="phone" className={currentTheme.styles.text.label}>
                     Phone Number <span className="text-red-500">*</span>
@@ -2053,7 +2400,9 @@ export default function FormEmbed() {
                     required
                   />
                 </div>
+                )}
 
+                {(step.contact_show_address ?? true) && (
                 <div>
                   <label htmlFor="address" className={currentTheme.styles.text.label}>
                     Property Address <span className="text-red-500">*</span>
@@ -2074,7 +2423,9 @@ export default function FormEmbed() {
                     required
                   />
                 </div>
+                )}
 
+                {(step.contact_show_project_details ?? true) && (
                 <div>
                   <label htmlFor="projectDetails" className={currentTheme.styles.text.label}>
                     Project Details
@@ -2095,7 +2446,9 @@ export default function FormEmbed() {
                     className={`${currentTheme.styles.input} resize-none`}
                   />
                 </div>
+                )}
 
+                {(step.contact_show_preferred_contact ?? true) && (
                 <div>
                   <label htmlFor="preferredContact" className={currentTheme.styles.text.label}>
                     Preferred Contact Method <span className="text-red-500">*</span>
@@ -2119,7 +2472,9 @@ export default function FormEmbed() {
                     <option value="Both">Both</option>
                   </select>
                 </div>
+                )}
 
+                {(step.contact_show_file_upload ?? true) && (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
                      onClick={() => {
                        const input = document.createElement('input')
@@ -2148,6 +2503,7 @@ export default function FormEmbed() {
                     </p>
                   </div>
                 </div>
+                )}
 
                 {responses[currentStepIndex]?.file && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -2173,18 +2529,6 @@ export default function FormEmbed() {
                     </div>
                   </div>
                 )}
-
-                <div className="flex items-start space-x-2 pt-4">
-                  <input
-                    type="checkbox"
-                    id="consent"
-                    required
-                    className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="consent" className="text-sm text-gray-600 flex-1">
-                    <span className="text-orange-500">⚠️</span> I agree to be contacted by {formData?.clients?.name || 'the company'} regarding my enquiry <span className="text-red-500">*</span>
-                  </label>
-                </div>
               </div>
             </div>
           </div>
@@ -2623,8 +2967,12 @@ export default function FormEmbed() {
                                 <>
                                   <Upload className="h-12 w-12 text-gray-400" />
                                   <div>
-                                    <p className="text-lg font-medium text-gray-600">Choose file</p>
-                                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB (drag & drop or click)</p>
+                                    <p className="text-lg font-medium text-gray-600 mb-2">
+                                      Choose file
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      PNG, JPG up to 10MB (drag & drop or click)
+                                    </p>
                                   </div>
                                 </>
                               )}
@@ -2710,19 +3058,134 @@ export default function FormEmbed() {
               )}
             </div>
           </div>
+        ) : step.question_type === 'loop_section' ? (
+          <div className="mt-6">
+            <div className="space-y-6">
+              {/* Loop Section UI */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-4">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      {step.loop_label ? `Add Another ${step.loop_label}?` : 'Add Another Entry?'}
+                    </h3>
+                    <p className="text-gray-600">
+                      You've completed {currentIteration > 0 ? `${step.loop_label || 'entry'} #${currentIteration}` : 'the first entry'}.
+                      {step.loop_max_iterations && currentIteration < step.loop_max_iterations && (
+                        <span className="block mt-1 text-sm">
+                          You can add up to {step.loop_max_iterations} {step.loop_label?.toLowerCase() || 'entries'} total.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                    {/* Add Another button */}
+                    {(!step.loop_max_iterations || currentIteration < step.loop_max_iterations) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Increment iteration counter
+                          const newIteration = currentIteration + 1
+                          
+                          if (step.loop_start_step_id) {
+                            const startIndex = steps.findIndex(s => s.id === step.loop_start_step_id)
+                            const endIndex = steps.findIndex(s => s.id === step.loop_end_step_id)
+                            
+                            if (startIndex !== -1) {
+                              // Archive the current iteration's responses before clearing them
+                              const toArchive: Array<{stepIndex: number, iteration: number, answer: any}> = []
+                              const loopEnd = endIndex !== -1 ? endIndex : currentStepIndex - 1
+                              for (let i = startIndex; i <= loopEnd; i++) {
+                                if (responses[i]) {
+                                  toArchive.push({ stepIndex: i, iteration: currentIteration, answer: responses[i] })
+                                }
+                              }
+                              if (toArchive.length > 0) {
+                                setArchivedIterations(prev => [...prev, ...toArchive])
+                              }
+                              
+                              // Update loop state
+                              setCurrentIteration(newIteration)
+                              setLoopIterations(prev => new Map(prev).set(step.id!, newIteration))
+                              setLoopHistory(prev => [...prev, { loopStepId: step.id!, iteration: newIteration }])
+                              
+                              // Add current step to navigation history
+                              setNavigationHistory(prev => [...prev, currentStepIndex])
+                              
+                              // Navigate back to loop start, clearing responses in the loop range
+                              setCurrentStepIndex(startIndex)
+                              if (endIndex !== -1) {
+                                setResponses(r => {
+                                  const newResponses = { ...r }
+                                  for (let i = startIndex; i <= endIndex; i++) {
+                                    delete newResponses[i]
+                                  }
+                                  return newResponses
+                                })
+                              }
+                            }
+                          }
+                        }}
+                        className="px-8 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                      >
+                        {step.loop_button_text || `Add Another ${step.loop_label || 'Entry'}`}
+                      </button>
+                    )}
+
+                    {/* Continue button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Reset iteration counter and add to navigation history
+                        setCurrentIteration(0)
+                        setNavigationHistory(prev => [...prev, currentStepIndex])
+                        
+                        // Move to next step
+                        if (currentStepIndex < steps.length - 1) {
+                          setCurrentStepIndex(prev => prev + 1)
+                        }
+                      }}
+                      className="px-8 py-3 rounded-xl font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                    >
+                      Continue
+                    </button>
+                  </div>
+
+                  {step.loop_max_iterations && currentIteration >= step.loop_max_iterations && (
+                    <p className="text-sm text-purple-600 font-medium">
+                      You've reached the maximum of {step.loop_max_iterations} {step.loop_label?.toLowerCase() || 'entries'}.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <div 
-            className={`grid gap-4 mt-6 grid-auto-rows-fr ${!step.crop_images_to_square ? 'items-start' : ''} ${
-              step.images_per_row === 1 
-                ? 'grid-cols-1' 
-                : step.images_per_row === 2
-                ? 'grid-cols-1 sm:grid-cols-2'
-                : step.images_per_row === 3 
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
-                : step.images_per_row === 4
-                ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                : 'grid-cols-1 sm:grid-cols-2' // default case (2 per row)
-            }`}
+            className={`grid gap-4 mt-6 grid-auto-rows-fr ${!step.crop_images_to_square ? 'items-start' : ''} ${(() => {
+              const desktop = step.images_per_row || 2
+              const mobile = step.mobile_images_per_row
+              if (mobile != null) {
+                // Explicit mobile setting: use clean 2-breakpoint layout
+                const mobileClass = mobile === 2 ? 'grid-cols-2' : mobile === 3 ? 'grid-cols-3' : 'grid-cols-1'
+                if (desktop === 1) return 'grid-cols-1'
+                if (desktop === mobile) return mobileClass
+                const desktopClass = desktop === 2 ? 'md:grid-cols-2' : desktop === 3 ? 'md:grid-cols-3' : desktop === 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
+                return `${mobileClass} ${desktopClass}`
+              }
+              // Legacy: preserve existing breakpoint behaviour
+              if (desktop === 1) return 'grid-cols-1'
+              if (desktop === 2) return 'grid-cols-1 sm:grid-cols-2'
+              if (desktop === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              if (desktop === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+              return 'grid-cols-1 sm:grid-cols-2'
+            })()}`}
           >
             {step.options.map((opt: any, index: number) => (
               <AnimatedImageCard

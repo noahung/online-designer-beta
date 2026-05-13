@@ -40,34 +40,10 @@ export const setupStaggerAnimation = () => {
   });
 };
 
-// Performance monitoring
+// Performance monitoring (disabled to save resources)
 export const monitorPerformance = () => {
-  if (typeof window === 'undefined' || !('performance' in window)) return;
-
-  // Monitor FPS
-  let lastTime = performance.now();
-  let frames = 0;
-  
-  const measureFPS = () => {
-    frames++;
-    const currentTime = performance.now();
-    
-    if (currentTime >= lastTime + 1000) {
-      const fps = Math.round((frames * 1000) / (currentTime - lastTime));
-      
-      // Log performance warnings
-      if (fps < 30) {
-        console.warn(`Low FPS detected: ${fps}fps`);
-      }
-      
-      frames = 0;
-      lastTime = currentTime;
-    }
-    
-    requestAnimationFrame(measureFPS);
-  };
-  
-  measureFPS();
+  // FPS monitoring loop removed to prevent unnecessary requestAnimationFrame overhead
+  return;
 };
 
 // Initialize performance optimizations

@@ -347,16 +347,7 @@ function generateEmailTemplate(data: ResponseData): string {
       
       case 'image_selection':
         const selectedImage = answer.form_steps?.form_options?.find((opt: any) => opt.id === answer.selected_option_id)
-        if (selectedImage) {
-          answerContent = `
-            <div style="margin: 10px 0;">
-              <img src="${selectedImage.image_url}" alt="${selectedImage.label}" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0; font-weight: 600;">${selectedImage.label}</p>
-            </div>
-          `
-        } else {
-          answerContent = 'No image selected'
-        }
+        answerContent = selectedImage?.label || answer.answer_text || 'No image selected'
         break
       
       case 'file_upload':
