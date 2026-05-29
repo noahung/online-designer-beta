@@ -6,6 +6,7 @@ import { useTheme } from './contexts/ThemeContext'
 import { initPerformanceOptimizations } from './lib/performance'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
+import { AnimatedGradient } from './components/ui/animated-gradient-with-svg'
 import LoginForm from './components/LoginForm'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
@@ -173,12 +174,18 @@ function AppContent() {
   // Use custom domain detection - if on custom domain, no basename needed
   const isCustomDomain = window.location.hostname !== 'noahung.github.io'
   const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
+
+  const gradientColors = theme === 'light'
+    ? ['#E0E7FF', '#FAE8FF', '#ECFDF5', '#E0F2FE'] // Luminous, iridescent pastels (indigo, fuchsia, emerald, sky)
+    : ['#1E1B4B', '#311042', '#022C22', '#082F49']; // Cosmos colors (deep indigo, dark violet, deep emerald, dark sky)
   
   return (
-    <div className={`min-h-screen bg-[#111111]`}>
-      <div className={`min-h-screen backdrop-blur-sm ${
-        theme === 'light' ? 'bg-white/30' : 'bg-black/20'
-      }`}>
+    <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      {/* Dynamic hardware-accelerated animated mesh gradient backdrop */}
+      <AnimatedGradient colors={gradientColors} speed={2} blur="heavy" />
+      
+      {/* Main app content layers with transparent backdrop-blur container */}
+      <div className="relative z-10 min-h-screen backdrop-blur-3xl transition-colors duration-300">
         <AuthProvider>
           <ToastProvider>
             <Router basename={basename}>

@@ -31,8 +31,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           type={type}
           id={inputId}
           className={cn(
-            'flex h-10 w-full rounded-xl border px-3 py-2 text-sm transition-all duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+            'flex h-10 w-full rounded-full border px-4 py-2 text-sm transition-all duration-300 ease-out',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'file:border-0 file:bg-transparent file:text-sm file:font-medium',
             backgrounds.input(theme),
@@ -41,8 +41,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                 ? 'border-red-300 focus-visible:border-red-500 focus-visible:ring-red-500' 
                 : 'border-red-400/50 focus-visible:border-red-400 focus-visible:ring-red-400'
               : theme === 'light'
-                ? 'focus-visible:ring-blue-500'
-                : 'focus-visible:ring-blue-400',
+                ? 'border-white/20 focus-visible:border-indigo-400 focus-visible:ring-indigo-400/50'
+                : 'border-white/10 focus-visible:border-indigo-500 focus-visible:ring-indigo-500/50',
             className
           )}
           ref={ref}

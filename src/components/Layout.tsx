@@ -167,7 +167,7 @@ const Dashboard = () => {
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className={cn(
-        "bg-white dark:bg-neutral-900 flex flex-col flex-1 w-full h-full overflow-y-auto"
+        "bg-transparent flex flex-col flex-1 w-full h-full overflow-y-auto"
       )}>
         <Outlet />
       </div>

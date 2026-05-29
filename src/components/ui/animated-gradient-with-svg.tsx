@@ -60,7 +60,7 @@ const AnimatedGradient: React.FC<AnimatedGradientProps> = ({
               {
                 top: circle.top,
                 left: circle.left,
-                "--background-gradient-speed": `${1 / speed}s`,
+                "--background-gradient-speed": `${180 / speed}s`,
                 "--tx-1": circle.tx1,
                 "--ty-1": circle.ty1,
                 "--tx-2": circle.tx2,
@@ -80,7 +80,7 @@ const AnimatedGradient: React.FC<AnimatedGradientProps> = ({
               cy="50"
               r="50"
               fill={circle.color}
-              className="opacity-30 dark:opacity-[0.15]"
+              className="opacity-[0.12] dark:opacity-[0.06]"
             />
           </svg>
         ))}
