@@ -190,13 +190,13 @@ export default function ClientResponses() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-orange-100 to-red-200 bg-clip-text text-transparent">My Responses</h1>
+          <h1 className="text-4xl font-bold text-white">My Responses</h1>
           <p className="text-white/70 mt-2">View and export responses to your forms</p>
         </div>
         <button
           onClick={exportToCSV}
           disabled={exporting || responses.length === 0}
-          className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105 animate-slide-up disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200 hover:scale-105 animate-slide-up disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="mr-2 h-5 w-5" />
           {exporting ? 'Exporting...' : 'Export CSV'}
@@ -205,15 +205,15 @@ export default function ClientResponses() {
 
       {responses.length === 0 ? (
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-12 text-center">
-          <div className="w-20 h-20 bg-gradient-to-r from-orange-500/20 to-red-600/20 backdrop-blur-xl rounded-2xl border border-orange-400/30 flex items-center justify-center mx-auto mb-6">
-            <BarChart3 className="w-10 h-10 text-orange-300" />
+          <div className="w-20 h-20 bg-zinc-800 rounded-2xl border border-zinc-700 flex items-center justify-center mx-auto mb-6">
+            <BarChart3 className="w-10 h-10 text-zinc-400" />
           </div>
           <h3 className="text-2xl font-semibold text-white mb-3">No responses yet</h3>
           <p className="text-white/70 text-lg">Responses to your forms will appear here.</p>
         </div>
       ) : (
         <div className="bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6">
-          <h2 className="text-xl font-semibold bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent mb-6">Recent Responses</h2>
+          <h2 className="text-xl font-semibold text-white mb-6">Recent Responses</h2>
           
           <div className="space-y-4">
             {responses.map((response, index) => (
@@ -225,7 +225,7 @@ export default function ClientResponses() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-orange-500/20 to-red-500/20 text-orange-200 border border-orange-400/30">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-200 border border-zinc-700">
                       {response.forms?.[0]?.name || 'Form'}
                     </span>
                   </div>

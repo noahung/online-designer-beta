@@ -228,8 +228,8 @@ export default function ResponseDetail() {
     // File upload
     if ((questionType === 'file_upload' || questionType === 'contact_fields') && answer.file_url) {
       return (
-        <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-500/10 rounded-lg p-4 border border-blue-200 dark:border-blue-400/30">
-          <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        <div className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+          <FileText className="w-6 h-6 text-zinc-600 dark:text-zinc-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <a
               href={answer.file_url}
@@ -240,14 +240,14 @@ export default function ResponseDetail() {
               {answer.file_name || 'Download File'}
             </a>
             {answer.file_size && (
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-zinc-500 dark:text-zinc-400">
                 {(answer.file_size / 1024).toFixed(1)} KB
               </span>
             )}
           </div>
           <button
             onClick={() => downloadFile(answer.file_url, answer.file_name || 'file')}
-            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex-shrink-0"
+            className="p-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors flex-shrink-0"
             title="Download file"
           >
             <Download className="w-5 h-5" />
@@ -394,7 +394,7 @@ export default function ResponseDetail() {
             </div>
             <button
               onClick={downloadAllAttachments}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all duration-200 hover:scale-105"
             >
               <Download className="w-5 h-5" />
               Download All Attachments

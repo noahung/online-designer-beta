@@ -63,18 +63,8 @@ const FormCard: React.FC<FormCardProps> = ({
 
   // Determine elegant, calm avatar colors based on the form name
   const avatarStyle = React.useMemo(() => {
-    const colors = [
-      { bg: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400" },
-      { bg: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" },
-      { bg: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400" },
-      { bg: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400" },
-      { bg: "bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400" },
-      { bg: "bg-violet-500/10 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400" },
-    ]
-    const charCodeSum = form.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const colorIndex = Math.abs(charCodeSum) % colors.length
-    return colors[colorIndex]
-  }, [form.name])
+    return { bg: "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400" }
+  }, [])
 
   return (
     <motion.div
@@ -94,7 +84,7 @@ const FormCard: React.FC<FormCardProps> = ({
               type="checkbox"
               checked={isSelected}
               onChange={onToggleSelect}
-              className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-orange-500 focus:ring-0 cursor-pointer transition-all flex-shrink-0"
+              className="w-4 h-4 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:ring-0 cursor-pointer transition-all flex-shrink-0"
             />
 
             {/* Letter Avatar (Gemini style) */}
@@ -114,8 +104,8 @@ const FormCard: React.FC<FormCardProps> = ({
                 )}
                 
                 {/* Clean inline status dot instead of bulky badge */}
-                <span className={`inline-flex items-center text-xs font-medium ${form.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${form.is_active ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
+                <span className={`inline-flex items-center text-xs font-medium ${form.is_active ? 'text-zinc-600 dark:text-zinc-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${form.is_active ? 'bg-zinc-500 dark:bg-zinc-400' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
                   {form.is_active ? 'Active' : 'Inactive'}
                 </span>
 
@@ -245,7 +235,7 @@ const FormCard: React.FC<FormCardProps> = ({
                       className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors text-left"
                     >
                       <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${form.is_active ? 'bg-zinc-400 dark:bg-zinc-600' : 'bg-emerald-500'}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${form.is_active ? 'bg-zinc-400 dark:bg-zinc-600' : 'bg-zinc-500'}`} />
                       </span>
                       <span>{form.is_active ? 'Deactivate' : 'Activate'}</span>
                     </button>

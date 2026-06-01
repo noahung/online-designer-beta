@@ -184,6 +184,7 @@ interface SortableStepItemProps {
 }
 
 function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplicate, onPreview, canDelete }: SortableStepItemProps) {
+  const { theme } = useTheme()
   const {
     attributes,
     listeners,
@@ -204,9 +205,13 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
       ref={setNodeRef}
       style={style}
       data-step-index={index}
-      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border backdrop-blur-sm ${isSelected
-        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg shadow-blue-500/25'
-        : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
+      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 border ${isSelected
+        ? theme === 'light'
+          ? 'bg-zinc-100 border-zinc-300 shadow-sm'
+          : 'bg-zinc-800 border-zinc-700 shadow-sm'
+        : theme === 'light'
+          ? 'bg-white hover:bg-zinc-50 border-zinc-200'
+          : 'bg-[#1e1e1f] hover:bg-zinc-800/60 border-zinc-800'
         } ${isDragging ? 'rotate-2 scale-105' : ''}`}
     >
       <div className="flex items-center justify-between">
@@ -214,28 +219,34 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
           <div
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 text-white/50 hover:text-white/80 transition-colors"
+            className={`cursor-grab active:cursor-grabbing p-1 transition-colors ${
+              theme === 'light' ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/50 hover:text-white/80'
+            }`}
             title="Drag to reorder"
           >
             <GripVertical className="h-4 w-4" />
           </div>
           <div className="flex-1" onClick={onClick}>
-            <p className="font-medium text-sm text-white">
+            <p className={`font-medium text-sm ${theme === 'light' ? 'text-zinc-800' : 'text-white'}`}>
               {step.title || `Step ${index + 1}`}
             </p>
-            <p className="text-xs text-white/60 capitalize mt-1">
+            <p className={`text-xs capitalize mt-1 ${theme === 'light' ? 'text-zinc-500' : 'text-white/60'}`}>
               {step.question_type.replace('_', ' ')}
             </p>
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-lg">{index + 1}</span>
+          <span className={`text-xs px-2 py-1 rounded-lg ${
+            theme === 'light' ? 'text-zinc-600 bg-zinc-100' : 'text-white/50 bg-white/10'
+          }`}>{index + 1}</span>
           <button
             onClick={(e) => {
               e.stopPropagation()
               onPreview()
             }}
-            className="p-1 text-white/40 hover:text-green-300 hover:bg-green-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            className={`p-1 rounded-lg transition-all duration-200 hover:scale-110 ${
+              theme === 'light' ? 'text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100' : 'text-white/40 hover:text-white hover:bg-white/10'
+            }`}
             title="Preview this step"
           >
             <Eye className="h-4 w-4" />
@@ -245,7 +256,9 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
               e.stopPropagation()
               onDuplicate()
             }}
-            className="p-1 text-white/40 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+            className={`p-1 rounded-lg transition-all duration-200 hover:scale-110 ${
+              theme === 'light' ? 'text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100' : 'text-white/40 hover:text-white hover:bg-white/10'
+            }`}
             title="Duplicate step"
           >
             <Copy className="h-4 w-4" />
@@ -256,7 +269,10 @@ function SortableStepItem({ step, index, isSelected, onClick, onDelete, onDuplic
                 e.stopPropagation()
                 onDelete()
               }}
-              className="p-1 text-white/40 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-all duration-200 hover:scale-110"
+              className={`p-1 rounded-lg transition-all duration-200 hover:scale-110 ${
+                theme === 'light' ? 'text-zinc-400 hover:text-red-600 hover:bg-red-50' : 'text-white/40 hover:text-red-400 hover:bg-red-500/20'
+              }`}
+              title="Delete step"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1900,62 +1916,68 @@ export default function FormBuilder() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111111]">
+    <div className={`min-h-screen ${theme === 'light' ? 'bg-zinc-50' : 'bg-[#111111]'}`}>
       {/* Header */}
-      <div className={`border-b backdrop-blur-xl px-6 py-4 ${theme === 'light'
-        ? 'border-gray-200 bg-white/80'
-        : 'border-white/10 bg-white/10'
+      <div className={`border-b px-6 py-4 ${theme === 'light'
+        ? 'border-zinc-200 bg-white shadow-sm'
+        : 'border-zinc-800 bg-[#1e1e1f]'
         }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => navigate('/forms')}
               className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
-                ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
                 : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className={`text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${theme === 'light'
-                ? 'from-gray-800 via-blue-600 to-purple-600'
-                : 'from-white via-orange-100 to-red-200'
+              <h1 className={`text-2xl font-semibold tracking-tight ${theme === 'light'
+                ? 'text-zinc-900'
+                : 'text-zinc-100'
                 }`}>
                 {isEditing ? 'Edit Form: ' : 'Create Form: '}{name || 'Untitled Form'}
               </h1>
               {clientId && (
-                <p className={`mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                <p className={`mt-1 text-xs ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                   }`}>
                   {clients.find(c => c.id === clientId)?.name}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex items-center space-x-2.5">
             <button
               onClick={() => setShowStepTypeDropdown(true)}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Step
             </button>
             <button
               onClick={() => setShowFormSettingsModal(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
-                ? 'bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 text-blue-700 border border-blue-200'
-                : 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 text-blue-200 border border-blue-400/30'
-                }`}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
             >
               <FileText className="h-4 w-4 mr-2" />
               Form Settings
             </button>
             <button
               onClick={() => setShowFormThemeModal(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
-                ? 'bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200'
-                : 'bg-gradient-to-r from-purple-500/20 to-purple-600/20 hover:from-purple-500/30 hover:to-purple-600/30 text-purple-200 border border-purple-400/30'
-                }`}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
             >
               <Palette className="h-4 w-4 mr-2" />
               Form Theme
@@ -1964,10 +1986,11 @@ export default function FormBuilder() {
               type="button"
               onClick={() => setShowEmbedModal(true)}
               disabled={!formId}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${theme === 'light'
-                ? 'bg-gradient-to-r from-emerald-50 to-teal-100 hover:from-emerald-100 hover:to-teal-200 text-emerald-700 border border-emerald-200'
-                : 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 text-emerald-200 border border-emerald-400/30'
-                }`}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
             >
               <Code className="w-4 h-4 mr-2" />
               Embed Form
@@ -1975,10 +1998,11 @@ export default function FormBuilder() {
             <button
               onClick={undo}
               disabled={history.past.length === 0}
-              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
-                : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
-                }`}
+              className={`inline-flex items-center p-2 rounded-full border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
               title="Undo last action"
             >
               <Undo className="h-4 w-4" />
@@ -1986,20 +2010,22 @@ export default function FormBuilder() {
             <button
               onClick={redo}
               disabled={history.future.length === 0}
-              className={`inline-flex items-center px-3 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                ? 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border border-gray-200 disabled:bg-gray-50'
-                : 'bg-gradient-to-r from-gray-500/20 to-gray-600/20 hover:from-gray-500/30 hover:to-gray-600/30 text-gray-300 border border-gray-400/30 disabled:bg-gray-500/10'
-                }`}
+              className={`inline-flex items-center p-2 rounded-full border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
               title="Redo last undone action"
             >
               <Redo className="h-4 w-4" />
             </button>
             <button
               onClick={() => setShowGlobalFlowchart(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
-                ? 'bg-gradient-to-r from-teal-50 to-teal-100 hover:from-teal-100 hover:to-teal-200 text-teal-700 border border-teal-200'
-                : 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 hover:from-teal-500/30 hover:to-teal-600/30 text-teal-200 border border-teal-400/30'
-                }`}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -2008,10 +2034,11 @@ export default function FormBuilder() {
             </button>
             <button
               onClick={() => setShowPreview(true)}
-              className={`inline-flex items-center px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg ${theme === 'light'
-                ? 'bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 text-purple-700 border border-purple-200'
-                : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
-                }`}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
+                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+              }`}
             >
               <Eye className="mr-2 h-4 w-4" />
               Preview
@@ -2019,10 +2046,7 @@ export default function FormBuilder() {
             <button
               onClick={save}
               disabled={saving}
-              className={`inline-flex items-center px-6 py-2 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'light'
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
-                : 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-orange-500/25 hover:shadow-orange-500/40'
-                }`}
+              className="inline-flex items-center px-6 py-2 rounded-full font-medium transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-500/10"
             >
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Form'}
@@ -2034,14 +2058,14 @@ export default function FormBuilder() {
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar */}
         <div className={`w-[400px] border-r overflow-y-auto ${theme === 'light'
-          ? 'border-gray-200 bg-white/60 backdrop-blur-sm'
-          : 'border-white/10 bg-white/5 backdrop-blur-sm'
+          ? 'border-zinc-200 bg-white/60 backdrop-blur-sm'
+          : 'border-zinc-800 bg-[#1e1e1f]/30 backdrop-blur-sm'
           }`}>
           <div className="p-6 pb-24 space-y-6">
             {/* Form Steps */}
             <CollapsibleSection
               title="Form Steps"
-              icon={<MessageSquare className="w-5 h-5 mr-2 text-purple-400" />}
+              icon={<MessageSquare className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`} />}
               isCollapsed={collapsedSections.formSteps}
               onToggle={() => toggleSection('formSteps')}
               animationDelay="0.1s"
@@ -2077,19 +2101,25 @@ export default function FormBuilder() {
 
                     {steps.length === 0 && (
                       <div className="text-center py-8">
-                        <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-                          <Plus className="w-6 h-6 text-white/60" />
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border ${
+                          theme === 'light' ? 'bg-zinc-100 border-zinc-200' : 'bg-white/10 border-white/20'
+                        }`}>
+                          <Plus className={`w-6 h-6 ${theme === 'light' ? 'text-zinc-500' : 'text-white/60'}`} />
                         </div>
-                        <p className="text-sm text-white/70 mb-6">Create a step to start building your form</p>
+                        <p className={`text-sm mb-6 ${theme === 'light' ? 'text-zinc-600' : 'text-white/70'}`}>Create a step to start building your form</p>
                         <div className="flex flex-wrap justify-center gap-3">
                           {stepTypes.map((stepType) => (
                             <button
                               key={stepType.type}
                               onClick={() => addStep(stepType.type)}
-                              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                                theme === 'light'
+                                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200 shadow-sm'
+                                  : 'bg-[#1e1e1f] hover:bg-zinc-800 border-zinc-800 text-zinc-300 shadow-lg'
+                              }`}
                             >
-                              {stepType.icon}
-                              <span className="ml-2 text-sm">{stepType.title}</span>
+                              <span className="mr-2 text-zinc-500 dark:text-zinc-400">{stepType.icon}</span>
+                              <span>{stepType.title}</span>
                             </button>
                           ))}
                         </div>
@@ -2102,7 +2132,11 @@ export default function FormBuilder() {
                 {steps.length > 0 && (
                   <button
                     onClick={() => setShowStepTypeDropdown(true)}
-                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border-2 border-dashed border-blue-400/30 hover:border-blue-400/50 text-blue-200 rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-sm mt-3"
+                    className={`w-full inline-flex items-center justify-center px-4 py-3 border border-dashed rounded-full transition-all duration-200 hover:scale-[1.02] shadow-sm mt-3 ${
+                      theme === 'light'
+                        ? 'bg-zinc-50 hover:bg-zinc-100 border-zinc-300 hover:border-zinc-400 text-zinc-700 font-medium text-sm'
+                        : 'bg-zinc-950/40 hover:bg-zinc-800/40 border-zinc-800 hover:border-zinc-700 text-zinc-300 font-medium text-sm'
+                    }`}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Step
@@ -2118,13 +2152,13 @@ export default function FormBuilder() {
           <div className="p-6">
             {currentStep ? (
               <div className={`backdrop-blur-xl rounded-2xl p-6 ${theme === 'light'
-                ? 'bg-white/90 border border-gray-200 shadow-lg'
-                : 'bg-white/10 border border-white/20'
+                ? 'bg-white border border-zinc-200 shadow-md'
+                : 'bg-white/5 border border-zinc-800'
                 }`}>
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className={`text-xl font-semibold bg-gradient-to-r bg-clip-text text-transparent ${theme === 'light'
-                    ? 'from-gray-800 to-blue-600'
-                    : 'from-white to-blue-200'
+                  <h2 className={`text-xl font-semibold ${theme === 'light'
+                    ? 'text-zinc-800'
+                    : 'text-zinc-100'
                     }`}>
                     Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}
                   </h2>
@@ -2143,8 +2177,8 @@ export default function FormBuilder() {
                     <button
                       onClick={() => setShowSaveTemplateModal(true)}
                       className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
-                        ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-                        : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/30'
+                        ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'
                         }`}
                       title="Save as template"
                     >
@@ -2154,9 +2188,9 @@ export default function FormBuilder() {
                     {currentStep.question_type === 'image_selection' && (
                       <button
                         onClick={() => setShowLayoutSettingsModal(true)}
-                        className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
-                          ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
-                          : 'bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-400/30'
+                        className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${theme === 'light'
+                          ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
                           }`}
                         title="Layout settings"
                       >
@@ -2166,9 +2200,9 @@ export default function FormBuilder() {
                     )}
                     <button
                       onClick={() => setShowLogicBuilder(true)}
-                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
-                        ? 'bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 text-purple-700'
-                        : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-300 border border-purple-400/30'
+                      className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${theme === 'light'
+                        ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
+                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
                         }`}
                       title="Add conditional logic"
                     >
@@ -2177,7 +2211,7 @@ export default function FormBuilder() {
                       </svg>
                       Logic
                       {stepLogicMap.get(currentStep.id || '')?.rules.length ? (
-                        <span className="ml-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-full">
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-zinc-600 text-white text-xs rounded-full">
                           {stepLogicMap.get(currentStep.id || '')?.rules.length}
                         </span>
                       ) : null}
@@ -2221,7 +2255,10 @@ export default function FormBuilder() {
                         <label className="text-sm font-medium text-white/90">Options</label>
                         <button
                           onClick={() => addOption(selectedStepIndex!)}
-                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 hover:scale-105"
+                          className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${theme === 'light'
+                            ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
+                            : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
+                          }`}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Option
@@ -3156,14 +3193,11 @@ export default function FormBuilder() {
                   )}
 
                   {/* Save Step Button */}
-                  <div className="flex justify-end pt-6 mt-6 border-t border-white/20">
+                  <div className={`flex justify-end pt-6 mt-6 border-t ${theme === 'light' ? 'border-zinc-200' : 'border-zinc-800'}`}>
                     <button
                       onClick={() => saveStep(selectedStepIndex!)}
                       disabled={saving}
-                      className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${isEditing && formId
-                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-blue-200 border border-blue-400/30 shadow-blue-500/25'
-                        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-green-500/25 hover:shadow-green-500/40'
-                        }`}
+                      className="inline-flex items-center px-6 py-2.5 rounded-full font-medium transition-all duration-200 shadow-md hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700 text-white shadow-orange-500/10"
                     >
                       <Save className="mr-2 h-4 w-4" />
                       {saving ? 'Saving...' : (isEditing && formId ? 'Save Step' : 'Save Form & Step')}
@@ -3173,39 +3207,44 @@ export default function FormBuilder() {
               </div>
             ) : (
               <div className={`backdrop-blur-xl rounded-2xl p-12 text-center ${theme === 'light'
-                ? 'bg-white/90 border border-gray-200 shadow-lg'
-                : 'bg-white/10 border border-white/20'
+                ? 'bg-white border border-zinc-200 shadow-md'
+                : 'bg-white/5 border border-zinc-800'
                 }`}>
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border ${theme === 'light'
-                  ? 'bg-gray-50 border-gray-200'
-                  : 'bg-white/10 border-white/20'
+                  ? 'bg-zinc-50 border-zinc-200'
+                  : 'bg-zinc-800/40 border-zinc-700'
                   }`}>
-                  <MessageSquare className={`w-8 h-8 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'
+                  <MessageSquare className={`w-8 h-8 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                     }`} />
                 </div>
-                <h3 className={`text-xl font-semibold mb-3 ${theme === 'light' ? 'text-gray-900' : 'text-white'
+                <h3 className={`text-xl font-semibold mb-3 ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                   }`}>No step selected</h3>
-                <p className={`mb-8 text-lg ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                <p className={`mb-8 text-sm ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                   }`}>Create a step to start building your form</p>
-                <div className="flex flex-wrap justify-center gap-4 mb-6">
+                <div className="flex flex-wrap justify-center gap-3 mb-6">
                   {stepTypes.map((stepType) => (
                     <button
                       key={stepType.type}
                       onClick={() => addStep(stepType.type)}
-                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 border border-blue-400/30 text-blue-200 rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                      className={`inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
+                        theme === 'light'
+                          ? 'bg-white hover:bg-zinc-50 border-zinc-200 text-zinc-800'
+                          : 'bg-[#1e1e1f] hover:bg-zinc-800 border-zinc-800 text-zinc-300'
+                      }`}
                     >
-                      {stepType.icon}
-                      <span className="ml-3">{stepType.title}</span>
+                      <span className="text-zinc-500 dark:text-zinc-400 mr-2.5">{stepType.icon}</span>
+                      <span>{stepType.title}</span>
                     </button>
                   ))}
                 </div>
                 <div className="flex justify-center">
                   <button
                     onClick={() => setShowLoadTemplateModal(true)}
-                    className={`inline-flex items-center px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 ${theme === 'light'
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
-                      : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-200 border border-purple-400/30'
-                      }`}
+                    className={`inline-flex items-center px-6 py-2.5 rounded-full font-medium border transition-all duration-200 hover:scale-105 ${
+                      theme === 'light'
+                        ? 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800'
+                        : 'bg-zinc-800/40 hover:bg-zinc-800/60 border-zinc-700 text-zinc-300'
+                    }`}
                   >
                     <FolderOpen className="w-5 h-5 mr-2" />
                     Create from Template
@@ -3483,16 +3522,14 @@ export default function FormBuilder() {
                     onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
                     className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${formTheme === themeKey
                       ? theme === 'light'
-                        ? 'border-purple-500 bg-purple-50'
-                        : 'border-purple-400 bg-purple-400/20'
+                        ? 'border-orange-400 bg-orange-50'
+                        : 'border-orange-500/50 bg-orange-500/10'
                       : theme === 'light'
                         ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
                         : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
                       }`}
                   >
-                    {themeKey === 'soft-ui' && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/10 to-purple-100/10 pointer-events-none" />
-                    )}
+
 
                     <div className="relative flex items-start justify-between">
                       <div className="flex-1">
@@ -3517,17 +3554,14 @@ export default function FormBuilder() {
                                 : 'bg-gray-300 rounded-md'
                                 }`} />
                               <div className={`h-2.5 w-12 ${themeKey === 'soft-ui'
-                                ? 'bg-gradient-to-r from-blue-400/80 to-purple-500/80 rounded-full shadow-sm'
+                                ? 'bg-slate-400/60 rounded-full'
                                 : themeData.preview.primaryColor + ' rounded-md'
                                 }`} />
                             </div>
                           </div>
 
                           <div className="space-y-1">
-                            <div className={`h-2 rounded ${themeKey === 'soft-ui'
-                              ? 'bg-gradient-to-r from-slate-700/40 to-slate-500/40'
-                              : 'bg-gray-700/60'
-                              }`} style={{ width: '70%' }} />
+                            <div className={`h-2 rounded ${'bg-gray-700/60'}`} style={{ width: '70%' }} />
                             <div className={`h-1.5 rounded ${themeKey === 'soft-ui'
                               ? 'bg-slate-400/40'
                               : 'bg-gray-500/60'
@@ -3538,8 +3572,7 @@ export default function FormBuilder() {
 
                       {formTheme === themeKey && (
                         <div className="flex-shrink-0 ml-4">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${theme === 'light' ? 'bg-purple-600' : 'bg-purple-400'
-                            }`}>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-orange-600">
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -3809,15 +3842,15 @@ export default function FormBuilder() {
       {showLayoutSettingsModal && selectedStepIndex !== null && steps[selectedStepIndex]?.question_type === 'image_selection' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className={`relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ${theme === 'light'
-            ? 'bg-white'
-            : 'bg-gradient-to-br from-gray-900 to-gray-800 border border-white/10'
+            ? 'bg-white border border-gray-200'
+            : 'bg-[#1e1e1f] border border-zinc-800'
             }`}>
             <div className={`flex items-center justify-between px-6 py-4 border-b ${theme === 'light' ? 'border-gray-200 bg-gray-50' : 'border-white/10 bg-white/5'
               }`}>
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-orange-100' : 'bg-orange-500/20'
+                <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-zinc-100' : 'bg-zinc-800'
                   }`}>
-                  <Settings className={`w-5 h-5 ${theme === 'light' ? 'text-orange-600' : 'text-orange-400'
+                  <Settings className={`w-5 h-5 ${theme === 'light' ? 'text-zinc-600' : 'text-zinc-400'
                     }`} />
                 </div>
                 <h2 className={`text-xl font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-white'

@@ -5,7 +5,7 @@ interface BentoCardProps {
   title: string
   value: string | number
   subtitle?: string
-  colors: string[]
+  colors?: string[]
   delay: number
   className?: string
 }

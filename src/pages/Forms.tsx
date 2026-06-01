@@ -480,24 +480,20 @@ export default function Forms() {
           <div className="p-8 animate-fade-in">
             <div className="flex items-center justify-between mb-8">
               <div className="animate-slide-up">
-                <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-                  theme === 'light' 
-                    ? 'from-gray-800 via-orange-600 to-red-600' 
-                    : 'from-white via-orange-100 to-red-200'
-                }`}>
+                <h1 className={`text-3xl font-semibold text-zinc-900 dark:text-white`}>
                   Forms
                 </h1>
-                <p className={`mt-2 text-lg ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>Create and manage your client forms</p>
+                <p className={`mt-2 text-base text-zinc-500 dark:text-zinc-400`}>
+                  Create and manage your client forms
+                </p>
               </div>
               <button 
                 onClick={() => setIsTypeModalOpen(true)} 
-                className="group flex items-center px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-colors duration-150 animate-slide-up"
-          style={{animationDelay: '0.2s'}}
-        >
-          <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-200" />
-          Create Form
+                className="group flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150 animate-slide-up"
+                style={{animationDelay: '0.2s'}}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Form
         </button>
       </div>
 
@@ -515,8 +511,8 @@ export default function Forms() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all duration-200 ${
                 theme === 'light'
-                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
-                  : 'bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
+                  ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200'
+                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-zinc-700 focus:ring-1 focus:ring-zinc-800'
               } focus:outline-none`}
             />
             {searchQuery && (
@@ -577,29 +573,29 @@ export default function Forms() {
         </div>
       ) : forms.length === 0 ? (
         <div className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-blue-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <FileText className="w-10 h-10 text-blue-300" />
+          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-6 animate-scale-in">
+            <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No forms yet</h3>
-          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
+          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No forms yet</h3>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-base max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
           <button 
             onClick={() => setIsTypeModalOpen(true)} 
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
+            className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150"
           >
-            <Plus className="w-5 h-5 mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             Create Your First Form
           </button>
         </div>
       ) : filteredForms.length === 0 ? (
         <div className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-r from-orange-500/20 to-red-600/20 backdrop-blur-xl rounded-2xl border border-orange-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <Search className="w-10 h-10 text-orange-300" />
+          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-6 animate-scale-in">
+            <Search className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No forms found</h3>
-          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
+          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No forms found</h3>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-base max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
           <button 
             onClick={() => setSearchQuery('')}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105"
+            className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150"
           >
             Clear Search
           </button>

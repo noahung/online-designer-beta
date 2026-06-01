@@ -108,28 +108,20 @@ export default function FolderSidebar({
         {/* All Forms */}
         <button
           onClick={() => onSelectFolder(null)}
-          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+          className={`w-full flex items-center justify-between pl-[10px] pr-3 py-2.5 rounded-r-lg rounded-l-none border-l-2 transition-all ${
             selectedFolderId === null
-              ? theme === 'light'
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-orange-500/20 text-orange-300'
-              : theme === 'light'
-              ? 'hover:bg-gray-100 text-gray-700'
-              : 'hover:bg-white/10 text-white/70'
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100 font-semibold'
+              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-white/5'
           }`}
         >
           <div className="flex items-center space-x-3">
-            <Inbox className="w-5 h-5" />
+            <Inbox className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
             <span className="font-medium">All Forms</span>
           </div>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             selectedFolderId === null
-              ? theme === 'light'
-                ? 'bg-orange-200 text-orange-700'
-                : 'bg-orange-500/30 text-orange-200'
-              : theme === 'light'
-              ? 'bg-gray-200 text-gray-600'
-              : 'bg-white/10 text-white/60'
+              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
+              : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400'
           }`}>
             {folders.reduce((sum, f) => sum + (f.form_count || 0), 0) + uncategorizedCount}
           </span>
@@ -139,28 +131,20 @@ export default function FolderSidebar({
         {uncategorizedCount > 0 && (
           <button
             onClick={() => onSelectFolder('uncategorized')}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+            className={`w-full flex items-center justify-between pl-[10px] pr-3 py-2.5 rounded-r-lg rounded-l-none border-l-2 transition-all ${
               selectedFolderId === 'uncategorized'
-                ? theme === 'light'
-                  ? 'bg-slate-100 text-slate-700'
-                  : 'bg-slate-500/20 text-slate-300'
-                : theme === 'light'
-                ? 'hover:bg-gray-100 text-gray-700'
-                : 'hover:bg-white/10 text-white/70'
+                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100 font-semibold'
+                : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-white/5'
             }`}
           >
             <div className="flex items-center space-x-3">
-              <Folder className="w-5 h-5" />
+              <Folder className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
               <span className="font-medium">Uncategorized</span>
             </div>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               selectedFolderId === 'uncategorized'
-                ? theme === 'light'
-                  ? 'bg-slate-200 text-slate-700'
-                  : 'bg-slate-500/30 text-slate-200'
-                : theme === 'light'
-                ? 'bg-gray-200 text-gray-600'
-                : 'bg-white/10 text-white/60'
+                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
+                : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400'
             }`}>
               {uncategorizedCount}
             </span>
@@ -179,26 +163,15 @@ export default function FolderSidebar({
           <div key={folder.id} className="relative">
             <button
               onClick={() => onSelectFolder(folder.id)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+              className={`w-full flex items-center justify-between pl-[10px] pr-3 py-2.5 rounded-r-lg rounded-l-none border-l-2 transition-all ${
                 selectedFolderId === folder.id
-                  ? 'ring-2 ring-offset-2'
-                  : theme === 'light'
-                  ? 'hover:bg-gray-100'
-                  : 'hover:bg-white/10'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100 font-semibold'
+                  : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-white/5'
               }`}
-              style={{
-                backgroundColor: selectedFolderId === folder.id ? `${folder.color}20` : undefined,
-                borderColor: selectedFolderId === folder.id ? `${folder.color}40` : undefined,
-                ringColor: selectedFolderId === folder.id ? folder.color : undefined
-              }}
             >
               <div className="flex items-center space-x-3 flex-1 min-w-0">
                 <Folder className="w-5 h-5 flex-shrink-0" style={{ color: folder.color }} />
-                <span className={`font-medium truncate ${
-                  selectedFolderId === folder.id
-                    ? theme === 'light' ? 'text-gray-900' : 'text-white'
-                    : theme === 'light' ? 'text-gray-700' : 'text-white/70'
-                }`}>
+                <span className="font-medium truncate">
                   {folder.name}
                 </span>
               </div>
@@ -206,15 +179,9 @@ export default function FolderSidebar({
               <div className="flex items-center space-x-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
                   selectedFolderId === folder.id
-                    ? 'opacity-80'
-                    : theme === 'light'
-                    ? 'bg-gray-200 text-gray-600'
-                    : 'bg-white/10 text-white/60'
-                }`}
-                style={{
-                  backgroundColor: selectedFolderId === folder.id ? `${folder.color}30` : undefined,
-                  color: selectedFolderId === folder.id ? folder.color : undefined
-                }}>
+                    ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
+                    : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400'
+                }`}>
                   {folder.form_count || 0}
                 </span>
                 
@@ -270,10 +237,10 @@ export default function FolderSidebar({
       }`}>
         <button
           onClick={onCreateFolder}
-          className={`w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg font-medium transition-all hover:scale-105 ${
+          className={`w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
             theme === 'light'
-              ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white'
-              : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white'
+              ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
+              : 'bg-white hover:bg-zinc-100 text-zinc-900'
           }`}
         >
           <FolderPlus className="w-5 h-5" />

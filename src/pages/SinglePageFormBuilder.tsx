@@ -126,7 +126,9 @@ function SortableFieldItem({
       onClick={onClick}
       className={`p-3 rounded-xl cursor-pointer transition-all duration-200 border ${
         isSelected
-          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-400/30 shadow-lg'
+          ? theme === 'light'
+            ? 'bg-zinc-100 border-zinc-300 shadow-sm'
+            : 'bg-zinc-800/60 border-zinc-700 shadow-sm'
           : theme === 'light'
           ? 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
           : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
@@ -144,7 +146,7 @@ function SortableFieldItem({
           >
             <GripVertical className="h-3.5 w-3.5" />
           </div>
-          <div className={`flex-shrink-0 ${isSelected ? 'text-blue-400' : theme === 'light' ? 'text-gray-500' : 'text-white/60'}`}>
+          <div className={`flex-shrink-0 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'}`}>
             {FIELD_ICONS[field.field_type]}
           </div>
           <div className="flex-1 min-w-0">
@@ -706,8 +708,8 @@ export default function SinglePageFormBuilder() {
     return (
       <div className={`min-h-screen flex items-center justify-center ${bg}`}>
         <div className="text-center animate-fade-in">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${theme === 'light' ? 'border-gray-600' : 'border-white'}`}></div>
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${theme === 'light' ? 'bg-zinc-100' : 'bg-zinc-800'}`}>
+            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${theme === 'light' ? 'border-zinc-600' : 'border-zinc-300'}`}></div>
           </div>
           <p className={textSecondary}>Loading form...</p>
         </div>
@@ -738,7 +740,9 @@ export default function SinglePageFormBuilder() {
                 className={`text-base font-bold bg-transparent border-none outline-none ${textPrimary} w-64`}
                 placeholder="Form name"
               />
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium bg-blue-500/20 text-blue-400`}>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                theme === 'light' ? 'bg-zinc-100 text-zinc-500 border border-zinc-200' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+              }`}>
                 Single-Page
               </span>
             </div>
@@ -749,12 +753,10 @@ export default function SinglePageFormBuilder() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 border ${
-              showSettings
-                ? 'bg-blue-500/20 border-blue-400/40 text-blue-400'
-                : theme === 'light'
-                ? 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
-                : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/15'
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border ${
+              theme === 'light'
+                ? 'bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200'
+                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'
             }`}
           >
             <Settings className="h-4 w-4" />
@@ -764,10 +766,10 @@ export default function SinglePageFormBuilder() {
           {formId && (
             <button
               onClick={() => window.open(`/form/${formId}`, '_blank')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 border ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border ${
                 theme === 'light'
-                  ? 'bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200'
-                  : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/15'
+                  ? 'bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700'
               }`}
             >
               <Eye className="h-4 w-4" />
@@ -778,7 +780,7 @@ export default function SinglePageFormBuilder() {
           <button
             onClick={save}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-200 hover:scale-105 shadow-lg shadow-blue-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white transition-all duration-200 hover:scale-[1.02] shadow-md shadow-orange-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save className="h-4 w-4" />
             {saving ? 'Saving…' : 'Save'}
@@ -789,7 +791,7 @@ export default function SinglePageFormBuilder() {
       {/* ── Settings panel ── */}
       {showSettings && (
         <div className={`px-6 py-4 border-b space-y-4 ${
-          theme === 'light' ? 'bg-blue-50/50 border-gray-200' : 'bg-blue-500/5 border-white/10'
+          theme === 'light' ? 'bg-zinc-50 border-gray-200' : 'bg-white/3 border-white/10'
         }`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -824,7 +826,7 @@ export default function SinglePageFormBuilder() {
 
         {/* ── Left panel: field list ── */}
         <div className={`w-72 flex-shrink-0 flex flex-col border-r overflow-hidden ${
-          theme === 'light' ? 'bg-white border-gray-200' : 'bg-[#1a1a2e] border-white/10'
+          theme === 'light' ? 'bg-white border-gray-200' : 'bg-[#1a1a1a] border-white/10'
         }`}>
           {/* Panel header */}
           <div className={`flex items-center justify-between px-4 py-3 border-b ${
@@ -885,11 +887,7 @@ export default function SinglePageFormBuilder() {
           <div className={`p-3 border-t ${theme === 'light' ? 'border-gray-100' : 'border-white/10'}`}>
             <button
               onClick={() => setShowAddFieldPanel(p => !p)}
-              className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-[1.02] ${
-                showAddFieldPanel
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25'
-              }`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:scale-[1.02] bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-600/20"
             >
               <Plus className="h-4 w-4" />
               Add Field
@@ -902,9 +900,9 @@ export default function SinglePageFormBuilder() {
           {selectedField === null ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
               <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
-                theme === 'light' ? 'bg-blue-50 border border-blue-100' : 'bg-blue-500/10 border border-blue-500/20'
+                theme === 'light' ? 'bg-zinc-100 border border-zinc-200' : 'bg-zinc-800 border border-zinc-700'
               }`}>
-                <AlignLeft className="h-9 w-9 text-blue-400" />
+                <AlignLeft className={`h-9 w-9 ${textSecondary}`} />
               </div>
               <h3 className={`text-xl font-bold mb-2 ${textPrimary}`}>Build your form</h3>
               <p className={`text-sm max-w-sm mb-6 ${textSecondary}`}>
@@ -912,7 +910,7 @@ export default function SinglePageFormBuilder() {
               </p>
               <button
                 onClick={() => setShowAddFieldPanel(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-200 hover:scale-105 shadow-lg shadow-blue-500/25"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-medium bg-orange-600 hover:bg-orange-700 text-white transition-all duration-200 hover:scale-[1.02] shadow-md shadow-orange-600/20"
               >
                 <Plus className="h-4 w-4" />
                 Add your first field
@@ -969,7 +967,7 @@ export default function SinglePageFormBuilder() {
         {/* ── Right panel: Add Field picker (slides in) ── */}
         {showAddFieldPanel && (
           <div className={`w-80 flex-shrink-0 flex flex-col border-l overflow-hidden ${
-            theme === 'light' ? 'bg-white border-gray-200' : 'bg-[#1a1a2e] border-white/10'
+            theme === 'light' ? 'bg-white border-gray-200' : 'bg-[#1a1a1a] border-white/10'
           }`}>
             <div className={`flex items-center justify-between px-4 py-3 border-b ${
               theme === 'light' ? 'border-gray-100' : 'border-white/10'
