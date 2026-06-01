@@ -1,6 +1,6 @@
 import React from "react"
 import { motion } from "framer-motion"
-import { BarChart3, Code, MoreVertical, Eye, Edit, Copy as Duplicate, Trash2 } from "lucide-react"
+import { BarChart3, Code, MoreVertical, Eye, Pencil, Copy as Duplicate, Trash2 } from "lucide-react"
 
 interface FormCardProps {
   form: {
@@ -59,56 +59,66 @@ const FormCard: React.FC<FormCardProps> = ({
   onToggleMenu,
   FolderBadge,
 }) => {
-  const colors = form.clients
-    ? [form.clients.primary_color, "#60A5FA", "#93C5FD"]
-    : ["#3B82F6", "#60A5FA", "#93C5FD"]
-
   const isMenuOpen = openMenuId === form.id
+
+  // Determine elegant, calm avatar colors based on the form name
+  const avatarStyle = React.useMemo(() => {
+    const colors = [
+      { bg: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400" },
+      { bg: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400" },
+      { bg: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400" },
+      { bg: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400" },
+      { bg: "bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400" },
+      { bg: "bg-violet-500/10 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400" },
+    ]
+    const charCodeSum = form.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const colorIndex = Math.abs(charCodeSum) % colors.length
+    return colors[colorIndex]
+  }, [form.name])
 
   return (
     <motion.div
-      className={`relative bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 hover:shadow-2xl transition-all duration-300 ${
+      className={`relative bg-zinc-50 dark:bg-white/5 rounded-2xl border border-zinc-200/60 dark:border-white/10 hover:bg-zinc-100/50 dark:hover:bg-white/[0.08] transition-all duration-200 ${
         isMenuOpen ? 'z-[100] overflow-visible' : 'overflow-hidden'
       }`}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      transition={{ duration: 0.25, delay: index * 0.03 }}
     >
-      <motion.div
-        className="relative z-10 p-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, delay: index * 0.05 + 0.1 }}
-      >
-        <div className="flex items-start justify-between">
-          {/* Left side: Checkbox and Form Info */}
-          <div className="flex items-start space-x-4 flex-1">
+      <div className="relative z-10 p-5">
+        <div className="flex items-center justify-between gap-4">
+          
+          {/* Left Side: Checkbox, Avatar, and Form Info */}
+          <div className="flex items-center space-x-4 flex-1 min-w-0">
             <input
               type="checkbox"
               checked={isSelected}
               onChange={onToggleSelect}
-              className="mt-1 w-5 h-5 rounded border-2 border-gray-300 dark:border-white/30 bg-white dark:bg-white/10 checked:bg-orange-500 checked:border-orange-500 cursor-pointer transition-all"
+              className="w-4 h-4 rounded-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-orange-500 focus:ring-0 cursor-pointer transition-all flex-shrink-0"
             />
 
-            <div className="flex-1">
-              <div className="flex items-center space-x-3 mb-3 flex-wrap gap-2">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            {/* Letter Avatar (Gemini style) */}
+            <div className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center font-semibold text-sm transition-transform duration-200 ${avatarStyle.bg}`}>
+              {form.name.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2.5 mb-1 flex-wrap gap-y-1">
+                <h3 className="text-base font-semibold text-zinc-950 dark:text-white truncate max-w-[240px] sm:max-w-md md:max-w-lg lg:max-w-xl">
                   {form.name}
                 </h3>
                 {form.internal_name && (
-                  <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-600 dark:text-orange-300 border border-orange-400/30">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200/50 dark:border-zinc-700/50">
                     {form.internal_name}
                   </span>
                 )}
-                <span
-                  className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
-                    form.is_active
-                      ? 'bg-green-500/20 text-green-600 dark:text-green-300 border-green-400/30'
-                      : 'bg-slate-500/20 text-slate-600 dark:text-slate-300 border-slate-400/30'
-                  }`}
-                >
+                
+                {/* Clean inline status dot instead of bulky badge */}
+                <span className={`inline-flex items-center text-xs font-medium ${form.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${form.is_active ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-600'}`} />
                   {form.is_active ? 'Active' : 'Inactive'}
                 </span>
+
                 {form.form_folders && FolderBadge && (
                   <FolderBadge
                     folderName={form.form_folders.name}
@@ -119,106 +129,101 @@ const FormCard: React.FC<FormCardProps> = ({
               </div>
 
               {form.description && (
-                <p className="text-gray-700 dark:text-white/70 mb-4 text-base leading-relaxed">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 font-normal line-clamp-1 mb-1 leading-relaxed">
                   {form.description}
                 </p>
               )}
 
-              <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-white/60">
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mr-2" />
-                  Client: {form.clients?.name}
-                </span>
+              {/* Clean metadata line */}
+              <div className="flex items-center space-x-2.5 text-xs text-zinc-400 dark:text-zinc-500 font-normal">
+                <span>Client: <span className="text-zinc-600 dark:text-zinc-400 font-medium">{form.clients?.name || 'Unassigned'}</span></span>
                 <span>•</span>
                 <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
               </div>
             </div>
           </div>
 
-          {/* Right side: Action Buttons */}
-          <div className="flex items-center space-x-2">
-            {/* Responses Button */}
+          {/* Right Side: Gemini-style Quiet Action Buttons */}
+          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            
+            {/* Clean Responses Link/Count Button */}
             <button
               onClick={onViewResponses}
-              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-gray-200 dark:border-white/20 bg-gradient-to-r from-blue-500/10 to-purple-600/10 dark:from-blue-500/20 dark:to-purple-600/20 text-gray-900 dark:text-white hover:from-blue-500/20 hover:to-purple-600/20 dark:hover:from-blue-500/30 dark:hover:to-purple-600/30 hover:scale-105"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors"
               title="View responses"
             >
-              <BarChart3 className="w-4 h-4" />
-              <span>Responses</span>
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Responses</span>
               {responseCount > 0 && (
-                <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500 text-white font-semibold">
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] leading-none rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold">
                   {responseCount}
                 </span>
               )}
             </button>
 
-            {/* Move to Folder dropdown */}
-            <select
-              value={form.folder_id || ''}
-              onChange={(e) => onMoveToFolder(e.target.value || null)}
-              className="px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-gray-200 dark:border-white/20 bg-white/50 dark:bg-white/10 text-gray-900 dark:text-white hover:bg-white/70 dark:hover:bg-white/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-              title="Move to folder"
-            >
-              <option value="" className="bg-gray-100 dark:bg-gray-800">
-                📭 Uncategorized
-              </option>
-              {folders.map((folder) => (
-                <option
-                  key={folder.id}
-                  value={folder.id}
-                  className="bg-gray-100 dark:bg-gray-800"
-                >
-                  📁 {folder.name}
-                </option>
-              ))}
-            </select>
+            {/* Custom styled select box - quiet and borderless */}
+            <div className="relative hidden md:block">
+              <select
+                value={form.folder_id || ''}
+                onChange={(e) => onMoveToFolder(e.target.value || null)}
+                className="appearance-none pl-2.5 pr-6 py-1.5 text-xs font-medium rounded-lg bg-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors cursor-pointer focus:outline-none"
+                title="Move to folder"
+              >
+                <option value="" className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300">Uncategorized</option>
+                {folders.map((folder) => (
+                  <option key={folder.id} value={folder.id} className="bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300">
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400 dark:text-zinc-500">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
 
-            {/* Embed Settings Button */}
+            {/* Embed settings (Gemini's Share style) */}
             <button
               onClick={onCopyEmbed}
-              className="p-3 text-gray-600 dark:text-white/60 hover:text-blue-600 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-200 dark:hover:border-blue-400/30"
+              className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-lg transition-colors"
               title="Embed settings"
             >
-              <Code className="w-5 h-5" />
+              <Code className="w-4 h-4" />
+            </button>
+
+            {/* Direct Edit Pencil (Gemini's Pencil style) */}
+            <button
+              onClick={onEdit}
+              className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-lg transition-colors"
+              title="Edit form"
+            >
+              <Pencil className="w-4 h-4" />
             </button>
 
             {/* More Actions Dropdown */}
             <div className="relative z-[110]">
               <button
                 onClick={onToggleMenu}
-                className="p-3 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-gray-200 dark:hover:border-white/30"
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-lg transition-colors"
                 title="More actions"
               >
-                <MoreVertical className="w-5 h-5" />
+                <MoreVertical className="w-4 h-4" />
               </button>
 
               {isMenuOpen && (
                 <>
-                  {/* Backdrop to close menu */}
                   <div className="fixed inset-0 z-[90]" onClick={onToggleMenu} />
-
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/20 shadow-2xl overflow-hidden z-[120] animate-scale-in">
+                  <div className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden z-[120]">
                     <button
                       onClick={() => {
                         onPreview()
                         onToggleMenu()
                       }}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                      className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors text-left"
                     >
-                      <Eye className="w-4 h-4 text-green-500 dark:text-green-300" />
+                      <Eye className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
                       <span>Preview</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        onEdit()
-                        onToggleMenu()
-                      }}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                    >
-                      <Edit className="w-4 h-4 text-purple-500 dark:text-purple-300" />
-                      <span>Edit</span>
                     </button>
 
                     <button
@@ -226,55 +231,45 @@ const FormCard: React.FC<FormCardProps> = ({
                         onDuplicate()
                         onToggleMenu()
                       }}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                      className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors text-left"
                     >
-                      <Duplicate className="w-4 h-4 text-orange-500 dark:text-orange-300" />
+                      <Duplicate className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
                       <span>Duplicate</span>
                     </button>
-
-                    <div className="h-px bg-gray-200 dark:bg-white/10 my-1" />
 
                     <button
                       onClick={() => {
                         onToggleStatus()
                         onToggleMenu()
                       }}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                      className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors text-left"
                     >
-                      {form.is_active ? (
-                        <>
-                          <div className="w-4 h-4 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-slate-400" />
-                          </div>
-                          <span>Deactivate</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-4 h-4 flex items-center justify-center">
-                            <div className="w-2 h-2 rounded-full bg-green-400" />
-                          </div>
-                          <span>Activate</span>
-                        </>
-                      )}
+                      <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${form.is_active ? 'bg-zinc-400 dark:bg-zinc-600' : 'bg-emerald-500'}`} />
+                      </span>
+                      <span>{form.is_active ? 'Deactivate' : 'Activate'}</span>
                     </button>
+
+                    <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
 
                     <button
                       onClick={() => {
                         onDelete()
                         onToggleMenu()
                       }}
-                      className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
+                      className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       <span>Delete</span>
                     </button>
                   </div>
                 </>
               )}
             </div>
+
           </div>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   )
 }

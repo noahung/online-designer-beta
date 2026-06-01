@@ -493,10 +493,10 @@ export default function Forms() {
               </div>
               <button 
                 onClick={() => setIsTypeModalOpen(true)} 
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
+                className="group flex items-center px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-colors duration-150 animate-slide-up"
           style={{animationDelay: '0.2s'}}
         >
-          <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-200" />
+          <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform duration-200" />
           Create Form
         </button>
       </div>
