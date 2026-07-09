@@ -179,6 +179,26 @@ function AppContent() {
     ? ['#E0E7FF', '#FAE8FF', '#ECFDF5', '#E0F2FE'] // Luminous, iridescent pastels (indigo, fuchsia, emerald, sky)
     : ['#1E1B4B', '#311042', '#022C22', '#082F49']; // Cosmos colors (deep indigo, dark violet, deep emerald, dark sky)
   
+  const currentPath = window.location.pathname
+  const pathWithoutBasename = basename ? currentPath.replace(basename, '') : currentPath
+  const isFormEmbed = pathWithoutBasename.includes('/form/')
+
+  if (isFormEmbed) {
+    return (
+      <div className="relative min-h-screen w-full overflow-hidden bg-transparent">
+        <div className="relative z-10 min-h-screen bg-transparent">
+          <AuthProvider>
+            <ToastProvider>
+              <Router basename={basename}>
+                <AppRoutes />
+              </Router>
+            </ToastProvider>
+          </AuthProvider>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Dynamic hardware-accelerated animated mesh gradient backdrop */}

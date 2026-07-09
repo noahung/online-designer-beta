@@ -2220,6 +2220,7 @@ export default function FormEmbed() {
         primaryButtonColor={formColors.primaryButtonColor}
         primaryButtonTextColor={formColors.primaryButtonTextColor}
         welcomeMessage={formData?.welcome_message || ''}
+        isTransparent={isTransparent}
       />
     )
   }
@@ -2238,7 +2239,7 @@ export default function FormEmbed() {
       )}
       
   <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
-  <div className={currentTheme.styles.card} style={{ marginBottom: '0', ...(isTransparent ? {} : { background: 'none' }) }}>
+  <div className={currentTheme.styles.card} style={{ marginBottom: '0', ...(isTransparent ? { background: 'transparent', backdropFilter: 'none', WebkitBackdropFilter: 'none', border: 'none', boxShadow: 'none' } : {}) }}>
         {/* Client Header */}
     {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">

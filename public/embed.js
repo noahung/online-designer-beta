@@ -9,13 +9,26 @@
   'use strict';
 
   var BASE_URL = (function () {
-    // Auto-detect the script's own origin so self-hosted setups work too
-    var scripts = document.querySelectorAll('script[src*="embed.js"]');
-    if (scripts.length > 0) {
+    // 1. Try modern currentScript API
+    if (document.currentScript && document.currentScript.src) {
       try {
-        var url = new URL(scripts[scripts.length - 1].src);
+        var url = new URL(document.currentScript.src);
         return url.origin;
       } catch (e) { /* ignore */ }
+    }
+
+    // 2. Fallback: look specifically for our script matching designer.advertomedia or ending exactly with /embed.js
+    var scripts = document.getElementsByTagName('script');
+    for (var i = 0; i < scripts.length; i++) {
+      var src = scripts[i].src;
+      if (src) {
+        if (src.indexOf('designer.advertomedia') > -1 || src.indexOf('/embed.js') > -1) {
+          try {
+            var url = new URL(src);
+            return url.origin;
+          } catch (e) { /* ignore */ }
+        }
+      }
     }
     return 'https://designer.advertomedia.co.uk';
   })();

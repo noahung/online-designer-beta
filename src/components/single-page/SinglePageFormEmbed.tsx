@@ -11,6 +11,7 @@ interface SinglePageFormEmbedProps {
   primaryButtonColor: string
   primaryButtonTextColor: string
   welcomeMessage?: string
+  isTransparent?: boolean
 }
 
 type ValidationErrors = Record<number, string>
@@ -24,6 +25,7 @@ export default function SinglePageFormEmbed({
   primaryButtonColor,
   primaryButtonTextColor,
   welcomeMessage,
+  isTransparent = false,
 }: SinglePageFormEmbedProps) {
   const [answers, setAnswers] = useState<Record<number, FieldAnswer>>({})
   const [errors, setErrors] = useState<ValidationErrors>({})
@@ -171,8 +173,8 @@ export default function SinglePageFormEmbed({
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="max-w-md w-full text-center bg-white rounded-2xl shadow-lg p-10 border border-gray-100">
+      <div className={isTransparent ? "flex items-center justify-center p-6 bg-transparent" : "min-h-screen flex items-center justify-center bg-gray-50 p-6"}>
+        <div className={isTransparent ? "max-w-md w-full text-center bg-transparent p-10" : "max-w-md w-full text-center bg-white rounded-2xl shadow-lg p-10 border border-gray-100"}>
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl"
             style={{ backgroundColor: `${primaryColor}20` }}
@@ -189,8 +191,8 @@ export default function SinglePageFormEmbed({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto py-10 px-4">
+    <div className={isTransparent ? "bg-transparent" : "min-h-screen bg-gray-50"}>
+      <div className={isTransparent ? "max-w-2xl mx-auto py-4" : "max-w-2xl mx-auto py-10 px-4"}>
         {/* Form header */}
         {formData?.clients && (
           <div className="text-center mb-8">
@@ -204,7 +206,7 @@ export default function SinglePageFormEmbed({
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className={isTransparent ? "bg-transparent overflow-hidden" : "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"}>
           {/* Form title bar */}
           <div
             className="px-8 py-6 border-b border-gray-100"
