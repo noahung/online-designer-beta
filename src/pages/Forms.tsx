@@ -54,6 +54,17 @@ export default function Forms() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   
+  // Duplication progress state
+  const [duplicatingState, setDuplicatingState] = useState<{
+    isDuplicating: boolean;
+    currentStep: string;
+    progress: number;
+  }>({
+    isDuplicating: false,
+    currentStep: '',
+    progress: 0
+  })
+  
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
@@ -219,6 +230,12 @@ export default function Forms() {
 
   const duplicateForm = async (formId: string) => {
     try {
+      setDuplicatingState({
+        isDuplicating: true,
+        currentStep: 'Fetching form details...',
+        progress: 2
+      })
+
       // Get the original form
       const { data: originalForm, error: fetchError } = await supabase
         .from('forms')
@@ -251,6 +268,12 @@ export default function Forms() {
         throw logicError
       }
 
+      setDuplicatingState(prev => ({
+        ...prev,
+        currentStep: 'Creating form clone...',
+        progress: 8
+      }))
+
       // Create a new form with the same data but new ID and name
       const { data: newForm, error: createError } = await supabase
         .from('forms')
@@ -282,7 +305,16 @@ export default function Forms() {
       const optionIdMap = new Map<string, string>()
 
       // Pass 1: Copy all form steps and map their IDs
+      const stepsCount = originalSteps?.length || 0
+      let stepIndex = 0
       for (const step of originalSteps || []) {
+        stepIndex++
+        setDuplicatingState({
+          isDuplicating: true,
+          currentStep: `Copying step ${stepIndex} of ${stepsCount}: ${step.title || 'Untitled'}`,
+          progress: 8 + (stepIndex / stepsCount) * 35 // maps 8% to 43%
+        })
+
         const { data: newStep, error: stepError } = await supabase
           .from('form_steps')
           .insert({
@@ -314,13 +346,23 @@ export default function Forms() {
       }
 
       // Pass 2: Copy all options for all steps and map their IDs
+      stepIndex = 0
       for (const step of originalSteps || []) {
+        stepIndex++
         const newStepId = stepIdMap.get(step.id)
         if (!newStepId) continue
 
-        for (const option of step.form_options || []) {
-          // If option had jump_to_step pointing to a step in the old form, map it to the new form's step
-          const newJumpToStep = option.jump_to_step ? stepIdMap.get(option.jump_to_step) : null
+        const optionsList = step.form_options || []
+        const optionsCount = optionsList.length
+        let optIndex = 0
+
+        for (const option of optionsList) {
+          optIndex++
+          setDuplicatingState({
+            isDuplicating: true,
+            currentStep: `Copying options for step ${stepIndex} of ${stepsCount}...`,
+            progress: 43 + (stepIndex / stepsCount) * 32 // maps 43% to 75%
+          })
 
           const { data: newOption, error: optionError } = await supabase
             .from('form_options')
@@ -329,20 +371,35 @@ export default function Forms() {
               label: option.label,
               image_url: option.image_url,
               option_order: option.option_order,
-              jump_to_step: newJumpToStep
+              jump_to_step: option.jump_to_step
             })
             .select()
             .single()
 
-          if (optionError) throw optionError
+          if (optionError) {
+            console.error('[Duplicate] Error inserting option:', optionError)
+            throw optionError
+          }
           optionIdMap.set(option.id, newOption.id)
         }
       }
 
       // Pass 3: Copy and rewrite step logic rules
+      const logicCount = originalLogic?.length || 0
+      let logicIndex = 0
       for (const logic of originalLogic || []) {
+        logicIndex++
+        setDuplicatingState({
+          isDuplicating: true,
+          currentStep: `Copying step logic ${logicIndex} of ${logicCount}...`,
+          progress: 75 + (logicIndex / logicCount) * 20 // maps 75% to 95%
+        })
+
         const newStepId = stepIdMap.get(logic.step_id)
-        if (!newStepId) continue
+        if (!newStepId) {
+          console.warn('[Duplicate] Logic step_id not found in stepIdMap:', logic.step_id)
+          continue
+        }
 
         // Rewrite rules
         const mappedRules = (logic.rules || []).map((rule: any) => {
@@ -400,16 +457,28 @@ export default function Forms() {
           })
 
         if (insertLogicError) {
-          console.error('Error inserting duplicated step logic:', insertLogicError)
+          console.error('[Duplicate] Error inserting duplicated step logic:', insertLogicError)
           throw insertLogicError
         }
       }
 
-      fetchForms() // Refresh the forms list
+      setDuplicatingState({
+        isDuplicating: true,
+        currentStep: 'Completing duplication...',
+        progress: 98
+      })
+
+      await fetchForms() // Refresh the forms list
       push({ type: 'success', message: 'Form duplicated successfully!' })
     } catch (error) {
       console.error('Error duplicating form:', error)
       push({ type: 'error', message: 'Failed to duplicate form' })
+    } finally {
+      setDuplicatingState({
+        isDuplicating: false,
+        currentStep: '',
+        progress: 0
+      })
     }
   }
 
@@ -755,6 +824,36 @@ export default function Forms() {
           isOpen={true}
           onClose={() => setEmbedModalForm(null)}
         />
+      )}
+
+      {/* Duplication Progress Modal */}
+      {duplicatingState.isDuplicating && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center space-y-4">
+            {/* Spinning loading icon */}
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+              <div 
+                className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"
+                style={{ clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)' }}
+              ></div>
+              <span className="text-xs font-bold text-blue-400">{Math.round(duplicatingState.progress)}%</span>
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-white">Duplicating Form</h3>
+              <p className="text-xs text-white/60 min-h-[32px]">{duplicatingState.currentStep}</p>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-300 ease-out" 
+                style={{ width: `${duplicatingState.progress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
