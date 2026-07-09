@@ -116,25 +116,65 @@
       hideTitle: el.getAttribute('data-hide-title') || 'false',
       hideDescription: el.getAttribute('data-hide-description') || 'false',
       redirect: el.getAttribute('data-redirect') || '',
-      width: el.getAttribute('data-width') || '100%',
-      minHeight: el.getAttribute('data-min-height') || '400'
+      width: el.getAttribute('data-width') || '',
+      height: el.getAttribute('data-height') || '',
+      minHeight: el.getAttribute('data-min-height') || '400',
+      align: el.getAttribute('data-align') || 'center'
     };
 
     var wrapper = document.createElement('div');
     applyContainerReset(wrapper);
-    wrapper.style.width = opts.width;
+
+    // Apply width and alignment
+    var width = opts.width || '100%';
+    wrapper.style.width = width;
     wrapper.style.maxWidth = el.getAttribute('data-max-width') || '100%';
+    
+    if (opts.align === 'left') {
+      wrapper.style.marginLeft = '0';
+      wrapper.style.marginRight = 'auto';
+    } else if (opts.align === 'right') {
+      wrapper.style.marginLeft = 'auto';
+      wrapper.style.marginRight = '0';
+    } else {
+      wrapper.style.marginLeft = 'auto';
+      wrapper.style.marginRight = 'auto';
+    }
+
+    // Apply fixed height if provided
+    if (opts.height) {
+      wrapper.style.height = opts.height;
+    }
+
+    // Transfer attributes from original placeholder element so user's styles/classes apply
+    if (el.id) wrapper.id = el.id;
+    if (el.className) wrapper.className = el.className;
+    
+    var userStyle = el.getAttribute('style') || '';
+    var hasFixedOuterHeight = !!opts.height || (userStyle && /[^a-zA-Z-]height\s*:/i.test(';' + userStyle));
+
+    if (userStyle) {
+      wrapper.style.cssText += ';' + userStyle;
+    }
 
     var iframe = createIframe(formId, opts);
-    iframe.style.minHeight = opts.minHeight + 'px';
-    iframe.style.height = opts.minHeight + 'px';
+    if (hasFixedOuterHeight) {
+      iframe.style.height = '100%';
+    } else {
+      iframe.style.minHeight = opts.minHeight + 'px';
+      iframe.style.height = opts.minHeight + 'px';
+    }
 
     wrapper.appendChild(iframe);
 
     // Replace the placeholder element
     el.parentNode.replaceChild(wrapper, el);
 
-    register(formId, { iframe: iframe, mode: 'inline' });
+    register(formId, { 
+      iframe: iframe, 
+      mode: 'inline',
+      fixedHeight: hasFixedOuterHeight
+    });
   }
 
   // ─── Popup / Lightbox embed ────────────────────────────────────────────────
@@ -412,8 +452,10 @@
       Object.keys(registry).forEach(function (formId) {
         registry[formId].forEach(function (entry) {
           if (entry.iframe && entry.iframe.contentWindow === event.source) {
-            var h = Math.max(parseInt(data.height, 10), 200);
-            entry.iframe.style.height = h + 'px';
+            if (!entry.fixedHeight) {
+              var h = Math.max(parseInt(data.height, 10), 200);
+              entry.iframe.style.height = h + 'px';
+            }
           }
         });
       });
