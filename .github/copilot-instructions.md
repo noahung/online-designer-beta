@@ -40,3 +40,21 @@
 ---
 
 For unclear or missing conventions, check `README.md` files or ask for clarification.
+
+## Design Context
+
+### Users
+The primary users are agency staff managing forms for multiple clients. They need to create, customize, and manage interactive multi-step forms with client branding, notifications, and automation integrations.
+
+### Brand Personality
+Professional, efficient, trustworthy. The interface should evoke confidence and reliability in managing client forms.
+
+### Aesthetic Direction
+Apple's Glassmorphism style with rounded corners. Dark mode only. Remove gradients. Reduce animations for better performance. Modern, clean, and fast.
+
+### Design Principles
+1. Prioritize performance - minimize animations and effects
+2. Embrace glassmorphism - translucent backgrounds, subtle borders
+3. Dark mode only - consistent dark theme
+4. Clean and minimal - remove gradients and unnecessary visual elements
+5. Professional reliability - build trust through consistent, efficient design

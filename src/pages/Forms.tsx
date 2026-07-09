@@ -6,9 +6,13 @@ import { Plus, Edit, Trash2, Eye, Code, Search, BarChart3, MoreVertical, Copy as
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import FolderSidebar from '../components/folders/FolderSidebar'
+import FormTypeSelectionModal from '../components/FormTypeSelectionModal'
+import EmbedModal from '../components/ui/EmbedModal'
 import FolderModal from '../components/folders/FolderModal'
 import FolderBadge from '../components/folders/FolderBadge'
 import BulkActions from '../components/folders/BulkActions'
+import { FormCard } from '../components/ui/form-card'
+import { Pagination } from '../components/ui/pagination'
 import { 
   getFolders, 
   createFolder, 
@@ -29,6 +33,7 @@ interface Form {
   created_at: string
   client_id: string
   folder_id: string | null
+  form_type?: string | null
   clients: {
     name: string
     primary_color: string
@@ -49,6 +54,21 @@ export default function Forms() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   
+  // Duplication progress state
+  const [duplicatingState, setDuplicatingState] = useState<{
+    isDuplicating: boolean;
+    currentStep: string;
+    progress: number;
+  }>({
+    isDuplicating: false,
+    currentStep: '',
+    progress: 0
+  })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+  
   // Folder state
   const [folders, setFolders] = useState<FolderType[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
@@ -65,6 +85,12 @@ export default function Forms() {
   
   // Dropdown menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  // Form type selection modal
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false)
+
+  // Embed modal state
+  const [embedModalForm, setEmbedModalForm] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     fetchForms()
@@ -188,43 +214,28 @@ export default function Forms() {
   }
 
   const copyEmbedCode = (formId: string) => {
-    const baseUrl = window.location.origin;
-    // Use custom domain detection - if on custom domain, no basename needed
-    const isCustomDomain = window.location.hostname !== 'noahung.github.io';
-    const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
-    const embedCode = `<div style="width:100%;"><iframe id="designerFormIframe" src="${baseUrl}${basename}/form/${formId}" style="width:100%;border:none;min-height:400px;" allowfullscreen></iframe></div>
-<script>
-window.addEventListener("message", function(event) {
-  if (event.data && event.data.type === "designerFormHeight" && event.data.height) {
-    var iframe = document.getElementById("designerFormIframe");
-    if (iframe) {
-      var newHeight = Math.max(event.data.height, 200); // Ensure minimum height
-      iframe.style.height = newHeight + "px";
-      console.log('[Parent] Updated iframe height to:', newHeight);
-    }
-  }
-}, false);
-
-// Also listen for load events to ensure initial sizing
-document.addEventListener("DOMContentLoaded", function() {
-  var iframe = document.getElementById("designerFormIframe");
-  if (iframe) {
-    // Set a reasonable initial height
-    iframe.style.height = "400px";
-  }
-});
-</script>`;
-    navigator.clipboard.writeText(embedCode);
-    push({ type: 'success', message: 'Embed code copied to clipboard' });
+    const form = forms.find(f => f.id === formId)
+    setEmbedModalForm({ id: formId, name: form?.name || 'Form' })
   }
 
   const openEditModal = async (formId: string) => {
-    // Navigate to the FormBuilder in edit mode instead of opening a modal
-    navigate(`/forms/edit/${formId}`)
+    // Find the form to check its type
+    const form = forms.find(f => f.id === formId)
+    if (form?.form_type === 'single_page') {
+      navigate(`/forms/edit-single/${formId}`)
+    } else {
+      navigate(`/forms/edit/${formId}`)
+    }
   }
 
   const duplicateForm = async (formId: string) => {
     try {
+      setDuplicatingState({
+        isDuplicating: true,
+        currentStep: 'Fetching form details...',
+        progress: 2
+      })
+
       // Get the original form
       const { data: originalForm, error: fetchError } = await supabase
         .from('forms')
@@ -246,6 +257,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
       if (stepsError) throw stepsError
 
+      // Get all step logic for this form
+      const { data: originalLogic, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError) {
+        console.error('Error fetching original step logic:', logicError)
+        throw logicError
+      }
+
+      setDuplicatingState(prev => ({
+        ...prev,
+        currentStep: 'Creating form clone...',
+        progress: 8
+      }))
+
       // Create a new form with the same data but new ID and name
       const { data: newForm, error: createError } = await supabase
         .from('forms')
@@ -265,15 +293,28 @@ document.addEventListener("DOMContentLoaded", function() {
           primary_button_text_color: originalForm.primary_button_text_color,
           secondary_button_color: originalForm.secondary_button_color,
           secondary_button_text_color: originalForm.secondary_button_text_color,
-          internal_name: originalForm.internal_name
+          internal_name: originalForm.internal_name,
+          form_type: originalForm.form_type || 'multi_step'
         })
         .select()
         .single()
 
       if (createError) throw createError
 
-      // Copy all form steps and their options
+      const stepIdMap = new Map<string, string>()
+      const optionIdMap = new Map<string, string>()
+
+      // Pass 1: Copy all form steps and map their IDs
+      const stepsCount = originalSteps?.length || 0
+      let stepIndex = 0
       for (const step of originalSteps || []) {
+        stepIndex++
+        setDuplicatingState({
+          isDuplicating: true,
+          currentStep: `Copying step ${stepIndex} of ${stepsCount}: ${step.title || 'Untitled'}`,
+          progress: 8 + (stepIndex / stepsCount) * 35 // maps 8% to 43%
+        })
+
         const { data: newStep, error: stepError } = await supabase
           .from('form_steps')
           .insert({
@@ -301,28 +342,143 @@ document.addEventListener("DOMContentLoaded", function() {
           .single()
 
         if (stepError) throw stepError
+        stepIdMap.set(step.id, newStep.id)
+      }
 
-        // Copy all options for this step
-        for (const option of step.form_options || []) {
-          const { error: optionError } = await supabase
+      // Pass 2: Copy all options for all steps and map their IDs
+      stepIndex = 0
+      for (const step of originalSteps || []) {
+        stepIndex++
+        const newStepId = stepIdMap.get(step.id)
+        if (!newStepId) continue
+
+        const optionsList = step.form_options || []
+        const optionsCount = optionsList.length
+        let optIndex = 0
+
+        for (const option of optionsList) {
+          optIndex++
+          setDuplicatingState({
+            isDuplicating: true,
+            currentStep: `Copying options for step ${stepIndex} of ${stepsCount}...`,
+            progress: 43 + (stepIndex / stepsCount) * 32 // maps 43% to 75%
+          })
+
+          const { data: newOption, error: optionError } = await supabase
             .from('form_options')
             .insert({
-              step_id: newStep.id,
+              step_id: newStepId,
               label: option.label,
               image_url: option.image_url,
               option_order: option.option_order,
               jump_to_step: option.jump_to_step
             })
+            .select()
+            .single()
 
-          if (optionError) throw optionError
+          if (optionError) {
+            console.error('[Duplicate] Error inserting option:', optionError)
+            throw optionError
+          }
+          optionIdMap.set(option.id, newOption.id)
         }
       }
 
-      fetchForms() // Refresh the forms list
+      // Pass 3: Copy and rewrite step logic rules
+      const logicCount = originalLogic?.length || 0
+      let logicIndex = 0
+      for (const logic of originalLogic || []) {
+        logicIndex++
+        setDuplicatingState({
+          isDuplicating: true,
+          currentStep: `Copying step logic ${logicIndex} of ${logicCount}...`,
+          progress: 75 + (logicIndex / logicCount) * 20 // maps 75% to 95%
+        })
+
+        const newStepId = stepIdMap.get(logic.step_id)
+        if (!newStepId) {
+          console.warn('[Duplicate] Logic step_id not found in stepIdMap:', logic.step_id)
+          continue
+        }
+
+        // Rewrite rules
+        const mappedRules = (logic.rules || []).map((rule: any) => {
+          const newRuleStepId = stepIdMap.get(rule.step_id) || rule.step_id
+          const newActionTarget = rule.action?.target_step_id ? (stepIdMap.get(rule.action.target_step_id) || rule.action.target_step_id) : undefined
+
+          const mappedConditions = (rule.conditions || []).map((cond: any) => {
+            const mappedCond = { ...cond }
+            if (cond.option_id) {
+              mappedCond.option_id = optionIdMap.get(cond.option_id) || cond.option_id
+            }
+            return mappedCond
+          })
+
+          const mappedAction = { ...rule.action }
+          if (newActionTarget !== undefined) {
+            mappedAction.target_step_id = newActionTarget
+          }
+
+          return {
+            ...rule,
+            step_id: newRuleStepId,
+            conditions: mappedConditions,
+            action: mappedAction
+          }
+        })
+
+        // Rewrite default action
+        let mappedDefaultAction = null
+        if (logic.default_action) {
+          const newDefaultStepId = stepIdMap.get(logic.default_action.step_id) || logic.default_action.step_id
+          const newDefaultTarget = logic.default_action.action?.target_step_id
+            ? (stepIdMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id)
+            : undefined
+
+          const mappedAction = { ...logic.default_action.action }
+          if (newDefaultTarget !== undefined) {
+            mappedAction.target_step_id = newDefaultTarget
+          }
+
+          mappedDefaultAction = {
+            ...logic.default_action,
+            step_id: newDefaultStepId,
+            action: mappedAction
+          }
+        }
+
+        const { error: insertLogicError } = await supabase
+          .from('step_logic')
+          .insert({
+            step_id: newStepId,
+            form_id: newForm.id,
+            rules: mappedRules,
+            default_action: mappedDefaultAction
+          })
+
+        if (insertLogicError) {
+          console.error('[Duplicate] Error inserting duplicated step logic:', insertLogicError)
+          throw insertLogicError
+        }
+      }
+
+      setDuplicatingState({
+        isDuplicating: true,
+        currentStep: 'Completing duplication...',
+        progress: 98
+      })
+
+      await fetchForms() // Refresh the forms list
       push({ type: 'success', message: 'Form duplicated successfully!' })
     } catch (error) {
       console.error('Error duplicating form:', error)
       push({ type: 'error', message: 'Failed to duplicate form' })
+    } finally {
+      setDuplicatingState({
+        isDuplicating: false,
+        currentStep: '',
+        progress: 0
+      })
     }
   }
 
@@ -426,6 +582,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   })
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredForms.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const paginatedForms = filteredForms.slice(startIndex, endIndex)
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedFolderId])
+
   return (
     <>
       {/* Folder Modal */}
@@ -474,24 +641,20 @@ document.addEventListener("DOMContentLoaded", function() {
           <div className="p-8 animate-fade-in">
             <div className="flex items-center justify-between mb-8">
               <div className="animate-slide-up">
-                <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-                  theme === 'light' 
-                    ? 'from-gray-800 via-orange-600 to-red-600' 
-                    : 'from-white via-orange-100 to-red-200'
-                }`}>
+                <h1 className={`text-3xl font-semibold text-zinc-900 dark:text-white`}>
                   Forms
                 </h1>
-                <p className={`mt-2 text-lg ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>Create and manage your client forms</p>
+                <p className={`mt-2 text-base text-zinc-500 dark:text-zinc-400`}>
+                  Create and manage your client forms
+                </p>
               </div>
               <button 
-                onClick={() => navigate('/forms/new')} 
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
-          style={{animationDelay: '0.2s'}}
-        >
-          <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-200" />
-          Create Form
+                onClick={() => setIsTypeModalOpen(true)} 
+                className="group flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150 animate-slide-up"
+                style={{animationDelay: '0.2s'}}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Form
         </button>
       </div>
 
@@ -509,8 +672,8 @@ document.addEventListener("DOMContentLoaded", function() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all duration-200 ${
                 theme === 'light'
-                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
-                  : 'bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
+                  ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200'
+                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-zinc-700 focus:ring-1 focus:ring-zinc-800'
               } focus:outline-none`}
             />
             {searchQuery && (
@@ -531,6 +694,7 @@ document.addEventListener("DOMContentLoaded", function() {
               theme === 'light' ? 'text-gray-600' : 'text-white/60'
             }`}>
               Found {filteredForms.length} form{filteredForms.length !== 1 ? 's' : ''}
+              {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
             </p>
           )}
         </div>
@@ -570,230 +734,127 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
       ) : forms.length === 0 ? (
         <div className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-blue-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <FileText className="w-10 h-10 text-blue-300" />
+          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-6 animate-scale-in">
+            <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No forms yet</h3>
-          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
+          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No forms yet</h3>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-base max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
           <button 
-            onClick={() => navigate('/forms/new')} 
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
+            onClick={() => setIsTypeModalOpen(true)} 
+            className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150"
           >
-            <Plus className="w-5 h-5 mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             Create Your First Form
           </button>
         </div>
       ) : filteredForms.length === 0 ? (
         <div className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-r from-orange-500/20 to-red-600/20 backdrop-blur-xl rounded-2xl border border-orange-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <Search className="w-10 h-10 text-orange-300" />
+          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-6 animate-scale-in">
+            <Search className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No forms found</h3>
-          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
+          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No forms found</h3>
+          <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-base max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
           <button 
             onClick={() => setSearchQuery('')}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105"
+            className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150"
           >
             Clear Search
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          {filteredForms.map((form, index) => (
-            <div key={form.id} className={`group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in ${openMenuId === form.id ? 'relative z-50' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
-              <div className="flex items-start justify-between">
-                {/* Checkbox for bulk selection */}
-                <div className="flex items-start space-x-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedFormIds.has(form.id)}
-                    onChange={() => toggleFormSelection(form.id)}
-                    className="mt-1 w-5 h-5 rounded border-2 border-white/30 bg-white/10 checked:bg-orange-500 checked:border-orange-500 cursor-pointer transition-all"
-                  />
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3 flex-wrap">
-                      <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
-                        {form.name}
-                      </h3>
-                      {form.internal_name && (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-300 border border-orange-400/30">
-                          {form.internal_name}
-                        </span>
-                      )}
-                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
-                        form.is_active 
-                          ? 'bg-green-500/20 text-green-300 border-green-400/30'
-                          : 'bg-slate-500/20 text-slate-300 border-slate-400/30'
-                      }`}>
-                        {form.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                      {form.form_folders && (
-                        <FolderBadge
-                          folderName={form.form_folders.name}
-                          folderColor={form.form_folders.color}
-                          size="sm"
-                        />
-                      )}
-                    </div>
-                    
-                    {form.description && (
-                      <p className="text-white/70 mb-4 text-base leading-relaxed">{form.description}</p>
-                    )}
-                    
-                    <div className="flex items-center space-x-4 text-sm text-white/60">
-                      <span className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                        Client: {form.clients?.name}
-                      </span>
-                      <span>•</span>
-                      <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
+        <>
+          <div className="space-y-6">
+            {paginatedForms.map((form, index) => (
+              <FormCard
+                key={form.id}
+                form={form}
+                index={index}
+                responseCount={responseCounts[form.id] || 0}
+                isSelected={selectedFormIds.has(form.id)}
+                onToggleSelect={() => toggleFormSelection(form.id)}
+                onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
+                onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
+                onCopyEmbed={() => copyEmbedCode(form.id)}
+                onPreview={() => window.open(`/form/${form.id}`, '_blank')}
+                onEdit={() => openEditModal(form.id)}
+                onDuplicate={() => duplicateForm(form.id)}
+                onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
+                onDelete={() => deleteForm(form.id)}
+                folders={folders}
+                openMenuId={openMenuId}
+                onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
+                theme={theme}
+                FolderBadge={FolderBadge}
+              />
+            ))}
+          </div>
 
-                <div className="flex items-center space-x-2">
-                  {/* Responses Button */}
-                  <button
-                    onClick={() => navigate(`/forms/${form.id}/responses`)}
-                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white hover:from-blue-500/30 hover:to-purple-600/30 hover:scale-105"
-                    title="View responses"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Responses</span>
-                    {responseCounts[form.id] > 0 && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-blue-400 text-white font-semibold">
-                        {responseCounts[form.id]}
-                      </span>
-                    )}
-                  </button>
-                  
-                  {/* Move to Folder dropdown */}
-                  <select
-                    value={form.folder_id || ''}
-                    onChange={(e) => handleMoveFormToFolder(form.id, e.target.value || null)}
-                    className="px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-white/10 text-white hover:bg-white/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    title="Move to folder"
-                  >
-                    <option value="" className="bg-gray-800">📭 Uncategorized</option>
-                    {folders.map((folder) => (
-                      <option key={folder.id} value={folder.id} className="bg-gray-800">
-                        📁 {folder.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Embed Code Button */}
-                  <button
-                    onClick={() => copyEmbedCode(form.id)}
-                    className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
-                    title="Copy embed code"
-                  >
-                    <Code className="w-5 h-5" />
-                  </button>
-
-                  {/* More Actions Dropdown */}
-                  <div className="relative z-50">
-                    <button
-                      onClick={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
-                      className="p-3 text-white/60 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-white/30"
-                      title="More actions"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-
-                    {openMenuId === form.id && (
-                      <>
-                        {/* Backdrop to close menu */}
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setOpenMenuId(null)}
-                        />
-                        
-                        {/* Dropdown Menu */}
-                        <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-gray-800 border border-white/20 shadow-2xl overflow-hidden z-50 animate-scale-in">
-                          <button
-                            onClick={() => {
-                              window.open(`/form/${form.id}`, '_blank')
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Eye className="w-4 h-4 text-green-300" />
-                            <span>Preview</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              openEditModal(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Edit className="w-4 h-4 text-purple-300" />
-                            <span>Edit</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              duplicateForm(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Duplicate className="w-4 h-4 text-orange-300" />
-                            <span>Duplicate</span>
-                          </button>
-
-                          <div className="h-px bg-white/10 my-1" />
-
-                          <button
-                            onClick={() => {
-                              toggleFormStatus(form.id, form.is_active)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            {form.is_active ? (
-                              <>
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-slate-400" />
-                                </div>
-                                <span>Deactivate</span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-green-400" />
-                                </div>
-                                <span>Activate</span>
-                              </>
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              deleteForm(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            theme={theme}
+          />
+        </>
       )}
           </div>
         </div>
       </div>
+
+      {/* Form type selection modal */}
+      <FormTypeSelectionModal
+        isOpen={isTypeModalOpen}
+        onClose={() => setIsTypeModalOpen(false)}
+        onSelect={(type) => {
+          setIsTypeModalOpen(false)
+          if (type === 'single_page') {
+            navigate('/forms/new-single')
+          } else {
+            navigate('/forms/new')
+          }
+        }}
+      />
+
+      {/* Embed modal */}
+      {embedModalForm && (
+        <EmbedModal
+          formId={embedModalForm.id}
+          formName={embedModalForm.name}
+          isOpen={true}
+          onClose={() => setEmbedModalForm(null)}
+        />
+      )}
+
+      {/* Duplication Progress Modal */}
+      {duplicatingState.isDuplicating && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center space-y-4">
+            {/* Spinning loading icon */}
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+              <div 
+                className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"
+                style={{ clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)' }}
+              ></div>
+              <span className="text-xs font-bold text-blue-400">{Math.round(duplicatingState.progress)}%</span>
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-white">Duplicating Form</h3>
+              <p className="text-xs text-white/60 min-h-[32px]">{duplicatingState.currentStep}</p>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-300 ease-out" 
+                style={{ width: `${duplicatingState.progress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

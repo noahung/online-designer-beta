@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, setClientContext } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
@@ -40,11 +40,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserType('admin') // For now, all Supabase users are admins
           setClientData(null)
         } else {
-          console.log('AuthProvider: No existing session')
-          setSession(null)
-          setUser(null)
-          setUserType(null)
-          setClientData(null)
+          // Check for client session in localStorage
+          const storedClientData = localStorage.getItem('client_session')
+          if (storedClientData) {
+            console.log('AuthProvider: Found stored client session')
+            const clientRecord = JSON.parse(storedClientData)
+            
+            const mockUser = {
+              id: clientRecord.id,
+              email: clientRecord.client_email,
+              user_metadata: { client_id: clientRecord.id, is_client: true },
+            } as unknown as User
+
+            setUser(mockUser)
+            setSession({
+              user: mockUser,
+              access_token: `client_token_${clientRecord.id}`,
+              refresh_token: '',
+              expires_in: 3600,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+              token_type: 'bearer'
+            } as Session)
+            setUserType('client')
+            setClientData(clientRecord)
+            
+            // Set client context for RLS policies
+            await setClientContext(clientRecord.id)
+            console.log('AuthProvider: Client context restored:', clientRecord.id)
+          } else {
+            console.log('AuthProvider: No existing session')
+            setSession(null)
+            setUser(null)
+            setUserType(null)
+            setClientData(null)
+          }
         }
       } catch (error) {
         console.error('AuthProvider: Init error:', error)
@@ -159,6 +188,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setClientData(clientRecord)
         setLoading(false)
 
+        // Store client session in localStorage
+        localStorage.setItem('client_session', JSON.stringify(clientRecord))
+
+        // Set client context for RLS policies
+        await setClientContext(clientRecord.id)
+        console.log('AuthContext: Client context set:', clientRecord.id)
+
         return { 
           data: { user: mockUser, session: null }, 
           error: null 
@@ -177,6 +213,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     console.log('AuthContext: SignOut called')
     try {
+      // Clear client context for RLS policies
+      await setClientContext(null)
+      
+      // Clear localStorage
+      localStorage.removeItem('client_session')
+      
       // Clear local state first
       setUser(null)
       setSession(null)

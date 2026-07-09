@@ -35,18 +35,7 @@ export default function LoginForm() {
         <ThemeToggle />
       </div>
 
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className={`absolute -top-40 -right-40 w-80 h-80 rounded-full blur-3xl animate-pulse ${
-          theme === 'light' ? 'bg-orange-500/10' : 'bg-orange-500/20'
-        }`}></div>
-        <div className={`absolute -bottom-40 -left-40 w-80 h-80 rounded-full blur-3xl animate-pulse ${
-          theme === 'light' ? 'bg-red-500/10' : 'bg-red-500/20'
-        }`} style={{animationDelay: '1s'}}></div>
-        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 rounded-full blur-3xl animate-pulse ${
-          theme === 'light' ? 'bg-orange-600/5' : 'bg-orange-600/10'
-        }`} style={{animationDelay: '2s'}}></div>
-      </div>
+
 
       <div className="max-w-md w-full relative z-10 animate-fade-in">
         <div className={`backdrop-blur-xl rounded-2xl border p-8 shadow-2xl ${
@@ -58,10 +47,8 @@ export default function LoginForm() {
             <div className="mx-auto w-20 h-20 flex items-center justify-center mb-6 animate-scale-in">
               <img src={logoPlaceholder} alt="Advertomedia Logo" className="w-20 h-20 object-contain" />
             </div>
-            <h2 className={`text-3xl font-bold bg-gradient-to-r bg-clip-text text-transparent animate-slide-up ${
-              theme === 'light' 
-                ? 'from-gray-800 to-orange-600' 
-                : 'from-white to-orange-200'
+            <h2 className={`text-3xl font-bold animate-slide-up ${
+              theme === 'light' ? 'text-gray-900' : 'text-white'
             }`}>
               Online Designer
             </h2>
@@ -102,8 +89,8 @@ export default function LoginForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   className={`w-full pl-12 pr-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 ${
                     theme === 'light'
-                      ? 'bg-white/50 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-white/70'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent hover:bg-white/15'
+                      ? 'bg-white/50 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-white/70'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
                   }`}
                   placeholder="admin@example.com"
                 />
@@ -129,8 +116,8 @@ export default function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   className={`w-full pl-12 pr-12 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 ${
                     theme === 'light'
-                      ? 'bg-white/50 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-white/70'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent hover:bg-white/15'
+                      ? 'bg-white/50 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-white/70'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
                   }`}
                   placeholder="Enter your password"
                 />
@@ -155,12 +142,10 @@ export default function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 animate-slide-up ${
+              className={`w-full py-3 px-4 rounded-full font-semibold text-white transition-all duration-200 animate-slide-up ${
                 loading
-                  ? theme === 'light' 
-                    ? 'bg-gray-300 cursor-not-allowed opacity-50'
-                    : 'bg-white/20 cursor-not-allowed opacity-50'
-                  : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105'
+                  ? 'bg-orange-600/50 cursor-not-allowed opacity-50'
+                  : 'bg-orange-600 hover:bg-orange-700 shadow-md shadow-orange-600/20 hover:scale-[1.02]'
               }`}
               style={{animationDelay: '0.6s'}}
             >

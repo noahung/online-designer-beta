@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import bannerImage from '../assets/images/banner.jpg'
+import { BentoCard } from '../components/ui/bento-card'
 import { 
   Users, 
   FileText, 
@@ -52,32 +53,28 @@ export default function Dashboard() {
   const [showBanner, setShowBanner] = useState(true)
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
-  useEffect(() => {
-    fetchStats()
-    fetchRecentActivity()
-  }, [user])
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!user) return
 
     try {
-      // Get clients count
-      const { count: clientsCount } = await supabase
-        .from('clients')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-
-      // Get forms count
-      const { count: formsCount } = await supabase
-        .from('forms')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-
-      // Get responses count
-      const { count: responsesCount } = await supabase
-        .from('responses')
-        .select('*, forms!inner(user_id)', { count: 'exact', head: true })
-        .eq('forms.user_id', user.id)
+      const [
+        { count: clientsCount },
+        { count: formsCount },
+        { count: responsesCount }
+      ] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('forms')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('responses')
+          .select('*, forms!inner(user_id)', { count: 'exact', head: true })
+          .eq('forms.user_id', user.id)
+      ])
 
       // Calculate response rate
       const responseRate = formsCount && formsCount > 0 ? 
@@ -94,35 +91,36 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
 
-  const fetchRecentActivity = async () => {
+  const fetchRecentActivity = useCallback(async () => {
     if (!user) return
 
     try {
-      // Fetch recent forms
-      const { data: forms } = await supabase
-        .from('forms')
-        .select('id, name, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(2)
-
-      // Fetch recent responses
-      const { data: responses } = await supabase
-        .from('responses')
-        .select('id, contact_name, submitted_at, forms!inner(user_id, name)')
-        .eq('forms.user_id', user.id)
-        .order('submitted_at', { ascending: false })
-        .limit(2)
-
-      // Fetch recent clients
-      const { data: clients } = await supabase
-        .from('clients')
-        .select('id, name, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
+      const [
+        { data: forms },
+        { data: responses },
+        { data: clients }
+      ] = await Promise.all([
+        supabase
+          .from('forms')
+          .select('id, name, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(2),
+        supabase
+          .from('responses')
+          .select('id, contact_name, submitted_at, forms!inner(user_id, name)')
+          .eq('forms.user_id', user.id)
+          .order('submitted_at', { ascending: false })
+          .limit(2),
+        supabase
+          .from('clients')
+          .select('id, name, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+      ])
 
       const activities: RecentActivity[] = []
 
@@ -172,7 +170,12 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Error fetching recent activity:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    fetchStats()
+    fetchRecentActivity()
+  }, [fetchStats, fetchRecentActivity])
 
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
@@ -184,113 +187,52 @@ export default function Dashboard() {
     return date.toLocaleDateString()
   }
 
-  const statCards = [
-    {
-      name: 'Total Clients',
-      value: stats.totalClients,
-      icon: Users,
-      color: 'from-blue-500 to-cyan-500',
-      bgColor: 'from-blue-500/10 to-cyan-500/10',
-      borderColor: 'border-blue-400/20',
-      iconBg: 'bg-blue-500/10',
-      trend: '+12%',
-      trendUp: true
-    },
-    {
-      name: 'Active Forms',
-      value: stats.totalForms,
-      icon: FileText,
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'from-green-500/10 to-emerald-500/10',
-      borderColor: 'border-green-400/20',
-      iconBg: 'bg-green-500/10',
-      trend: '+8%',
-      trendUp: true
-    },
-    {
-      name: 'Total Responses',
-      value: stats.totalResponses,
-      icon: BarChart3,
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'from-purple-500/10 to-pink-500/10',
-      borderColor: 'border-purple-400/20',
-      iconBg: 'bg-purple-500/10',
-      trend: '+24%',
-      trendUp: true
-    },
-    {
-      name: 'Response Rate',
-      value: `${stats.responseRate}%`,
-      icon: TrendingUp,
-      color: 'from-orange-500 to-red-500',
-      bgColor: 'from-orange-500/10 to-red-500/10',
-      borderColor: 'border-orange-400/20',
-      iconBg: 'bg-orange-500/10',
-      trend: '+5%',
-      trendUp: true
-    },
-  ]
-
-  const quickActions = [
+  const quickActions = useMemo(() => [
     {
       title: 'Create New Form',
       description: 'Build a custom form for your clients',
       icon: Plus,
-      color: 'from-blue-500 to-cyan-500',
-      bgColor: 'from-blue-500/10 to-cyan-500/10',
-      borderColor: 'border-blue-400/30',
       action: () => navigate('/forms')
     },
     {
       title: 'Add New Client',
       description: 'Set up branding for a new client',
       icon: Users,
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'from-green-500/10 to-emerald-500/10',
-      borderColor: 'border-green-400/30',
       action: () => navigate('/clients')
     },
     {
       title: 'View Responses',
       description: 'Check latest form submissions',
       icon: Eye,
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'from-purple-500/10 to-pink-500/10',
-      borderColor: 'border-purple-400/30',
       action: () => navigate('/responses')
     },
     {
       title: 'Analytics',
       description: 'View detailed performance metrics',
       icon: BarChart3,
-      color: 'from-orange-500 to-red-500',
-      bgColor: 'from-orange-500/10 to-red-500/10',
-      borderColor: 'border-orange-400/30',
       action: () => {}
     }
-  ]
+  ], [navigate])
 
   return (
-    <div className={`min-h-screen ${
-      theme === 'light' ? 'bg-gray-50' : 'bg-[#111111]'
-    }`}>
+    <div className={`w-full min-h-full ${theme === 'light' ? 'bg-zinc-50/50' : ''}`}>
       <div className="max-w-[1600px] mx-auto p-8">
         {/* Promotional Banner */}
         {showBanner && (
-          <div className="mb-8 relative overflow-hidden rounded-3xl animate-fade-in">
+          <div className="mb-8 relative overflow-hidden rounded-3xl animate-fade-in border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5">
             {/* Close Button */}
             <button
               onClick={() => setShowBanner(false)}
-              className="absolute top-6 right-6 z-10 p-2 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full transition-all duration-200 group"
+              className="absolute top-4 right-4 z-10 p-1.5 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full transition-all duration-200 group"
             >
-              <X className="w-5 h-5 text-white/80 group-hover:text-white" />
+              <X className="w-4 h-4 text-white/80 group-hover:text-white" />
             </button>
 
             {/* Banner Image */}
             <img
               src={bannerImage}
               alt="Promotional Banner"
-              className="w-full h-[400px] object-cover rounded-3xl"
+              className="w-full h-[220px] object-cover opacity-60 dark:opacity-35 transition-all duration-300 filter grayscale"
             />
           </div>
         )}
@@ -299,15 +241,11 @@ export default function Dashboard() {
         <div className="mb-10">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className={`text-5xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-                theme === 'light'
-                  ? 'from-gray-900 via-blue-600 to-purple-600'
-                  : 'from-white via-blue-200 to-purple-200'
-              }`}>
+              <h1 className="text-3xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100">
                 Welcome back, Adel!
               </h1>
-              <p className={`mt-3 text-lg ${
-                theme === 'light' ? 'text-gray-600' : 'text-white/70'
+              <p className={`mt-1.5 text-sm ${
+                theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
               }`}>
                 Here's what's happening with your forms today
               </p>
@@ -315,9 +253,9 @@ export default function Dashboard() {
             <div className="flex gap-3">
               <button 
                 onClick={() => navigate('/forms')}
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 hover:scale-105 shadow-lg hover:shadow-xl"
+                className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white text-sm font-medium rounded-full shadow-sm transition-all duration-150"
               >
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-4 h-4 mr-2" />
                 Create Form
               </button>
             </div>
@@ -326,9 +264,9 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
             {[...Array(4)].map((_, i) => (
-              <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
+              <div key={i} className={`backdrop-blur-md rounded-2xl border p-6 animate-pulse ${
                 theme === 'light'
                   ? 'bg-white border-gray-200'
                   : 'bg-white/5 border-white/10'
@@ -348,59 +286,53 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {statCards.map((stat, index) => (
-              <div 
-                key={stat.name} 
-                className={`backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
-                  stat.borderColor
-                } ${
-                  theme === 'light'
-                    ? 'bg-white hover:shadow-blue-500/10'
-                    : 'bg-white/5 hover:bg-white/10'
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                    stat.trendUp 
-                      ? 'bg-green-500/10 text-green-500' 
-                      : 'bg-red-500/10 text-red-500'
-                  }`}>
-                    <TrendingUp className={`w-3 h-3 mr-1 ${!stat.trendUp && 'rotate-180'}`} />
-                    {stat.trend}
-                  </div>
-                </div>
-                <p className={`text-sm font-medium mb-2 ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/60'
-                }`}>
-                  {stat.name}
-                </p>
-                <p className={`text-4xl font-bold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
-                }`}>
-                  {stat.value}
-                </p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
+            <div className="md:col-span-2">
+              <BentoCard
+                title="Total Clients"
+                value={stats.totalClients}
+                subtitle="Active clients in your account"
+                delay={0.2}
+              />
+            </div>
+            <BentoCard
+              title="Active Forms"
+              value={stats.totalForms}
+              subtitle="Forms ready to collect responses"
+              delay={0.4}
+            />
+            <BentoCard
+              title="Response Rate"
+              value={`${stats.responseRate}%`}
+              subtitle="Engagement across all forms"
+              delay={0.6}
+            />
+            <div className="md:col-span-2">
+              <BentoCard
+                title="Total Responses"
+                value={stats.totalResponses}
+                subtitle="Form submissions received this month"
+                delay={0.8}
+              />
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Quick Actions - Spans 2 columns */}
           <div className="lg:col-span-2">
-            <div className={`backdrop-blur-xl rounded-2xl border p-8 ${
+            <div className={`backdrop-blur-md rounded-2xl border p-8 ${
               theme === 'light'
-                ? 'bg-white border-gray-200'
+                ? 'bg-white border-zinc-200'
                 : 'bg-white/5 border-white/10'
             }`}>
               <div className="flex items-center justify-between mb-6">
-                <h3 className={`text-2xl font-bold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                <h3 className={`text-xl font-medium ${
+                  theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                 }`}>
                   Quick Actions
                 </h3>
-                <Zap className="w-6 h-6 text-yellow-500" />
+                <Zap className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -408,21 +340,25 @@ export default function Dashboard() {
                   <button
                     key={action.title}
                     onClick={action.action}
-                    className={`text-left p-6 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group ${
-                      action.borderColor
-                    } bg-gradient-to-br ${action.bgColor}`}
+                    className={`text-left p-6 rounded-xl border transition-all duration-200 hover:bg-zinc-50 dark:hover:bg-white/[0.08] hover:border-zinc-300 dark:hover:border-white/20 group will-change-transform ${
+                      theme === 'light'
+                        ? 'bg-white border-zinc-200'
+                        : 'bg-white/5 border-white/10'
+                    }`}
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${action.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                      <action.icon className="w-6 h-6 text-white" />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 transition-transform duration-300 ${
+                      theme === 'light' ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-zinc-300'
+                    }`}>
+                      <action.icon className="w-5 h-5" />
                     </div>
-                    <h4 className={`text-lg font-semibold mb-2 ${
-                      theme === 'light' ? 'text-gray-900' : 'text-white'
+                    <h4 className={`text-base font-medium mb-1 ${
+                      theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                     }`}>
                       {action.title}
                     </h4>
                     <p className={`text-sm ${
-                      theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                      theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                     }`}>
                       {action.description}
                     </p>
@@ -432,55 +368,67 @@ export default function Dashboard() {
             </div>
 
             {/* Performance Insights */}
-            <div className={`mt-8 backdrop-blur-xl rounded-2xl border p-8 ${
+            <div className={`mt-8 backdrop-blur-md rounded-2xl border p-8 ${
               theme === 'light'
-                ? 'bg-white border-gray-200'
+                ? 'bg-white border-zinc-200'
                 : 'bg-white/5 border-white/10'
             }`}>
-              <h3 className={`text-2xl font-bold mb-6 ${
-                theme === 'light' ? 'text-gray-900' : 'text-white'
+              <h3 className={`text-xl font-medium mb-6 ${
+                theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
               }`}>
                 Performance Insights
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-400/20">
-                  <MousePointerClick className="w-10 h-10 mx-auto mb-3 text-blue-500" />
-                  <p className={`text-3xl font-bold mb-2 ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                <div className={`text-center p-6 rounded-xl border ${
+                  theme === 'light'
+                    ? 'bg-zinc-50 border-zinc-200'
+                    : 'bg-white/[0.02] border-white/5'
+                }`}>
+                  <MousePointerClick className="w-6 h-6 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
+                  <p className={`text-2xl font-semibold tracking-tight mb-1 ${
+                    theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                   }`}>
                     {stats.totalResponses * 3}
                   </p>
-                  <p className={`text-sm ${
-                    theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                  <p className={`text-xs ${
+                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                   }`}>
                     Total Clicks
                   </p>
                 </div>
 
-                <div className="text-center p-6 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-400/20">
-                  <Target className="w-10 h-10 mx-auto mb-3 text-green-500" />
-                  <p className={`text-3xl font-bold mb-2 ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                <div className={`text-center p-6 rounded-xl border ${
+                  theme === 'light'
+                    ? 'bg-zinc-50 border-zinc-200'
+                    : 'bg-white/[0.02] border-white/5'
+                }`}>
+                  <Target className="w-6 h-6 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
+                  <p className={`text-2xl font-semibold tracking-tight mb-1 ${
+                    theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                   }`}>
                     {Math.round(stats.responseRate * 1.2)}%
                   </p>
-                  <p className={`text-sm ${
-                    theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                  <p className={`text-xs ${
+                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                   }`}>
                     Conversion Rate
                   </p>
                 </div>
 
-                <div className="text-center p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-400/20">
-                  <Clock className="w-10 h-10 mx-auto mb-3 text-purple-500" />
-                  <p className={`text-3xl font-bold mb-2 ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                <div className={`text-center p-6 rounded-xl border ${
+                  theme === 'light'
+                    ? 'bg-zinc-50 border-zinc-200'
+                    : 'bg-white/[0.02] border-white/5'
+                }`}>
+                  <Clock className="w-6 h-6 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
+                  <p className={`text-2xl font-semibold tracking-tight mb-1 ${
+                    theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                   }`}>
                     2.5m
                   </p>
-                  <p className={`text-sm ${
-                    theme === 'light' ? 'text-gray-600' : 'text-white/60'
+                  <p className={`text-xs ${
+                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                   }`}>
                     Avg. Time
                   </p>
@@ -491,18 +439,18 @@ export default function Dashboard() {
 
           {/* Recent Activity - Spans 1 column */}
           <div className="lg:col-span-1">
-            <div className={`backdrop-blur-xl rounded-2xl border p-8 ${
+            <div className={`backdrop-blur-md rounded-2xl border p-8 ${
               theme === 'light'
-                ? 'bg-white border-gray-200'
+                ? 'bg-white border-zinc-200'
                 : 'bg-white/5 border-white/10'
             }`}>
               <div className="flex items-center justify-between mb-6">
-                <h3 className={`text-2xl font-bold ${
-                  theme === 'light' ? 'text-gray-900' : 'text-white'
+                <h3 className={`text-xl font-medium ${
+                  theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                 }`}>
                   Recent Activity
                 </h3>
-                <Activity className="w-6 h-6 text-green-500" />
+                <Activity className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
               </div>
 
               <div className="space-y-4">
@@ -510,52 +458,50 @@ export default function Dashboard() {
                   recentActivity.map((activity, index) => (
                     <div
                       key={activity.id}
-                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 hover:scale-[1.02] ${
+                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 ${
                         theme === 'light'
-                          ? 'bg-gray-50 border-gray-100 hover:bg-gray-100'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10'
+                          ? 'bg-zinc-50/50 border-zinc-100 hover:bg-zinc-100/50'
+                          : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'
                       }`}
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br ${
-                        activity.color === 'from-blue-500 to-cyan-500' ? 'from-blue-500/10 to-cyan-500/10' :
-                        activity.color === 'from-green-500 to-emerald-500' ? 'from-green-500/10 to-emerald-500/10' :
-                        'from-purple-500/10 to-pink-500/10'
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        theme === 'light' ? 'bg-zinc-100 text-zinc-500' : 'bg-white/10 text-zinc-400'
                       }`}>
-                        <activity.icon className={`w-6 h-6 bg-gradient-to-r ${activity.color} bg-clip-text text-transparent`} />
+                        <activity.icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`font-semibold text-sm mb-1 ${
-                          theme === 'light' ? 'text-gray-900' : 'text-white'
+                          theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
                         }`}>
                           {activity.title}
                         </p>
                         <p className={`text-sm mb-2 truncate ${
-                          theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                          theme === 'light' ? 'text-zinc-600' : 'text-zinc-400'
                         }`}>
                           {activity.description}
                         </p>
                         <div className="flex items-center gap-2">
                           <Clock className={`w-3 h-3 ${
-                            theme === 'light' ? 'text-gray-400' : 'text-white/40'
+                            theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'
                           }`} />
                           <span className={`text-xs ${
-                            theme === 'light' ? 'text-gray-500' : 'text-white/50'
+                            theme === 'light' ? 'text-zinc-500' : 'text-zinc-500'
                           }`}>
                             {formatTimeAgo(activity.timestamp)}
                           </span>
                         </div>
                       </div>
-                      <Star className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-1" />
+                      <Star className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 flex-shrink-0 mt-1" />
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-12">
                     <Activity className={`w-16 h-16 mx-auto mb-4 ${
-                      theme === 'light' ? 'text-gray-300' : 'text-white/20'
+                      theme === 'light' ? 'text-zinc-200' : 'text-white/10'
                     }`} />
                     <p className={`text-sm ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/50'
+                      theme === 'light' ? 'text-zinc-500' : 'text-zinc-500'
                     }`}>
                       No recent activity yet
                     </p>
@@ -564,10 +510,10 @@ export default function Dashboard() {
               </div>
 
               {recentActivity.length > 0 && (
-                <button className={`w-full mt-6 py-3 rounded-xl border-2 font-medium transition-all duration-200 hover:scale-[1.02] ${
+                <button className={`w-full mt-6 py-2.5 rounded-xl border text-sm font-medium transition-colors duration-200 ${
                   theme === 'light'
-                    ? 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                    : 'border-white/10 hover:bg-white/5 text-white/80'
+                    ? 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300'
                 }`}>
                   View All Activity
                 </button>
@@ -575,23 +521,25 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Tip */}
-            <div className={`mt-8 backdrop-blur-xl rounded-2xl border p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 ${
+            <div className={`mt-8 backdrop-blur-md rounded-2xl border p-6 ${
               theme === 'light'
-                ? 'border-amber-400/20'
-                : 'border-amber-400/20'
+                ? 'bg-zinc-50 border-zinc-200'
+                : 'bg-white/[0.02] border-white/10'
             }`}>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  theme === 'light' ? 'bg-zinc-100 text-zinc-600' : 'bg-white/10 text-zinc-300'
+                }`}>
+                  <Sparkles className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h4 className={`font-semibold mb-2 ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
+                  <h4 className={`font-medium text-sm mb-1 ${
+                    theme === 'light' ? 'text-zinc-800' : 'text-zinc-200'
                   }`}>
                     Pro Tip
                   </h4>
-                  <p className={`text-sm ${
-                    theme === 'light' ? 'text-gray-700' : 'text-white/80'
+                  <p className={`text-xs leading-relaxed ${
+                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                   }`}>
                     Use form templates to save time! Create reusable templates for common form types.
                   </p>
@@ -604,3 +552,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

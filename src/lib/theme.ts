@@ -1,30 +1,4 @@
 /**
- * Theme utility func  input: (theme: ThemeMode) =>
-    theme === 'light'
-      ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500'
-      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-blue-400 focus:border-transparent',
-  
-  select: (theme: ThemeMode) =>
-    theme === 'light'
-      ? 'bg-white border-gray-300 text-gray-900'
-      : 'bg-white/10 border-white/20 text-white',
-  
-  border: (theme: ThemeMode) =>
-    theme === 'light' ? 'border-gray-200' : 'border-white/10'
-} as const;
-
-/**
- * Border utilities for consistent styling
- */
-export const borders = {
-  default: (theme: ThemeMode) =>
-    theme === 'light' ? 'border-gray-200' : 'border-white/10',
-  
-  input: (theme: ThemeMode) =>
-    theme === 'light' ? 'border-gray-300' : 'border-white/20'
-} as const;
-
-/**
  * Theme utility library for consistent styling across the application
  * Centralizes theme-aware class generation to reduce repetition
  */
@@ -33,116 +7,136 @@ export type ThemeMode = 'light' | 'dark';
 
 /**
  * Background variants for different component types
+ * Shifted to highly translucent glass values to let mesh gradients shine through
  */
 export const backgrounds = {
   card: (theme: ThemeMode) => 
     theme === 'light' 
-      ? 'bg-white/80 border-gray-200 shadow-lg' 
-      : 'bg-white/10 border-white/20',
+      ? 'bg-white/40 border-white/20 backdrop-blur-xl shadow-lg' 
+      : 'bg-black/40 border-white/10 backdrop-blur-xl shadow-lg',
   
   modal: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'bg-white/95 border-gray-200'
-      : 'bg-white/10 border-white/20',
+      ? 'bg-white/40 border-white/25 backdrop-blur-2xl shadow-2xl'
+      : 'bg-black/40 border-white/10 backdrop-blur-2xl shadow-2xl',
   
   sidebar: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'bg-white/80 border-gray-200'
-      : 'bg-white/10 border-white/20',
+      ? 'bg-white/30 border-white/20 backdrop-blur-xl'
+      : 'bg-black/30 border-white/10 backdrop-blur-xl',
   
   input: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500'
-      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-blue-400 focus:border-transparent',
+      ? 'bg-white/10 border-white/20 text-slate-800 placeholder-slate-500 focus:ring-2 focus:ring-indigo-400/50 focus:border-transparent'
+      : 'bg-black/10 border-white/10 text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent',
   
   dropdown: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'bg-white border-gray-300 text-gray-900'
-      : 'bg-white/10 border-white/20 text-white'
+      ? 'bg-white/40 border-white/20 text-slate-800 backdrop-blur-xl'
+      : 'bg-black/40 border-white/10 text-slate-100 backdrop-blur-xl'
+} as const;
+
+/**
+ * Border utilities for consistent styling
+ */
+export const borders = {
+  default: (theme: ThemeMode) =>
+    theme === 'light' ? 'border-white/20' : 'border-white/10',
+  
+  input: (theme: ThemeMode) =>
+    theme === 'light' ? 'border-white/20' : 'border-white/10'
 } as const;
 
 /**
  * Text color variants for different semantic meanings
+ * Softened text colors to slate scales to avoid harsh absolute contrast
  */
 export const textColors = {
   primary: (theme: ThemeMode) =>
-    theme === 'light' ? 'text-gray-900' : 'text-white',
+    theme === 'light' ? 'text-slate-800' : 'text-slate-100',
   
   secondary: (theme: ThemeMode) =>
-    theme === 'light' ? 'text-gray-600' : 'text-white/70',
+    theme === 'light' ? 'text-slate-600' : 'text-slate-300',
   
   muted: (theme: ThemeMode) =>
-    theme === 'light' ? 'text-gray-500' : 'text-white/60',
+    theme === 'light' ? 'text-slate-500' : 'text-slate-400',
   
   label: (theme: ThemeMode) =>
-    theme === 'light' ? 'text-gray-700' : 'text-white/90',
+    theme === 'light' ? 'text-slate-700' : 'text-slate-200',
   
   error: (theme: ThemeMode) =>
     theme === 'light' ? 'text-red-600' : 'text-red-400',
   
   success: (theme: ThemeMode) =>
-    theme === 'light' ? 'text-green-600' : 'text-green-400'
+    theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'
 } as const;
 
 /**
  * Gradient variants for headings and special text
+ * Upgraded to premium, luminous, AI-inspired palettes
  */
 export const gradients = {
   heading: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'bg-gradient-to-r from-gray-900 via-orange-600 to-red-600'
-      : 'bg-gradient-to-r from-white via-orange-100 to-red-200',
+      ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500'
+      : 'bg-gradient-to-r from-blue-400 via-violet-400 to-fuchsia-400',
   
   logo: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'from-gray-800 to-orange-600'
-      : 'from-white to-orange-200',
+      ? 'from-indigo-500 to-cyan-500'
+      : 'from-blue-400 to-fuchsia-400',
   
   title: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'from-gray-800 to-blue-600'
-      : 'from-white to-blue-200',
+      ? 'from-indigo-600 to-purple-600'
+      : 'from-blue-400 to-violet-400',
   
   button: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-      : 'from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30'
+      ? 'from-indigo-400 via-purple-400 to-cyan-400 hover:from-indigo-500 hover:via-purple-500 hover:to-cyan-500'
+      : 'from-blue-600 via-violet-600 to-fuchsia-600 hover:from-blue-700 hover:via-violet-700 hover:to-fuchsia-700'
 } as const;
 
 /**
  * Button variants for consistent styling
+ * Pill shapes with scaling, outer shadows, and buttery transition timings
  */
 export const buttons = {
   primary: (theme: ThemeMode) =>
-    'px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105',
+    theme === 'light'
+      ? 'px-6 py-3 bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 hover:from-indigo-500 hover:via-purple-500 hover:to-cyan-500 text-white rounded-full font-medium transition-all duration-300 ease-out shadow-lg hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]'
+      : 'px-6 py-3 bg-gradient-to-r from-blue-600 via-violet-600 to-fuchsia-600 hover:from-blue-700 hover:via-violet-700 hover:to-fuchsia-700 text-white rounded-full font-medium transition-all duration-300 ease-out shadow-lg hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]',
   
   secondary: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'px-6 py-3 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl font-medium transition-all duration-200'
-      : 'px-6 py-3 bg-white/10 text-white/90 hover:bg-white/20 rounded-xl font-medium transition-all duration-200',
+      ? 'px-6 py-3 bg-white/20 text-slate-800 hover:bg-white/30 rounded-full font-medium transition-all duration-300 ease-out border border-white/25 hover:scale-[1.02]'
+      : 'px-6 py-3 bg-white/10 text-white/90 hover:bg-white/20 rounded-full font-medium transition-all duration-300 ease-out border border-white/10 hover:scale-[1.02]',
   
   danger: (theme: ThemeMode) =>
-    'px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105',
+    theme === 'light'
+      ? 'px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-full font-medium transition-all duration-300 ease-out shadow-lg hover:scale-[1.02]'
+      : 'px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white rounded-full font-medium transition-all duration-300 ease-out shadow-lg hover:scale-[1.02]',
   
   ghost: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200'
-      : 'p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200'
+      ? 'p-2 text-slate-600 hover:text-slate-800 hover:bg-white/30 rounded-full transition-all duration-300 ease-out'
+      : 'p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all duration-300 ease-out'
 } as const;
 
 /**
  * Layout variants for consistent spacing and structure
+ * Shifted to clean transparency since the animated mesh backdrop handles the background canvas
  */
 export const layout = {
   page: (theme: ThemeMode) =>
     theme === 'light'
-      ? 'bg-gradient-to-br from-gray-50 via-orange-50 to-gray-50'
-      : 'bg-gradient-to-br from-slate-900 via-orange-900 to-slate-900',
+      ? 'bg-transparent'
+      : 'bg-transparent',
   
   container: 'p-8 animate-fade-in',
   
   backdrop: (theme: ThemeMode) =>
-    theme === 'light' ? 'bg-black/30' : 'bg-black/75'
+    theme === 'light' ? 'bg-black/10 backdrop-blur-md' : 'bg-black/40 backdrop-blur-md'
 } as const;
 
 /**
@@ -153,7 +147,7 @@ export const animations = {
   sequence: ['0.1s', '0.2s', '0.3s', '0.4s', '0.5s'],
   fadeIn: () => 'animate-fade-in',
   slideIn: () => 'animate-slide-in-up',
-  hover: () => 'hover:scale-105 transition-transform duration-200',
+  hover: () => 'hover:scale-[1.02] transition-transform duration-300 ease-out',
   spin: () => 'animate-spin'
 } as const;
 
@@ -165,17 +159,17 @@ export const cn = (...classes: (string | undefined | null | false)[]): string =>
 };
 
 /**
- * Generate navigation item classes based on active state
+ * Generate navigation item classes based on active state (pill aesthetic)
  */
 export const navigationItem = (theme: ThemeMode, isActive: boolean) => cn(
-  'group flex items-center px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-300 animate-fade-in',
+  'group flex items-center px-4 py-3.5 text-sm font-medium rounded-full transition-all duration-300 animate-fade-in',
   isActive 
     ? theme === 'light'
-      ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-gray-900 border border-blue-400/30 shadow-lg shadow-blue-500/25 transform scale-105'
-      : 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white border border-blue-400/30 shadow-lg shadow-blue-500/25 transform scale-105'
+      ? 'bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 text-indigo-700 border border-indigo-500/30 shadow-lg shadow-indigo-500/10 transform scale-[1.02]'
+      : 'bg-gradient-to-r from-blue-500/20 to-fuchsia-600/20 text-white border border-blue-500/30 shadow-lg shadow-blue-500/20 transform scale-[1.02]'
     : theme === 'light'
-      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 hover:scale-105'
-      : 'text-white/70 hover:text-white hover:bg-white/10 hover:scale-105'
+      ? 'text-slate-600 hover:text-slate-800 hover:bg-white/20 hover:scale-[1.02]'
+      : 'text-slate-300 hover:text-white hover:bg-white/10 hover:scale-[1.02]'
 );
 
 /**
@@ -183,6 +177,6 @@ export const navigationItem = (theme: ThemeMode, isActive: boolean) => cn(
  */
 export const loadingSkeleton = (theme: ThemeMode, className?: string) => cn(
   'animate-pulse',
-  theme === 'light' ? 'bg-gray-200' : 'bg-white/20',
+  theme === 'light' ? 'bg-slate-200' : 'bg-white/10',
   className
 );

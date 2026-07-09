@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Plus, Edit, Trash2, Users, Upload, X, Palette, Eye, EyeOff } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
+import { ClientCard } from '../components/ui/client-card'
 
 interface Client {
   id: string
@@ -340,10 +341,10 @@ export default function Clients() {
     <div className="p-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div className="animate-slide-up">
-          <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
+          <h1 className={`text-4xl font-bold ${
             theme === 'light' 
-              ? 'from-gray-800 via-orange-600 to-red-600' 
-              : 'from-white via-orange-100 to-red-200'
+              ? 'text-zinc-900' 
+              : 'text-white'
           }`}>Clients</h1>
           <p className={`mt-2 text-lg ${
             theme === 'light' ? 'text-gray-600' : 'text-white/70'
@@ -351,7 +352,7 @@ export default function Clients() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
+          className="flex items-center px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-full font-medium transition-all duration-200 hover:scale-105 animate-slide-up"
           style={{animationDelay: '0.2s'}}
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -403,7 +404,7 @@ export default function Clients() {
           }`}>Get started by adding your first client</p>
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
+            className="inline-flex items-center px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-full font-medium transition-all duration-200 hover:scale-105"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Your First Client
@@ -412,119 +413,14 @@ export default function Clients() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {clients.map((client, index) => (
-            <div key={client.id} className={`backdrop-blur-xl rounded-2xl border p-6 hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-200 hover:-translate-y-1 animate-slide-up ${
-              theme === 'light'
-                ? 'bg-white/60 border-gray-200 hover:bg-white/80'
-                : 'bg-white/10 border-white/20 hover:bg-white/15'
-            }`} style={{animationDelay: `${0.1 * index}s`}}>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className={`font-semibold mb-1 text-lg ${
-                    theme === 'light' ? 'text-gray-900' : 'text-white'
-                  }`}>{client.name}</h3>
-                  <div className="flex items-center space-x-2">
-                    <p className={`text-sm ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/60'
-                    }`}>
-                      Created {new Date(client.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleEdit(client)}
-                    className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                      theme === 'light'
-                        ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
-                        : 'text-white/60 hover:text-blue-300 hover:bg-blue-500/20'
-                    }`}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.id)}
-                    className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
-                      theme === 'light'
-                        ? 'text-gray-500 hover:text-red-600 hover:bg-red-50'
-                        : 'text-white/60 hover:text-red-300 hover:bg-red-500/20'
-                    }`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
-                    theme === 'light' ? 'text-gray-500' : 'text-white/70'
-                  }`}>Brand Colors</label>
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className={`w-10 h-10 rounded-xl border-2 shadow-lg ring-2 transition-transform hover:scale-110 ${
-                        theme === 'light'
-                          ? 'border-gray-200 ring-gray-100'
-                          : 'border-white/30 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: client.primary_color }}
-                      title={`Primary: ${client.primary_color}`}
-                    />
-                    <div 
-                      className={`w-10 h-10 rounded-xl border-2 shadow-lg ring-2 transition-transform hover:scale-110 ${
-                        theme === 'light'
-                          ? 'border-gray-200 ring-gray-100'
-                          : 'border-white/30 ring-white/10'
-                      }`}
-                      style={{ backgroundColor: client.secondary_color }}
-                      title={`Secondary: ${client.secondary_color}`}
-                    />
-                  </div>
-                </div>
-
-                {client.logo_url && (
-                  <div>
-                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
-                    }`}>Logo</label>
-                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
-                      theme === 'light'
-                        ? 'bg-gray-50 border-gray-100'
-                        : 'bg-white/10 border-white/20'
-                    }`}>
-                      <img 
-                        src={client.logo_url} 
-                        alt={`${client.name} logo`}
-                        className="h-8"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {client.webhook_url && (
-                  <div>
-                    <label className={`text-xs font-medium uppercase tracking-wide mb-2 block ${
-                      theme === 'light' ? 'text-gray-500' : 'text-white/70'
-                    }`}>Webhook</label>
-                    <div className={`backdrop-blur-sm p-3 rounded-xl border ${
-                      theme === 'light'
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-green-500/10 border-green-400/30'
-                    }`}>
-                      <div className="flex items-center">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${
-                          theme === 'light' ? 'bg-green-500' : 'bg-green-400'
-                        }`}></div>
-                        <span className={`text-xs font-medium ${
-                          theme === 'light' ? 'text-green-700' : 'text-green-300'
-                        }`}>
-                          Zapier Connected
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ClientCard
+              key={client.id}
+              client={client}
+              index={index}
+              onEdit={() => handleEdit(client)}
+              onDelete={() => handleDelete(client.id)}
+              theme={theme}
+            />
           ))}
         </div>
       )}
@@ -539,10 +435,10 @@ export default function Clients() {
               ? 'bg-white/95 border-gray-200 backdrop-blur-sm'
               : 'bg-gray-900/95 border-white/10 backdrop-blur-sm'
           }`}>
-            <h2 className={`text-2xl font-semibold mb-6 bg-gradient-to-r bg-clip-text text-transparent ${
+            <h2 className={`text-2xl font-semibold mb-6 ${
               theme === 'light'
-                ? 'from-gray-800 to-blue-600'
-                : 'from-white to-blue-200'
+                ? 'text-gray-900'
+                : 'text-white'
             }`}>
               {editingClient ? 'Edit Client' : 'Add New Client'}
             </h2>
@@ -561,8 +457,8 @@ export default function Clients() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 ${
                     theme === 'light'
-                      ? 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-white/90'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent hover:bg-white/15'
+                      ? 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-white/90'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
                   }`}
                   placeholder="e.g., Premium Windows & Doors"
                   required
@@ -578,7 +474,9 @@ export default function Clients() {
                 </label>
                 {logoPreview ? (
                   <div className="relative group">
-                    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 flex items-center justify-center">
+                    <div className={`backdrop-blur-sm border rounded-xl p-4 flex items-center justify-center ${
+                      theme === 'light' ? 'bg-zinc-50 border-zinc-200' : 'bg-white/10 border-white/20'
+                    }`}>
                       <img 
                         src={logoPreview} 
                         alt="Logo preview" 
@@ -593,7 +491,9 @@ export default function Clients() {
                       <X className="w-3 h-3" />
                     </button>
                     <div className="mt-2 text-center">
-                      <label className="text-xs text-blue-300 hover:text-blue-200 cursor-pointer underline">
+                      <label className={`text-xs hover:underline cursor-pointer ${
+                        theme === 'light' ? 'text-zinc-500 hover:text-zinc-800' : 'text-zinc-400 hover:text-zinc-200'
+                      }`}>
                         Change Logo
                         <input
                           type="file"
@@ -606,12 +506,20 @@ export default function Clients() {
                   </div>
                 ) : (
                   <label className="block w-full">
-                    <div className="bg-white/10 backdrop-blur-sm border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:bg-white/15 hover:border-white/40 transition-all duration-200 cursor-pointer group">
-                      <Upload className="w-8 h-8 text-white/60 mx-auto mb-2 group-hover:text-white/80 transition-colors" />
-                      <p className="text-sm text-white/70 group-hover:text-white/90 transition-colors">
+                    <div className={`backdrop-blur-sm border-2 border-dashed rounded-xl p-8 text-center hover:bg-zinc-100/50 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer group ${
+                      theme === 'light' ? 'bg-zinc-50 border-zinc-300' : 'bg-white/5 border-white/20'
+                    }`}>
+                      <Upload className={`w-8 h-8 mx-auto mb-2 transition-colors ${
+                        theme === 'light' ? 'text-zinc-400 group-hover:text-zinc-600' : 'text-white/60 group-hover:text-white/80'
+                      }`} />
+                      <p className={`text-sm transition-colors ${
+                        theme === 'light' ? 'text-zinc-600 group-hover:text-zinc-900' : 'text-white/70 group-hover:text-white/90'
+                      }`}>
                         Click to upload logo
                       </p>
-                      <p className="text-xs text-white/50 mt-1">
+                      <p className={`text-xs mt-1 ${
+                        theme === 'light' ? 'text-zinc-400' : 'text-white/50'
+                      }`}>
                         PNG, JPG up to 5MB
                       </p>
                     </div>
@@ -626,31 +534,35 @@ export default function Clients() {
               </div>
 
               {/* Client Access Credentials */}
-              <div className="border-t border-white/10 pt-6">
+              <div className={`border-t pt-6 ${theme === 'light' ? 'border-zinc-200' : 'border-white/10'}`}>
                 <div className="flex items-center mb-4">
-                  <Users className="w-5 h-5 text-blue-300 mr-2" />
-                  <h3 className="text-lg font-medium text-white">Client Portal Access</h3>
+                  <Users className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-zinc-600' : 'text-zinc-300'}`} />
+                  <h3 className={`text-lg font-medium ${theme === 'light' ? 'text-zinc-950' : 'text-white'}`}>Client Portal Access</h3>
                 </div>
-                <p className="text-sm text-white/70 mb-4">
+                <p className={`text-sm mb-4 ${theme === 'light' ? 'text-zinc-600' : 'text-white/70'}`}>
                   Set up login credentials for your client to access their form responses
                 </p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-zinc-700' : 'text-white/90'}`}>
                       Client Email
                     </label>
                     <input
                       type="email"
                       value={formData.client_email}
                       onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
-                      className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                      className={`w-full px-4 py-3 border rounded-xl transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-zinc-50'
+                          : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
+                      }`}
                       placeholder="client@company.com"
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-zinc-700' : 'text-white/90'}`}>
                       Additional Recipients
                     </label>
                     <div className="space-y-2">
@@ -673,7 +585,11 @@ export default function Clients() {
                                 })
                               }
                             }}
-                            className="flex-1 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15 text-sm"
+                            className={`flex-1 px-4 py-2 border rounded-xl transition-all duration-200 text-sm ${
+                              theme === 'light'
+                                ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-zinc-50'
+                                : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
+                            }`}
                             placeholder="additional@company.com"
                           />
                           <button
@@ -695,7 +611,11 @@ export default function Clients() {
                           ...formData, 
                           additional_emails: [...formData.additional_emails, ''] 
                         })}
-                        className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white/70 hover:text-white hover:bg-white/15 hover:border-white/30 transition-all duration-200 text-sm font-medium"
+                        className={`w-full px-4 py-2 border rounded-xl transition-all duration-200 text-sm font-medium ${
+                          theme === 'light'
+                            ? 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border-zinc-200 hover:border-zinc-300'
+                            : 'bg-white/10 border-white/20 text-white/70 hover:text-white hover:bg-white/15 hover:border-white/30'
+                        }`}
                       >
                         + Add Another Email
                       </button>
@@ -703,7 +623,7 @@ export default function Clients() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${theme === 'light' ? 'text-zinc-700' : 'text-white/90'}`}>
                       Client Password
                     </label>
                     <div className="relative">
@@ -711,13 +631,19 @@ export default function Clients() {
                         type={showPassword ? "text" : "password"}
                         value={formData.client_password}
                         onChange={(e) => setFormData({ ...formData, client_password: e.target.value })}
-                        className="w-full px-4 py-3 pr-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
+                        className={`w-full px-4 py-3 pr-12 border rounded-xl transition-all duration-200 ${
+                          theme === 'light'
+                            ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-zinc-50'
+                            : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
+                        }`}
                         placeholder="Enter secure password"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                        className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${
+                          theme === 'light' ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/50 hover:text-white/80'
+                        }`}
                       >
                         {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
@@ -725,8 +651,12 @@ export default function Clients() {
                   </div>
                 </div>
                 
-                <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-xl p-4 mt-4">
-                  <p className="text-sm text-blue-200">
+                <div className={`border rounded-xl p-4 mt-4 ${
+                  theme === 'light'
+                    ? 'bg-zinc-50 border-zinc-200 text-zinc-600'
+                    : 'bg-zinc-900/50 border-zinc-800 text-zinc-300'
+                }`}>
+                  <p className="text-sm">
                     <strong>Note:</strong> These credentials will allow your client to log in and view only their form responses. Leave blank if you don't want to provide client access.
                   </p>
                 </div>
@@ -737,7 +667,7 @@ export default function Clients() {
                 <label className={`block text-sm font-medium mb-3 ${
                   theme === 'light' ? 'text-gray-700' : 'text-white/90'
                 }`}>
-                  📧 Email Notifications
+                  Email Notifications
                 </label>
                 <div className="flex items-center space-x-3">
                   <input
@@ -754,11 +684,15 @@ export default function Clients() {
                     Send email notifications for new form responses
                   </label>
                 </div>
-                <div className={`bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30 rounded-xl p-3 mt-3 ${
+                <div className={`border rounded-xl p-3 mt-3 ${
                   formData.email_notifications_enabled ? 'block' : 'hidden'
+                } ${
+                  theme === 'light'
+                    ? 'bg-zinc-50 border-zinc-200 text-zinc-600'
+                    : 'bg-zinc-900/50 border-zinc-800 text-zinc-300'
                 }`}>
-                  <p className="text-sm text-yellow-200">
-                    <strong>📬 Email Alert:</strong> When enabled, email notifications will be sent to <strong>{formData.client_email || '[primary email]'}</strong>{formData.additional_emails.length > 0 && ` and ${formData.additional_emails.length} additional recipient${formData.additional_emails.length > 1 ? 's' : ''}`} whenever someone submits a response to their forms.
+                  <p className="text-sm">
+                    <strong>Email Alert:</strong> When enabled, email notifications will be sent to <strong>{formData.client_email || '[primary email]'}</strong>{formData.additional_emails.length > 0 && ` and ${formData.additional_emails.length} additional recipient${formData.additional_emails.length > 1 ? 's' : ''}`} whenever someone submits a response to their forms.
                   </p>
                 </div>
               </div>
@@ -768,7 +702,7 @@ export default function Clients() {
                 <label className={`block text-sm font-medium mb-2 ${
                   theme === 'light' ? 'text-gray-700' : 'text-white/90'
                 }`}>
-                  🔗 Webhook URL (Zapier)
+                  Webhook URL (Zapier)
                 </label>
                 <input
                   type="url"
@@ -777,8 +711,8 @@ export default function Clients() {
                   placeholder="https://hooks.zapier.com/hooks/catch/..."
                   className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 ${
                     theme === 'light'
-                      ? 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent hover:bg-white/90'
-                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-purple-400 focus:border-transparent hover:bg-white/15'
+                      ? 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-orange-400 focus:border-transparent hover:bg-white/90'
+                      : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-orange-400/50 focus:border-transparent hover:bg-white/15'
                   }`}
                 />
                 <p className={`text-xs mt-2 ${
@@ -790,7 +724,9 @@ export default function Clients() {
 
               {/* Primary Color */}
               <div>
-                <label className="block text-sm font-medium text-white/90 mb-3">
+                <label className={`block text-sm font-medium mb-3 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>
                   <Palette className="w-4 h-4 inline mr-2" />
                   Primary Color
                 </label>
@@ -818,13 +754,19 @@ export default function Clients() {
                       type="color"
                       value={formData.primary_color}
                       onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                      className="w-12 h-12 border border-white/20 rounded-xl cursor-pointer bg-white/10 backdrop-blur-sm hover:scale-110 transition-transform"
+                      className={`w-12 h-12 border rounded-xl cursor-pointer bg-white/10 backdrop-blur-sm hover:scale-110 transition-transform ${
+                        theme === 'light' ? 'border-zinc-200' : 'border-white/20'
+                      }`}
                     />
                     <input
                       type="text"
                       value={formData.primary_color}
                       onChange={(e) => setFormData({ ...formData, primary_color: e.target.value })}
-                      className="flex-1 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm font-mono placeholder-white/50 hover:bg-white/15 transition-all duration-200"
+                      className={`flex-1 px-3 py-2 border rounded-xl text-sm font-mono placeholder-zinc-400 hover:bg-zinc-50 transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-white border-zinc-200 text-zinc-900'
+                          : 'bg-white/10 border-white/20 text-white hover:bg-white/15'
+                      }`}
                       placeholder="#2563EB"
                     />
                   </div>
@@ -833,7 +775,9 @@ export default function Clients() {
 
               {/* Secondary Color */}
               <div>
-                <label className="block text-sm font-medium text-white/90 mb-3">
+                <label className={`block text-sm font-medium mb-3 ${
+                  theme === 'light' ? 'text-gray-700' : 'text-white/90'
+                }`}>
                   <Palette className="w-4 h-4 inline mr-2" />
                   Secondary Color
                 </label>
@@ -861,13 +805,19 @@ export default function Clients() {
                       type="color"
                       value={formData.secondary_color}
                       onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                      className="w-12 h-12 border border-white/20 rounded-xl cursor-pointer bg-white/10 backdrop-blur-sm hover:scale-110 transition-transform"
+                      className={`w-12 h-12 border rounded-xl cursor-pointer bg-white/10 backdrop-blur-sm hover:scale-110 transition-transform ${
+                        theme === 'light' ? 'border-zinc-200' : 'border-white/20'
+                      }`}
                     />
                     <input
                       type="text"
                       value={formData.secondary_color}
                       onChange={(e) => setFormData({ ...formData, secondary_color: e.target.value })}
-                      className="flex-1 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent text-sm font-mono placeholder-white/50 hover:bg-white/15 transition-all duration-200"
+                      className={`flex-1 px-3 py-2 border rounded-xl text-sm font-mono placeholder-zinc-400 hover:bg-zinc-50 transition-all duration-200 ${
+                        theme === 'light'
+                          ? 'bg-white border-zinc-200 text-zinc-900'
+                          : 'bg-white/10 border-white/20 text-white hover:bg-white/15'
+                      }`}
                       placeholder="#475569"
                     />
                   </div>
@@ -902,7 +852,7 @@ export default function Clients() {
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-600 disabled:to-slate-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 disabled:scale-100 disabled:shadow-none flex items-center"
+                  className="px-6 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-zinc-800 text-white rounded-full transition-all duration-200 font-medium hover:scale-105 disabled:scale-100 flex items-center"
                 >
                   {uploading ? (
                     <>
