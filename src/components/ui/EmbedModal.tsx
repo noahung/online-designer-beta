@@ -15,6 +15,7 @@ interface EmbedConfig {
   fixedWidth: string
   fixedHeight: string
   maxWidth: string
+  align: 'left' | 'center' | 'right'
   // Appearance
   transparent: boolean
   hideLogo: boolean
@@ -51,6 +52,7 @@ const defaultConfig: EmbedConfig = {
   fixedWidth: '680',
   fixedHeight: '500',
   maxWidth: '100%',
+  align: 'center',
   transparent: false,
   hideLogo: false,
   hideTitle: false,
@@ -85,11 +87,14 @@ function generateCode(formId: string, config: EmbedConfig, baseUrl: string): str
 
   if (config.mode === 'inline') {
     if (config.dimensionMode === 'fixed') {
-      attrs.push(`data-min-height="${config.fixedHeight}"`)
+      attrs.push(`data-height="${config.fixedHeight}px"`)
       attrs.push(`data-width="${config.fixedWidth}px"`)
     }
     if (config.maxWidth && config.maxWidth !== '100%') {
       attrs.push(`data-max-width="${config.maxWidth}"`)
+    }
+    if (config.align && config.align !== 'center') {
+      attrs.push(`data-align="${config.align}"`)
     }
     if (config.redirectUrl) {
       attrs.push(`data-redirect="${config.redirectUrl}"`)
@@ -291,6 +296,7 @@ function LivePreview({ config }: { config: EmbedConfig }) {
 
   // Inline
   const width = config.dimensionMode === 'fixed' ? `${config.fixedWidth}px` : '100%'
+  const margin = config.align === 'left' ? '0 auto 0 0' : config.align === 'right' ? '0 0 0 auto' : '0 auto'
   return (
     <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', background: '#0f172a', height: '100%', display: 'flex', flexDirection: 'column' }}>
       {mockNavBar}
@@ -299,7 +305,7 @@ function LivePreview({ config }: { config: EmbedConfig }) {
         <div style={{
           width,
           maxWidth: config.maxWidth || '100%',
-          margin: '0 auto',
+          margin,
           borderRadius: 8,
           overflow: 'hidden',
           border: config.transparent ? '1px dashed rgba(255,255,255,0.2)' : '1px solid rgba(255,255,255,0.1)',
@@ -599,6 +605,22 @@ export default function EmbedModal({ formId, formName, isOpen, onClose }: EmbedM
                   )}
                   <Field label="Max width">
                     <input type="text" className={inputClass} value={config.maxWidth} onChange={e => update('maxWidth', e.target.value)} placeholder="100%" />
+                  </Field>
+                  <Field label="Horizontal alignment">
+                    <div className="flex rounded-lg overflow-hidden border border-white/10 text-xs">
+                      {(['left', 'center', 'right'] as const).map(a => (
+                        <button
+                          key={a}
+                          type="button"
+                          onClick={() => update('align', a)}
+                          className={`flex-1 py-1.5 font-medium transition-colors ${
+                            config.align === a ? 'bg-blue-500 text-white' : 'text-white/40 hover:text-white/70'
+                          }`}
+                        >
+                          {a.charAt(0).toUpperCase() + a.slice(1)}
+                        </button>
+                      ))}
+                    </div>
                   </Field>
                 </Section>
               )}

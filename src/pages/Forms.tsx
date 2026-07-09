@@ -240,6 +240,17 @@ export default function Forms() {
 
       if (stepsError) throw stepsError
 
+      // Get all step logic for this form
+      const { data: originalLogic, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError) {
+        console.error('Error fetching original step logic:', logicError)
+        throw logicError
+      }
+
       // Create a new form with the same data but new ID and name
       const { data: newForm, error: createError } = await supabase
         .from('forms')
@@ -267,7 +278,10 @@ export default function Forms() {
 
       if (createError) throw createError
 
-      // Copy all form steps and their options
+      const stepIdMap = new Map<string, string>()
+      const optionIdMap = new Map<string, string>()
+
+      // Pass 1: Copy all form steps and map their IDs
       for (const step of originalSteps || []) {
         const { data: newStep, error: stepError } = await supabase
           .from('form_steps')
@@ -296,20 +310,98 @@ export default function Forms() {
           .single()
 
         if (stepError) throw stepError
+        stepIdMap.set(step.id, newStep.id)
+      }
 
-        // Copy all options for this step
+      // Pass 2: Copy all options for all steps and map their IDs
+      for (const step of originalSteps || []) {
+        const newStepId = stepIdMap.get(step.id)
+        if (!newStepId) continue
+
         for (const option of step.form_options || []) {
-          const { error: optionError } = await supabase
+          // If option had jump_to_step pointing to a step in the old form, map it to the new form's step
+          const newJumpToStep = option.jump_to_step ? stepIdMap.get(option.jump_to_step) : null
+
+          const { data: newOption, error: optionError } = await supabase
             .from('form_options')
             .insert({
-              step_id: newStep.id,
+              step_id: newStepId,
               label: option.label,
               image_url: option.image_url,
               option_order: option.option_order,
-              jump_to_step: option.jump_to_step
+              jump_to_step: newJumpToStep
             })
+            .select()
+            .single()
 
           if (optionError) throw optionError
+          optionIdMap.set(option.id, newOption.id)
+        }
+      }
+
+      // Pass 3: Copy and rewrite step logic rules
+      for (const logic of originalLogic || []) {
+        const newStepId = stepIdMap.get(logic.step_id)
+        if (!newStepId) continue
+
+        // Rewrite rules
+        const mappedRules = (logic.rules || []).map((rule: any) => {
+          const newRuleStepId = stepIdMap.get(rule.step_id) || rule.step_id
+          const newActionTarget = rule.action?.target_step_id ? (stepIdMap.get(rule.action.target_step_id) || rule.action.target_step_id) : undefined
+
+          const mappedConditions = (rule.conditions || []).map((cond: any) => {
+            const mappedCond = { ...cond }
+            if (cond.option_id) {
+              mappedCond.option_id = optionIdMap.get(cond.option_id) || cond.option_id
+            }
+            return mappedCond
+          })
+
+          const mappedAction = { ...rule.action }
+          if (newActionTarget !== undefined) {
+            mappedAction.target_step_id = newActionTarget
+          }
+
+          return {
+            ...rule,
+            step_id: newRuleStepId,
+            conditions: mappedConditions,
+            action: mappedAction
+          }
+        })
+
+        // Rewrite default action
+        let mappedDefaultAction = null
+        if (logic.default_action) {
+          const newDefaultStepId = stepIdMap.get(logic.default_action.step_id) || logic.default_action.step_id
+          const newDefaultTarget = logic.default_action.action?.target_step_id
+            ? (stepIdMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id)
+            : undefined
+
+          const mappedAction = { ...logic.default_action.action }
+          if (newDefaultTarget !== undefined) {
+            mappedAction.target_step_id = newDefaultTarget
+          }
+
+          mappedDefaultAction = {
+            ...logic.default_action,
+            step_id: newDefaultStepId,
+            action: mappedAction
+          }
+        }
+
+        const { error: insertLogicError } = await supabase
+          .from('step_logic')
+          .insert({
+            step_id: newStepId,
+            form_id: newForm.id,
+            rules: mappedRules,
+            default_action: mappedDefaultAction
+          })
+
+        if (insertLogicError) {
+          console.error('Error inserting duplicated step logic:', insertLogicError)
+          throw insertLogicError
         }
       }
 
