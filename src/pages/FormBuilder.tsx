@@ -17,7 +17,8 @@ import StudioSidebar from '../components/builder/StudioSidebar'
 import StudioCanvas from '../components/builder/StudioCanvas'
 import StudioInspector from '../components/builder/StudioInspector'
 import ShareEmbedStudio from '../components/builder/ShareEmbedStudio'
-import { formThemes } from '../lib/formThemes'
+import { formThemes, FormTheme, parseThemeString, encodeThemeString, extractDesignMeta, encodeDescriptionWithMeta, cleanColorString } from '../lib/formThemes'
+import { OpenAISettingsDrawer, SettingsDrawerTab } from '../components/builder/OpenAISettingsDrawer'
 import { StepLogic } from '../types/formLogic'
 import { evaluateStepLogic, cleanupDanglingLogicRules } from '../lib/logicEngine'
 import {
@@ -636,14 +637,16 @@ export default function FormBuilder() {
   const [description, setDescription] = useState('Interactive form to help customers design their perfect windows and doors')
   const [welcomeMessage, setWelcomeMessage] = useState('Welcome to our design tool! Let\'s create the perfect windows and doors for your home.')
   const [clientId, setClientId] = useState<string | null>(null)
-  const [clients, setClients] = useState<{ id: string; name: string }[]>([])
-  // Theme selection
-  const [formTheme, setFormTheme] = useState<'generic' | 'soft-ui'>('generic')
+  const [clients, setClients] = useState<{ id: string; name: string; logo_url?: string }[]>([])
+  // Theme selection & styling
+  const [formTheme, setFormTheme] = useState<FormTheme>('generic')
+  const [buttonRadius, setButtonRadius] = useState<string>('xl')
+  const [cardRadius, setCardRadius] = useState<string>('2xl')
   // Color customization states
-  const [primaryButtonColor, setPrimaryButtonColor] = useState('#3B82F6')
+  const [primaryButtonColor, setPrimaryButtonColor] = useState('#4F46E5')
   const [primaryButtonTextColor, setPrimaryButtonTextColor] = useState('#FFFFFF')
-  const [secondaryButtonColor, setSecondaryButtonColor] = useState('#E5E7EB')
-  const [secondaryButtonTextColor, setSecondaryButtonTextColor] = useState('#374151')
+  const [secondaryButtonColor, setSecondaryButtonColor] = useState('#F1F5F9')
+  const [secondaryButtonTextColor, setSecondaryButtonTextColor] = useState('#334155')
   const [steps, setSteps] = useState<Step[]>([])
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [activeStudioTab, setActiveStudioTab] = useState<StudioTab>('content')
@@ -662,7 +665,9 @@ export default function FormBuilder() {
   const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false)
   const [showLayoutSettingsModal, setShowLayoutSettingsModal] = useState(false)
 
-  // Settings modal states
+  // Slide-in Settings & Design Drawer states
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false)
+  const [settingsDrawerTab, setSettingsDrawerTab] = useState<SettingsDrawerTab>('theme')
   const [showFormSettingsModal, setShowFormSettingsModal] = useState(false)
   const [showFormThemeModal, setShowFormThemeModal] = useState(false)
   const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
@@ -853,14 +858,19 @@ export default function FormBuilder() {
       // Set form data
       setName(formData.name)
       setInternalName(formData.internal_name || '')
-      setDescription(formData.description)
+      const design = extractDesignMeta(formData.description, formData.form_theme)
+      setDescription(design.cleanDescription)
       setWelcomeMessage(formData.welcome_message || '')
       setClientId(formData.client_id)
-      setFormTheme(formData.form_theme || 'generic')
-      setPrimaryButtonColor(formData.primary_button_color || '#3B82F6')
-      setPrimaryButtonTextColor(formData.primary_button_text_color || '#FFFFFF')
-      setSecondaryButtonColor(formData.secondary_button_color || '#E5E7EB')
-      setSecondaryButtonTextColor(formData.secondary_button_text_color || '#374151')
+      const cleanPrimary = cleanColorString(formData.primary_button_color) || '#4F46E5'
+      const cleanSecondary = cleanColorString(formData.secondary_button_color) || '#F1F5F9'
+      setFormTheme(design.theme)
+      setButtonRadius(design.buttonRadius)
+      setCardRadius(design.cardRadius)
+      setPrimaryButtonColor(cleanPrimary)
+      setPrimaryButtonTextColor(cleanColorString(formData.primary_button_text_color) || '#FFFFFF')
+      setSecondaryButtonColor(cleanSecondary)
+      setSecondaryButtonTextColor(cleanColorString(formData.secondary_button_text_color) || '#334155')
       setIsEditing(true)
 
       // Convert database steps to component format
@@ -1370,24 +1380,36 @@ export default function FormBuilder() {
 
     try {
       let finalFormId = formId
+      const cleanPrimary = cleanColorString(primaryButtonColor)
+      const cleanSecondary = cleanColorString(secondaryButtonColor)
+      const cleanPrimaryText = cleanColorString(primaryButtonTextColor)
+      const cleanSecondaryText = cleanColorString(secondaryButtonTextColor)
+      const encodedDescription = encodeDescriptionWithMeta(description, {
+        theme: formTheme,
+        buttonRadius,
+        cardRadius,
+      })
+      const safeTheme = formTheme === 'soft-ui' ? 'soft-ui' : 'generic'
 
       if (isEditing && formId) {
         // Update existing form metadata
-        const { error: formErr } = await supabase.from('forms')
+        const { error: formErr, data: updatedData } = await supabase.from('forms')
           .update({
             name,
             internal_name: internalName,
-            description,
+            description: encodedDescription,
             client_id: clientId,
             welcome_message: welcomeMessage,
-            form_theme: formTheme,
-            primary_button_color: primaryButtonColor,
-            primary_button_text_color: primaryButtonTextColor,
-            secondary_button_color: secondaryButtonColor,
-            secondary_button_text_color: secondaryButtonTextColor
+            form_theme: safeTheme,
+            primary_button_color: cleanPrimary,
+            primary_button_text_color: cleanPrimaryText,
+            secondary_button_color: cleanSecondary,
+            secondary_button_text_color: cleanSecondaryText
           })
           .eq('id', formId)
-          .eq('user_id', user.id)
+          .select()
+
+        console.log('[FormBuilder] Form metadata updated:', { formId, safeTheme, cleanPrimary, updatedData, formErr })
 
         if (formErr) throw formErr
 
@@ -1408,15 +1430,15 @@ export default function FormBuilder() {
         const { data: formData, error: formErr } = await supabase.from('forms').insert([{
           name,
           internal_name: internalName,
-          description,
+          description: encodedDescription,
           client_id: clientId,
           user_id: user.id,
           welcome_message: welcomeMessage,
-          form_theme: formTheme,
-          primary_button_color: primaryButtonColor,
-          primary_button_text_color: primaryButtonTextColor,
-          secondary_button_color: secondaryButtonColor,
-          secondary_button_text_color: secondaryButtonTextColor
+          form_theme: safeTheme,
+          primary_button_color: cleanPrimary,
+          primary_button_text_color: cleanPrimaryText,
+          secondary_button_color: cleanSecondary,
+          secondary_button_text_color: cleanSecondaryText
         }]).select().single()
 
         if (formErr) throw formErr
@@ -1944,8 +1966,14 @@ export default function FormBuilder() {
         deviceView={deviceView}
         onDeviceViewChange={setDeviceView}
         onSave={save}
-        onPreview={() => setShowPreview(true)}
-        onOpenDesign={() => setShowFormThemeModal(true)}
+        onPreview={async () => {
+          await save()
+          setShowPreview(true)
+        }}
+        onOpenDesign={() => {
+          setSettingsDrawerTab('theme')
+          setShowSettingsDrawer(true)
+        }}
         onOpenShare={() => setActiveStudioTab('share')}
         onBack={() => navigate('/forms')}
         isSaving={saving}
@@ -1974,13 +2002,16 @@ export default function FormBuilder() {
                 enabled: true,
                 title: 'Welcome Screen'
               }}
-              onToggleWelcomeScreen={() => setShowFormSettingsModal(true)}
+              onToggleWelcomeScreen={() => {
+                setSettingsDrawerTab('general')
+                setShowSettingsDrawer(true)
+              }}
               endingScreen={{
                 title: 'A Thank you!'
               }}
             />
 
-            {/* Center Canvas: Live Form Studio Card */}
+            {/* Center Canvas: Live Form Studio Card (Reflecting Theme & Button Styles Live!) */}
             <StudioCanvas
               currentStep={currentStep}
               deviceView={deviceView}
@@ -2009,7 +2040,16 @@ export default function FormBuilder() {
                   handleFileChange(selectedStepIndex, optIdx, file)
                 }
               }}
-              clientLogo={clients.find((c) => c.id === clientId)?.name ? undefined : undefined}
+              clientLogo={clients.find((c) => c.id === clientId)?.logo_url}
+              formTheme={formTheme}
+              primaryButtonColor={primaryButtonColor}
+              primaryButtonTextColor={primaryButtonTextColor}
+              secondaryButtonColor={secondaryButtonColor}
+              secondaryButtonTextColor={secondaryButtonTextColor}
+              buttonRadius={buttonRadius}
+              cardRadius={cardRadius}
+              totalSteps={steps.length || 1}
+              currentStepIndex={selectedStepIndex ?? 0}
             />
 
             {/* Right Sidebar: Question Inspector & Logic */}
@@ -2084,7 +2124,10 @@ export default function FormBuilder() {
                 <p className="text-xs text-slate-500">Send instant email alerts to your sales team with full submission specifications.</p>
                 <button
                   type="button"
-                  onClick={() => setShowFormSettingsModal(true)}
+                  onClick={() => {
+                    setSettingsDrawerTab('general')
+                    setShowSettingsDrawer(true)
+                  }}
                   className="px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-200"
                 >
                   Email Settings
@@ -2227,275 +2270,40 @@ export default function FormBuilder() {
         onSelect={selectedStepIndex !== null ? loadTemplateToStep : createStepFromTemplate}
       />
 
-      {/* Form Settings Modal */}
-      {showFormSettingsModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
-            ? 'bg-white border border-gray-200'
-            : 'bg-slate-800 border border-white/20'
-            }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
-              ? 'bg-white/95 border-gray-200'
-              : 'bg-slate-800/95 border-white/20'
-              }`}>
-              <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                  }`}>
-                  <FileText className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
-                  Form Settings
-                </h2>
-                <button
-                  onClick={() => setShowFormSettingsModal(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
-                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Form Title</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter form title"
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
-                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Internal Name (Admin Only)</label>
-                <input
-                  type="text"
-                  value={internalName}
-                  onChange={e => setInternalName(e.target.value)}
-                  placeholder="Internal name for admin use only"
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
-                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-orange-500 shadow-sm'
-                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-orange-400'
-                    }`}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief description of your form"
-                  rows={3}
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${theme === 'light'
-                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Welcome Message</label>
-                <textarea
-                  value={welcomeMessage}
-                  onChange={(e) => setWelcomeMessage(e.target.value)}
-                  placeholder="Welcome message for form users"
-                  rows={3}
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${theme === 'light'
-                    ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                    : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                  }`}>Client</label>
-                <select
-                  value={clientId ?? ''}
-                  onChange={e => setClientId(e.target.value)}
-                  className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
-                    ? 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50 focus:ring-blue-500 shadow-sm'
-                    : 'bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-blue-400'
-                    }`}
-                >
-                  <option value="" className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>Select client</option>
-                  {clients.map(c => <option key={c.id} value={c.id} className={theme === 'light' ? 'bg-white text-gray-900' : 'bg-slate-800 text-white'}>{c.name}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Form Theme Modal */}
-      {showFormThemeModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
-            ? 'bg-white border border-gray-200'
-            : 'bg-slate-800 border border-white/20'
-            }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
-              ? 'bg-white/95 border-gray-200'
-              : 'bg-slate-800/95 border-white/20'
-              }`}>
-              <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                  }`}>
-                  <Palette className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-purple-600' : 'text-purple-400'}`} />
-                  Form Theme
-                </h2>
-                <button
-                  onClick={() => setShowFormThemeModal(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
-                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className={`text-sm mb-4 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>Choose how your form appears to users</p>
-              <div className="grid grid-cols-1 gap-3">
-                {Object.entries(formThemes).map(([themeKey, themeData]) => (
-                  <button
-                    key={themeKey}
-                    onClick={() => setFormTheme(themeKey as keyof typeof formThemes)}
-                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left overflow-hidden ${formTheme === themeKey
-                      ? theme === 'light'
-                        ? 'border-orange-400 bg-orange-50'
-                        : 'border-orange-500/50 bg-orange-500/10'
-                      : theme === 'light'
-                        ? 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
-                        : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
-                      }`}
-                  >
-
-
-                    <div className="relative flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className={`font-semibold mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                          }`}>{themeData.name}</h4>
-                        <p className={`text-sm mb-4 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                          }`}>{themeData.description}</p>
-
-                        <div className="space-y-3">
-                          <div className={`p-3 ${themeKey === 'soft-ui'
-                            ? 'bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20'
-                            : 'bg-white/90 rounded-lg border border-gray-200'
-                            }`}>
-                            <div className={`h-3 mb-2 ${themeKey === 'soft-ui'
-                              ? 'bg-white/60 backdrop-blur-sm rounded-xl border border-white/30'
-                              : 'bg-gray-100 border border-gray-300 rounded-md'
-                              }`} />
-
-                            <div className="flex gap-2 mt-3">
-                              <div className={`h-2.5 w-16 ${themeKey === 'soft-ui'
-                                ? 'bg-white/70 backdrop-blur-sm rounded-full border border-white/40'
-                                : 'bg-gray-300 rounded-md'
-                                }`} />
-                              <div className={`h-2.5 w-12 ${themeKey === 'soft-ui'
-                                ? 'bg-slate-400/60 rounded-full'
-                                : themeData.preview.primaryColor + ' rounded-md'
-                                }`} />
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className={`h-2 rounded ${'bg-gray-700/60'}`} style={{ width: '70%' }} />
-                            <div className={`h-1.5 rounded ${themeKey === 'soft-ui'
-                              ? 'bg-slate-400/40'
-                              : 'bg-gray-500/60'
-                              }`} style={{ width: '50%' }} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {formTheme === themeKey && (
-                        <div className="flex-shrink-0 ml-4">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-orange-600">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {/* Button Colours — merged into Form Theme */}
-              <div className={`mt-6 pt-6 border-t ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}`}>
-                <h3 className={`text-base font-semibold mb-4 flex items-center ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-                  <svg className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-yellow-600' : 'text-yellow-400'}`} fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm0 2h12v11H4V4z" clipRule="evenodd" />
-                    <path fillRule="evenodd" d="M8 6a2 2 0 11-4 0 2 2 0 014 0zM6 8a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                  </svg>
-                  Button Colours
-                </h3>
-                <div className="space-y-5">
-                  {/* Next Button */}
-                  <div className="space-y-3">
-                    <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}>Next Button</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Background</label>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={primaryButtonColor} onChange={(e) => setPrimaryButtonColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
-                          <input type="text" value={primaryButtonColor} onChange={(e) => setPrimaryButtonColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#3B82F6" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Text</label>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={primaryButtonTextColor} onChange={(e) => setPrimaryButtonTextColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
-                          <input type="text" value={primaryButtonTextColor} onChange={(e) => setPrimaryButtonTextColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#FFFFFF" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Previous Button */}
-                  <div className="space-y-3">
-                    <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/80'}`}>Previous Button</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Background</label>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={secondaryButtonColor} onChange={(e) => setSecondaryButtonColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
-                          <input type="text" value={secondaryButtonColor} onChange={(e) => setSecondaryButtonColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#E5E7EB" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={`block text-xs font-medium ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Text</label>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={secondaryButtonTextColor} onChange={(e) => setSecondaryButtonTextColor(e.target.value)} className={`w-9 h-9 rounded border cursor-pointer flex-shrink-0 ${theme === 'light' ? 'border-gray-300' : 'border-white/20'}`} />
-                          <input type="text" value={secondaryButtonTextColor} onChange={(e) => setSecondaryButtonTextColor(e.target.value)} className={`flex-1 px-2 py-2 border rounded-lg text-sm focus:ring-2 focus:border-transparent ${theme === 'light' ? 'bg-white border-gray-200 text-gray-900 focus:ring-blue-500' : 'bg-white/10 border-white/20 text-white focus:ring-blue-400'}`} placeholder="#374151" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Preview */}
-                  <div className={`p-3 rounded-lg border ${theme === 'light' ? 'bg-gray-50 border-gray-200' : 'bg-white/5 border-white/10'}`}>
-                    <div className={`text-xs mb-3 ${theme === 'light' ? 'text-gray-600' : 'text-white/70'}`}>Button Preview:</div>
-                    <div className="flex gap-3">
-                      <button type="button" style={{ backgroundColor: secondaryButtonColor, color: secondaryButtonTextColor }} className={`px-4 py-2 text-sm font-medium ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'}`}>Previous</button>
-                      <button type="button" style={{ backgroundColor: primaryButtonColor, color: primaryButtonTextColor }} className={`px-4 py-2 text-sm font-medium ${formTheme === 'soft-ui' ? 'rounded-full' : 'rounded'}`}>Next</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* OpenAI-Style Settings & Design Slide-in Drawer */}
+      <OpenAISettingsDrawer
+        isOpen={showSettingsDrawer}
+        onClose={() => setShowSettingsDrawer(false)}
+        initialTab={settingsDrawerTab}
+        formTitle={name}
+        onChangeFormTitle={setName}
+        internalName={internalName}
+        onChangeInternalName={setInternalName}
+        description={description}
+        onChangeDescription={setDescription}
+        welcomeMessage={welcomeMessage}
+        onChangeWelcomeMessage={setWelcomeMessage}
+        clientId={clientId}
+        onChangeClientId={setClientId}
+        clients={clients}
+        formTheme={formTheme}
+        onChangeFormTheme={setFormTheme}
+        primaryButtonColor={primaryButtonColor}
+        onChangePrimaryButtonColor={setPrimaryButtonColor}
+        primaryButtonTextColor={primaryButtonTextColor}
+        onChangePrimaryButtonTextColor={setPrimaryButtonTextColor}
+        secondaryButtonColor={secondaryButtonColor}
+        onChangeSecondaryButtonColor={setSecondaryButtonColor}
+        secondaryButtonTextColor={secondaryButtonTextColor}
+        onChangeSecondaryButtonTextColor={setSecondaryButtonTextColor}
+        buttonRadius={buttonRadius}
+        onChangeButtonRadius={setButtonRadius}
+        cardRadius={cardRadius}
+        onChangeCardRadius={setCardRadius}
+        systemTheme={theme}
+        onSave={save}
+        isSaving={saving}
+      />
 
       {/* Button Colours Modal — kept for backwards compat but no longer shown via top bar */}
       {showButtonColoursModal && (

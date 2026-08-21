@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Upload } from 'lucide-react'
+import { PictureChoiceGrid } from './forms/PictureChoiceGrid'
+import { OptionCard } from './forms/OptionCard'
+import { getThemeConfig } from '../lib/formThemes'
 
 type Option = { 
   id?: string
@@ -73,86 +76,65 @@ export default function SingleStepPreview({
 
   const renderStepContent = () => {
     switch (step.question_type) {
-      case 'image_selection':
-        const imagesPerRow = step.images_per_row || 2
-        const cropToSquare = step.crop_images_to_square !== false
-        return (
-          <div className={`grid gap-4 ${
-            imagesPerRow === 1 ? 'grid-cols-1' :
-            imagesPerRow === 3 ? 'grid-cols-1 md:grid-cols-3' :
-            'grid-cols-1 md:grid-cols-2'
-          }`}>
-            {step.options.map((option, index) => (
-              <button
-                key={option.id || index}
-                onClick={() => handleOptionClick(option.id || `option-${index}`)}
-                className={`border rounded-xl p-4 text-left hover:shadow-lg transition-all duration-200 flex flex-col h-full ${
-                  selectedOptions.has(option.id || `option-${index}`)
-                    ? 'ring-2 border-blue-500 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                style={
-                  selectedOptions.has(option.id || `option-${index}`)
-                    ? { 
-                        borderColor: primaryColor,
-                        boxShadow: `0 0 0 2px ${primaryColor}40`
-                      }
-                    : {}
-                }
-              >
-                {option.image_url && (
-                  <div className={`${
-                    cropToSquare ? 'aspect-square' : 'flex-grow flex items-start'
-                  } w-full mb-3 rounded-lg overflow-hidden`}>
-                    <img
-                      src={option.image_url}
-                      alt={option.label}
-                      className={`w-full ${
-                        cropToSquare ? 'h-full object-cover' : 'object-contain'
-                      } transition-transform duration-200 hover:scale-105`}
-                    />
-                  </div>
-                )}
-                <div className="flex-shrink-0">
-                  <div className="font-medium text-gray-900">{option.label}</div>
-                  {option.description && (
-                    <div className="text-sm text-gray-600 mt-1">{option.description}</div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        )
+      case 'image_selection': {
+        const themeConfig = getThemeConfig('generic')
+        const formattedOptions = (step.options || []).map((o, idx) => ({
+          id: o.id || `option-${idx}`,
+          label: o.label,
+          description: o.description,
+          image_url: o.image_url,
+        }))
+        const selectedId = Array.from(selectedOptions)[0]
 
-      case 'multiple_choice':
         return (
-          <div className="space-y-3">
-            {step.options.map((option, index) => (
-              <button
-                key={option.id || index}
-                onClick={() => handleOptionClick(option.id || `option-${index}`)}
-                className={`w-full border rounded-xl p-4 text-left hover:shadow-md transition-all duration-200 ${
-                  selectedOptions.has(option.id || `option-${index}`)
-                    ? 'ring-2 border-blue-500 shadow-md'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                style={
-                  selectedOptions.has(option.id || `option-${index}`)
-                    ? { 
-                        borderColor: primaryColor,
-                        boxShadow: `0 0 0 2px ${primaryColor}40`
-                      }
-                    : {}
-                }
-              >
-                <div className="font-medium text-gray-900">{option.label}</div>
-                {option.description && (
-                  <div className="text-sm text-gray-600 mt-1">{option.description}</div>
-                )}
-              </button>
-            ))}
-          </div>
+          <PictureChoiceGrid
+            options={formattedOptions}
+            selectedOptionId={selectedId}
+            onSelect={(opt) => handleOptionClick(opt.id)}
+            themeConfig={themeConfig}
+            primaryColor={primaryColor}
+            desktopColumns={step.images_per_row || 2}
+            mobileColumns={1}
+            cropImagesToSquare={step.crop_images_to_square !== false}
+          />
         )
+      }
+
+      case 'multiple_choice': {
+        const themeConfig = getThemeConfig('generic')
+        const formattedOptions = (step.options || []).map((o, idx) => ({
+          id: o.id || `option-${idx}`,
+          label: o.label,
+          description: o.description,
+          image_url: o.image_url,
+        }))
+        const selectedId = Array.from(selectedOptions)[0]
+
+        if (formattedOptions.some(o => o.image_url)) {
+          return (
+            <PictureChoiceGrid
+              options={formattedOptions}
+              selectedOptionId={selectedId}
+              onSelect={(opt) => handleOptionClick(opt.id)}
+              themeConfig={themeConfig}
+              primaryColor={primaryColor}
+              desktopColumns={step.images_per_row || 2}
+              mobileColumns={1}
+              cropImagesToSquare={step.crop_images_to_square !== false}
+            />
+          )
+        }
+
+        return (
+          <OptionCard
+            options={formattedOptions}
+            selectedOptionId={selectedId}
+            onSelect={(opt) => handleOptionClick(opt.id)}
+            themeConfig={themeConfig}
+            primaryColor={primaryColor}
+          />
+        )
+      }
 
       case 'text_input':
         return (

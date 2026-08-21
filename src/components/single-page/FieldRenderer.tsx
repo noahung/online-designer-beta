@@ -216,24 +216,45 @@ export default function FieldRenderer({
       case 'sp_picture_choice': {
         const cols = field.images_per_row || 2
         return (
-          <div className={`grid gap-3 ${cols === 1 ? 'grid-cols-1' : cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            {field.options.map(opt => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => toggleOption(opt.label)}
-                className="flex flex-col rounded-xl border-2 overflow-hidden text-left transition-all duration-200"
-                style={isSelected(opt.label) ? selectedStyle : { borderColor: '#E5E7EB' }}
-              >
-                {opt.image_url && (
-                  <img src={opt.image_url} alt={opt.label} className="w-full aspect-square object-cover" />
-                )}
-                <div className="px-3 py-2">
-                  <p className="text-sm font-medium text-gray-800">{opt.label}</p>
-                  {opt.description && <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>}
-                </div>
-              </button>
-            ))}
+          <div className={`grid gap-3.5 ${cols === 1 ? 'grid-cols-1' : cols === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
+            {field.options.map(opt => {
+              const active = isSelected(opt.label)
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => toggleOption(opt.label)}
+                  className={`group flex flex-col rounded-2xl border-2 overflow-hidden text-left transition-all duration-200 cursor-pointer p-3.5 ${
+                    active
+                      ? 'shadow-md ring-2 bg-indigo-50/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+                  }`}
+                  style={active ? selectedStyle : { borderColor: '#E2E8F0' }}
+                >
+                  {opt.image_url && (
+                    <div className="w-full aspect-square rounded-xl overflow-hidden mb-3 bg-slate-100 relative">
+                      <img
+                        src={opt.image_url}
+                        alt={opt.label}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      {active && (
+                        <div
+                          className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          ✓
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="px-1">
+                    <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors">{opt.label}</p>
+                    {opt.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{opt.description}</p>}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )
       }

@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { formThemes } from '../lib/formThemes'
+import { formThemes, getThemeConfig, parseThemeString, extractDesignMeta, getButtonRadiusClass, getCardRadiusClass, getButtonRadiusValue, getCardRadiusValue, cleanColorString } from '../lib/formThemes'
+import { useFormThemeInjector } from '../lib/formThemeInjector'
+import { StepperProgress } from '../components/forms/StepperProgress'
+import { PictureChoiceGrid } from '../components/forms/PictureChoiceGrid'
+import { ModernFieldGroup } from '../components/forms/ModernFieldGroup'
+import { OptionCard } from '../components/forms/OptionCard'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { StepLogic } from '../types/formLogic'
@@ -284,6 +289,11 @@ export default function FormEmbed() {
   const [archivedIterations, setArchivedIterations] = useState<Array<{stepIndex: number, iteration: number, answer: any}>>([])  
 
   const [formTheme, setFormTheme] = useState<string>('generic')
+  const [buttonRadius, setButtonRadius] = useState<string>('xl')
+  const [cardRadius, setCardRadius] = useState<string>('2xl')
+
+  // Auto-inject dynamic Google Fonts, CSS variables, and glassmorphic tokens
+  useFormThemeInjector(formTheme, formColors)
 
   // --- Add postMessage logic for iframe auto-resize ---
   // Send height to parent window
@@ -446,15 +456,19 @@ export default function FormEmbed() {
       }
       
       setFormName(form.name)
-      setFormDescription(form.description)
-      setFormData(form)
+      const design = extractDesignMeta(form.description, form.form_theme)
+      setFormDescription(design.cleanDescription)
+      const cleanPrimary = cleanColorString(form.primary_button_color) || '#4F46E5'
+      const cleanSecondary = cleanColorString(form.secondary_button_color) || '#F1F5F9'
       setFormColors({
-        primaryButtonColor: form.primary_button_color || '#3B82F6',
-        primaryButtonTextColor: form.primary_button_text_color || '#FFFFFF',
-        secondaryButtonColor: form.secondary_button_color || '#E5E7EB',
-        secondaryButtonTextColor: form.secondary_button_text_color || '#374151'
+        primaryButtonColor: cleanPrimary,
+        primaryButtonTextColor: cleanColorString(form.primary_button_text_color) || '#FFFFFF',
+        secondaryButtonColor: cleanSecondary,
+        secondaryButtonTextColor: cleanColorString(form.secondary_button_text_color) || '#334155'
       })
-      setFormTheme(form.form_theme || 'generic')
+      setFormTheme(design.theme)
+      setButtonRadius(design.buttonRadius)
+      setCardRadius(design.cardRadius)
 
       const { data: s, error: stepsError } = await supabase
         .from('form_steps')
@@ -2052,13 +2066,13 @@ export default function FormEmbed() {
   }
 
   // Get the current theme configuration
-  const currentTheme = formThemes[formTheme as keyof typeof formThemes] || formThemes.generic
+  const currentTheme = getThemeConfig(formTheme)
 
   if (loading) {
     return (
       <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full text-center`}>
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold">Loading form...</h2>
           <p className={currentTheme.styles.text.body}>Please wait while we load your form.</p>
         </div>
@@ -2156,20 +2170,16 @@ export default function FormEmbed() {
   }
 
   const step = steps[currentStepIndex]
-  const percent = Math.round(((currentStepIndex) / steps.length) * 100)
 
   return (
-  <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', height: 'auto', minHeight: 'fit-content', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
-      {/* Soft UI decorations for soft-ui theme - only show within form bounds */}
-      {formTheme === 'soft-ui' && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ height: 'fit-content', paddingBottom: '0' }}>
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-pink-600/20 rounded-full blur-3xl"></div>
-        </div>
+  <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', minHeight: '100vh', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
+      {/* Dynamic theme decorations if any */}
+      {currentTheme.styles.decorations && (
+        <div dangerouslySetInnerHTML={{ __html: currentTheme.styles.decorations }} />
       )}
       
   <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
-  <div className={currentTheme.styles.card} style={{ marginBottom: '0', ...(isTransparent ? { background: 'transparent', backdropFilter: 'none', WebkitBackdropFilter: 'none', border: 'none', boxShadow: 'none' } : {}) }}>
+  <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)}`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius), ...(isTransparent ? { background: 'transparent', backdropFilter: 'none', WebkitBackdropFilter: 'none', border: 'none', boxShadow: 'none' } : {}) }}>
         {/* Client Header */}
     {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
@@ -2205,263 +2215,64 @@ export default function FormEmbed() {
           </div>
         )}
         
-        {!embedHideTitle && (
-          <h1 className={currentTheme.styles.text.heading}>{formName}</h1>
-        )}
-        <p className={currentTheme.styles.text.body}>{step.title}</p>
-        {step.description && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{step.description}</p>
-        )}
+        {/* Step Progress Stepper */}
+        <StepperProgress
+          currentStepIndex={currentStepIndex}
+          totalSteps={steps.length}
+          steps={steps}
+          themeConfig={currentTheme}
+          primaryColor={formColors.primaryButtonColor}
+          variant={steps.length <= 6 ? 'numbers' : 'bar'}
+        />
 
-        <div className={currentTheme.styles.progress}>
-          <div 
-            className="progress-bar h-full rounded-full transition-all duration-500" 
-            style={{ 
-              width: `${percent}%`,
-              background: formTheme === 'soft-ui' 
-                ? 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)'
-                : formColors.primaryButtonColor
-            }}
-          />
-        </div>
-        <div className="text-sm text-slate-500 text-right mt-1">{percent}%</div>
+        {!embedHideTitle && (
+          <h1 className={currentTheme.styles.text.heading}>{step.title || formName}</h1>
+        )}
+        {step.description && (
+          <p className={currentTheme.styles.text.subheading || currentTheme.styles.text.body}>{step.description}</p>
+        )}
 
         {step.question_type === 'contact_fields' ? (
           <div className="mt-6">
-            <div className="bg-gray-50 rounded-lg p-6">
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Get Your Free Quote</h3>
-                <p className="text-gray-600">Tell us about your project and we'll provide a personalised quote</p>
-                <div className="text-blue-600 text-sm mt-2">Your Selection: {step.title}</div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="firstName" className={currentTheme.styles.text.label}>
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="firstName"
-                      type="text"
-                      value={responses[currentStepIndex]?.contact_name?.split(' ')[0] || ''}
-                      onChange={(e) => {
-                        const currentResponse = responses[currentStepIndex] || {}
-                        const lastName = currentResponse.contact_name?.split(' ').slice(1).join(' ') || ''
-                        const fullName = e.target.value + (lastName ? ' ' + lastName : '')
-                        setResponses(r => ({
-                          ...r,
-                          [currentStepIndex]: {
-                            ...currentResponse,
-                            contact_name: fullName
-                          }
-                        }))
-                      }}
-                      placeholder="Enter your first name"
-                      className={currentTheme.styles.input}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="lastName" className={currentTheme.styles.text.label}>
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="lastName"
-                      type="text"
-                      value={responses[currentStepIndex]?.contact_name?.split(' ').slice(1).join(' ') || ''}
-                      onChange={(e) => {
-                        const currentResponse = responses[currentStepIndex] || {}
-                        const firstName = currentResponse.contact_name?.split(' ')[0] || ''
-                        const fullName = firstName + (e.target.value ? ' ' + e.target.value : '')
-                        setResponses(r => ({
-                          ...r,
-                          [currentStepIndex]: {
-                            ...currentResponse,
-                            contact_name: fullName
-                          }
-                        }))
-                      }}
-                      placeholder="Enter your last name"
-                      className={currentTheme.styles.input}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="email" className={currentTheme.styles.text.label}>
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={responses[currentStepIndex]?.contact_email || ''}
-                    onChange={(e) => setResponses(r => ({
-                      ...r,
-                      [currentStepIndex]: {
-                        ...(r[currentStepIndex] || {}),
-                        contact_email: e.target.value
-                      }
-                    }))}
-                    placeholder="Enter your email address"
-                    className={currentTheme.styles.input}
-                    required
-                  />
-                </div>
-
-                {(step.contact_show_phone ?? true) && (
-                <div>
-                  <label htmlFor="phone" className={currentTheme.styles.text.label}>
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={responses[currentStepIndex]?.contact_phone || ''}
-                    onChange={(e) => setResponses(r => ({
-                      ...r,
-                      [currentStepIndex]: {
-                        ...(r[currentStepIndex] || {}),
-                        contact_phone: e.target.value
-                      }
-                    }))}
-                    placeholder="Enter your phone number"
-                    className={currentTheme.styles.input}
-                    required
-                  />
-                </div>
-                )}
-
-                {(step.contact_show_address ?? true) && (
-                <div>
-                  <label htmlFor="address" className={currentTheme.styles.text.label}>
-                    Property Address <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="address"
-                    value={responses[currentStepIndex]?.contact_postcode || ''}
-                    onChange={(e) => setResponses(r => ({
-                      ...r,
-                      [currentStepIndex]: {
-                        ...(r[currentStepIndex] || {}),
-                        contact_postcode: e.target.value
-                      }
-                    }))}
-                    placeholder="Enter your full address"
-                    rows={3}
-                    className={`${currentTheme.styles.input} resize-none`}
-                    required
-                  />
-                </div>
-                )}
-
-                {(step.contact_show_project_details ?? true) && (
-                <div>
-                  <label htmlFor="projectDetails" className={currentTheme.styles.text.label}>
-                    Project Details
-                  </label>
-                  <textarea
-                    id="projectDetails"
-                    value={responses[currentStepIndex]?.project_details || ''}
-                    onChange={(e) => setResponses(r => ({
-                      ...r,
-                      [currentStepIndex]: {
-                        ...(r[currentStepIndex] || {}),
-                        project_details: e.target.value,
-                        answer_text: e.target.value // Store in answer_text for compatibility
-                      }
-                    }))}
-                    placeholder="Tell us more about your project, preferred timeline, budget range, etc."
-                    rows={4}
-                    className={`${currentTheme.styles.input} resize-none`}
-                  />
-                </div>
-                )}
-
-                {(step.contact_show_preferred_contact ?? true) && (
-                <div>
-                  <label htmlFor="preferredContact" className={currentTheme.styles.text.label}>
-                    Preferred Contact Method <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="preferredContact"
-                    value={responses[currentStepIndex]?.preferred_contact || ''}
-                    onChange={(e) => setResponses(r => ({
-                      ...r,
-                      [currentStepIndex]: {
-                        ...(r[currentStepIndex] || {}),
-                        preferred_contact: e.target.value
-                      }
-                    }))}
-                    className={currentTheme.styles.input}
-                    required
-                  >
-                    <option value="">Select preferred contact method</option>
-                    <option value="Phone Call">Phone Call</option>
-                    <option value="Email">Email</option>
-                    <option value="Both">Both</option>
-                  </select>
-                </div>
-                )}
-
-                {(step.contact_show_file_upload ?? true) && (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                     onClick={() => {
-                       const input = document.createElement('input')
-                       input.type = 'file'
-                       input.accept = 'image/*,application/pdf'
-                       input.multiple = true
-                       input.onchange = (e) => {
-                         const files = Array.from((e.target as HTMLInputElement).files || [])
-                         if (files.length > 0) {
-                           // For now, just store the first file
-                           handleFileUpload(files[0])
-                         }
-                       }
-                       input.click()
-                     }}>
-                  <div className="flex flex-col items-center">
-                    <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-lg font-medium text-gray-600 mb-1">
-                      Upload Plans or Reference Images (Optional)
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Click to upload or drag and drop<br/>
-                      PNG, JPG, PDF up to 10MB each
-                    </p>
-                  </div>
-                </div>
-                )}
-
-                {responses[currentStepIndex]?.file && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-sm font-medium text-green-800">{responses[currentStepIndex]?.file?.name}</span>
-                      </div>
-                      <button
-                        onClick={() => setResponses(r => ({
-                          ...r,
-                          [currentStepIndex]: {
-                            ...(r[currentStepIndex] || {}),
-                            file: undefined
-                          }
-                        }))}
-                        className="text-green-600 hover:text-green-800 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ModernFieldGroup
+              data={{
+                contact_name: responses[currentStepIndex]?.contact_name,
+                contact_email: responses[currentStepIndex]?.contact_email,
+                contact_phone: responses[currentStepIndex]?.contact_phone,
+                contact_postcode: responses[currentStepIndex]?.contact_postcode,
+                preferred_contact_method: responses[currentStepIndex]?.preferred_contact,
+                file: responses[currentStepIndex]?.file,
+              }}
+              onChange={(updated) => {
+                setResponses(r => ({
+                  ...r,
+                  [currentStepIndex]: {
+                    ...(r[currentStepIndex] || {}),
+                    ...(updated.contact_name !== undefined ? { contact_name: updated.contact_name } : {}),
+                    ...(updated.contact_email !== undefined ? { contact_email: updated.contact_email } : {}),
+                    ...(updated.contact_phone !== undefined ? { contact_phone: updated.contact_phone } : {}),
+                    ...(updated.contact_postcode !== undefined ? { contact_postcode: updated.contact_postcode } : {}),
+                    ...(updated.preferred_contact_method !== undefined ? { preferred_contact: updated.preferred_contact_method } : {}),
+                  }
+                }))
+              }}
+              themeConfig={currentTheme}
+              primaryColor={formColors.primaryButtonColor}
+              showPhone={step.contact_show_phone ?? true}
+              showAddress={step.contact_show_address ?? true}
+              showPreferredContact={step.contact_show_preferred_contact ?? true}
+              showFileUpload={step.contact_show_file_upload ?? true}
+              onFileUpload={(file) => handleFileUpload(file)}
+              onFileRemove={() => {
+                setResponses(r => ({
+                  ...r,
+                  [currentStepIndex]: {
+                    ...(r[currentStepIndex] || {}),
+                    file: undefined
+                  }
+                }))
+              }}
+            />
           </div>
         ) : step.question_type === 'file_upload' ? (
           <div className="mt-6">
@@ -3098,66 +2909,66 @@ export default function FormEmbed() {
             </div>
           </div>
         ) : (
-          <div 
-            className={`grid gap-4 mt-6 grid-auto-rows-fr ${!step.crop_images_to_square ? 'items-start' : ''} ${(() => {
-              const desktop = step.images_per_row || 2
-              const mobile = step.mobile_images_per_row
-              if (mobile != null) {
-                // Explicit mobile setting: use clean 2-breakpoint layout
-                const mobileClass = mobile === 2 ? 'grid-cols-2' : mobile === 3 ? 'grid-cols-3' : 'grid-cols-1'
-                if (desktop === 1) return 'grid-cols-1'
-                if (desktop === mobile) return mobileClass
-                const desktopClass = desktop === 2 ? 'md:grid-cols-2' : desktop === 3 ? 'md:grid-cols-3' : desktop === 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
-                return `${mobileClass} ${desktopClass}`
-              }
-              // Legacy: preserve existing breakpoint behaviour
-              if (desktop === 1) return 'grid-cols-1'
-              if (desktop === 2) return 'grid-cols-1 sm:grid-cols-2'
-              if (desktop === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-              if (desktop === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-              return 'grid-cols-1 sm:grid-cols-2'
-            })()}`}
-          >
-            {step.options.map((opt: any, index: number) => (
-              <AnimatedImageCard
-                key={opt.id}
-                option={opt}
-                isSelected={responses[currentStepIndex]?.option_id === opt.id}
-                onClick={() => selectOption(opt)}
-                isAnimating={isAnimating}
-                animationDirection={animationDirection}
-                index={index}
-                cropImagesToSquare={step.crop_images_to_square ?? true}
-              />
-            ))}
+          <div className="mt-6">
+            {step.options && step.options.length > 0 && (
+              step.options.some((o: any) => o.image_url) ? (
+                <PictureChoiceGrid
+                  options={step.options}
+                  selectedOptionId={responses[currentStepIndex]?.option_id}
+                  onSelect={(opt) => selectOption(opt)}
+                  themeConfig={currentTheme}
+                  primaryColor={formColors.primaryButtonColor}
+                  desktopColumns={step.images_per_row || 2}
+                  mobileColumns={step.mobile_images_per_row || 1}
+                  cropImagesToSquare={step.crop_images_to_square ?? true}
+                />
+              ) : (
+                <OptionCard
+                  options={step.options}
+                  selectedOptionId={responses[currentStepIndex]?.option_id}
+                  onSelect={(opt) => selectOption(opt)}
+                  themeConfig={currentTheme}
+                  primaryColor={formColors.primaryButtonColor}
+                />
+              )
+            )}
           </div>
         )}
 
-        <div className="flex justify-between items-center gap-2 mt-6">
+        <div className="flex justify-between items-center gap-3 mt-8 pt-4 border-t border-slate-200/50">
           <button 
+            type="button"
             onClick={goPrev} 
             disabled={currentStepIndex === 0} 
-            className={`${currentTheme.styles.button.secondary} ${currentStepIndex === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`${currentTheme.styles.button.secondary} ${getButtonRadiusClass(buttonRadius)} ${currentStepIndex === 0 ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
             style={{
               backgroundColor: formColors.secondaryButtonColor,
-              color: formColors.secondaryButtonTextColor
+              color: formColors.secondaryButtonTextColor,
+              backgroundImage: 'none',
+              borderRadius: getButtonRadiusValue(buttonRadius),
             }}
           >
-            Previous
+            ← Previous
           </button>
+          
           <div className="flex items-center gap-2">
             <button 
+              type="button"
               onClick={(e) => goNext(e)} 
-              className={currentTheme.styles.button.primary}
+              className={`${currentTheme.styles.button.primary} ${getButtonRadiusClass(buttonRadius)}`}
               style={{
                 backgroundColor: formColors.primaryButtonColor,
                 color: formColors.primaryButtonTextColor,
-                backgroundImage: 'none'
+                backgroundImage: 'none',
+                borderRadius: getButtonRadiusValue(buttonRadius),
               }}
             >
-              {currentStepIndex === steps.length - 1 
-                ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit') 
-                : 'Next'}
+              <span>
+                {currentStepIndex === steps.length - 1 
+                  ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit Form') 
+                  : 'Next Step'}
+              </span>
+              <span className="text-base font-bold">→</span>
             </button>
           </div>
         </div>
