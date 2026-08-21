@@ -352,293 +352,215 @@ export default function Responses() {
   }, [searchTerm, selectedForm, selectedClient, pageSize])
 
   return (
-    <div className="p-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <div className="animate-slide-up">
-          <h1 className="text-4xl font-bold text-zinc-900 dark:text-white">
-            {userType === 'client' ? `${clientData?.name} - Form Responses` : 'Responses'}
-          </h1>
-          <p className="text-gray-600 dark:text-white/70 mt-2 text-lg">
-            {userType === 'client' 
-              ? 'View and export your form submissions' 
-              : 'View and export form submissions'
-            }
-          </p>
+    <div className="w-full max-w-7xl mx-auto p-6 md:p-8 space-y-5 animate-fade-in font-sans">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {userType === 'client' ? `${clientData?.name} - Form Responses` : 'Responses'}
+        </h1>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+          {userType === 'client' 
+            ? 'View and export your form submissions.' 
+            : 'View and export all client form submissions.'
+          }
+        </p>
+      </div>
+
+      {/* Action & Stats summary */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportToCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </button>
         </div>
-        <button
-          onClick={exportToCSV}
-          className="flex items-center px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-full font-medium transition-all duration-200 hover:scale-105 animate-slide-up"
-          style={{animationDelay: '0.2s'}}
+
+        {/* Compact stats pill summary */}
+        <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+          <span>Total: <strong className="text-zinc-900 dark:text-white font-semibold">{stats.total}</strong></span>
+          <span>Today: <strong className="text-zinc-900 dark:text-white font-semibold">{stats.today}</strong></span>
+          <span>This Week: <strong className="text-zinc-900 dark:text-white font-semibold">{stats.thisWeek}</strong></span>
+          <span>This Month: <strong className="text-zinc-900 dark:text-white font-semibold">{stats.thisMonth}</strong></span>
+        </div>
+      </div>
+
+      {/* OpenAI Search & Filter Chips Row */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        {/* Search */}
+        <div className="relative min-w-[220px] max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-zinc-400 w-3.5 h-3.5" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-8 pr-3 py-1 bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600"
+            placeholder="Search..."
+          />
+        </div>
+
+        {/* Filter select for Form */}
+        <select
+          value={selectedForm}
+          onChange={(e) => setSelectedForm(e.target.value)}
+          className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none cursor-pointer"
         >
-          <Download className="w-5 h-5 mr-2" />
-          Export CSV
+          <option value="" className="bg-white dark:bg-[#18181b] text-zinc-900 dark:text-white">All Forms</option>
+          {forms.map((form) => (
+            <option key={form.id} value={form.name} className="bg-white dark:bg-[#18181b] text-zinc-900 dark:text-white">
+              {form.name}
+            </option>
+          ))}
+        </select>
+
+        {userType === 'admin' && (
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none cursor-pointer"
+          >
+            <option value="" className="bg-white dark:bg-[#18181b] text-zinc-900 dark:text-white">All Clients</option>
+            {clients.map((client) => (
+              <option key={client.name} value={client.name} className="bg-white dark:bg-[#18181b] text-zinc-900 dark:text-white">
+                {client.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* Active Filter Chip */}
+        <button
+          type="button"
+          className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5"
+        >
+          <span>✓ Active</span>
         </button>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in" style={{animationDelay: '0.2s'}}>
-        {/* Total Responses */}
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-6 transition-all duration-200 hover:scale-[1.02]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-zinc-400">Total Responses</h3>
-            <div className="w-10 h-10 bg-zinc-800 border border-zinc-700/50 text-zinc-400 rounded-xl flex items-center justify-center">
-              <FileText className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-white">{stats.total}</p>
-        </div>
-
-        {/* Today */}
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-6 transition-all duration-200 hover:scale-[1.02]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-zinc-400">Today</h3>
-            <div className="w-10 h-10 bg-zinc-800 border border-zinc-700/50 text-zinc-400 rounded-xl flex items-center justify-center">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-white">{stats.today}</p>
-        </div>
-
-        {/* This Week */}
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-6 transition-all duration-200 hover:scale-[1.02]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-zinc-400">This Week</h3>
-            <div className="w-10 h-10 bg-zinc-800 border border-zinc-700/50 text-zinc-400 rounded-xl flex items-center justify-center">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-white">{stats.thisWeek}</p>
-        </div>
-
-        {/* This Month */}
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-6 transition-all duration-200 hover:scale-[1.02]">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-zinc-400">This Month</h3>
-            <div className="w-10 h-10 bg-zinc-800 border border-zinc-700/50 text-zinc-400 rounded-xl flex items-center justify-center">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-white">{stats.thisMonth}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-6 mb-8 shadow-sm animate-fade-in" style={{animationDelay: '0.3s'}}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Search
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-500 w-5 h-5" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-[#282829] border border-zinc-700/50 rounded-xl text-white placeholder-zinc-500 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 focus:outline-none"
-                placeholder="Search by name or email..."
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              Form
-            </label>
-            <select
-              value={selectedForm}
-              onChange={(e) => setSelectedForm(e.target.value)}
-              className="w-full px-3 py-3 bg-[#282829] border border-zinc-700/50 rounded-xl text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 focus:outline-none cursor-pointer"
-            >
-              <option value="" className="bg-[#1e1e1f] text-white">All Forms</option>
-              {forms.map((form) => (
-                <option key={form.id} value={form.name} className="bg-[#1e1e1f] text-white">
-                  {form.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {userType === 'admin' && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">
-                Client
-              </label>
-              <select
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                className="w-full px-3 py-3 bg-[#282829] border border-zinc-700/50 rounded-xl text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 focus:outline-none cursor-pointer"
-              >
-                <option value="" className="bg-[#1e1e1f] text-white">All Clients</option>
-                {clients.map((client) => (
-                  <option key={client.name} value={client.name} className="bg-[#1e1e1f] text-white">
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              From Date
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-3 bg-[#282829] border border-zinc-700/50 rounded-xl text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-2">
-              To Date
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-3 bg-[#282829] border border-zinc-700/50 rounded-xl text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/40">
-          <span className="text-sm text-zinc-400 px-3 py-1.5 bg-[#282829] rounded-xl border border-zinc-750">
-            {filteredResponses.length} of {responses.length} responses
-          </span>
-          <div className="flex items-center space-x-2">
-            <label className="text-sm text-zinc-400">Page size:</label>
-            <select
-              value={pageSize}
-              onChange={e => setPageSize(Number(e.target.value))}
-              className="px-4 py-2 rounded-xl border border-zinc-700/50 bg-[#282829] text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 focus:outline-none shadow-sm cursor-pointer appearance-none"
-              style={{ minWidth: 70 }}
-            >
-              <option value={10} className="bg-[#1e1e1f] text-white">10</option>
-              <option value={20} className="bg-[#1e1e1f] text-white">20</option>
-              <option value={30} className="bg-[#1e1e1f] text-white">30</option>
-            </select>
-          </div>
-        </div>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-1 font-normal">
+          {filteredResponses.length} result{filteredResponses.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {loading ? (
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 overflow-hidden shadow-sm animate-pulse p-8 space-y-4">
+        <div className="space-y-3 pt-2">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-zinc-800 rounded-full"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-zinc-800 rounded w-48"></div>
-                <div className="h-3 bg-zinc-800 rounded w-32"></div>
-              </div>
-              <div className="h-3 bg-zinc-800 rounded w-24"></div>
-            </div>
+            <div key={i} className="h-10 rounded-lg bg-zinc-100 dark:bg-zinc-900/60 animate-pulse border border-zinc-200/50 dark:border-zinc-800/40" />
           ))}
         </div>
       ) : filteredResponses.length === 0 ? (
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-12 text-center shadow-sm animate-fade-in" style={{animationDelay: '0.4s'}}>
-          <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-700/40">
-            <User className="w-8 h-8 text-zinc-400" />
+        <div className="text-center py-16">
+          <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+            <User className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">No responses yet</h3>
-          <p className="text-zinc-400">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">No responses yet</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {searchTerm || selectedForm 
-              ? 'No responses match your current filters'
-              : 'Responses will appear here when users submit your forms'
+              ? 'No responses match your current search filters.'
+              : 'Responses will appear here when users submit your forms.'
             }
           </p>
         </div>
       ) : (
-        <div className="bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 overflow-hidden shadow-sm animate-fade-in" style={{animationDelay: '0.4s'}}>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="border-b border-zinc-800/60 bg-[#1e1e1f]">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-zinc-300">
-                    Contact
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-zinc-300">
-                    Form
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-zinc-300">
-                    Client
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-zinc-300">
-                    Submitted
-                  </th>
-                  <th className="relative px-6 py-4">
-                    <span className="sr-only">Actions</span>
-                  </th>
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse font-sans">
+            <thead>
+              <tr className="border-b border-zinc-200 dark:border-zinc-800/80 text-[11px] font-normal text-zinc-400 dark:text-zinc-500">
+                <th className="py-2.5 px-3 font-normal">
+                  Contact
+                </th>
+                <th className="py-2.5 px-3 font-normal">
+                  Form
+                </th>
+                <th className="py-2.5 px-3 font-normal">
+                  Client
+                </th>
+                <th className="py-2.5 px-3 font-normal">
+                  Submitted
+                </th>
+                <th className="py-2.5 px-3 text-right font-normal">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedResponses.map((response, index) => (
+                <tr key={response.id} className="border-b border-zinc-200/70 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-[#18181b]/70 transition-colors text-xs text-zinc-800 dark:text-zinc-300 group select-none">
+                  <td className="py-2.5 px-3">
+                    <div>
+                      <div className="text-xs font-medium text-zinc-900 dark:text-zinc-200">
+                        {response.contact_name || 'Anonymous'}
+                      </div>
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {response.contact_email}
+                      </div>
+                      {response.contact_phone && (
+                        <div className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                          {response.contact_phone}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                      {response.forms?.[0]?.name}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-xs text-zinc-600 dark:text-zinc-400">
+                    {response.forms?.[0]?.clients?.name || '-'}
+                  </td>
+                  <td className="py-2.5 px-3 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                    {new Date(response.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td className="py-2.5 px-3 text-right">
+                    <button 
+                      onClick={() => navigate(`/response/${response.id}`)}
+                      className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                      title="View Details"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/40">
-                {paginatedResponses.map((response, index) => (
-                  <tr key={response.id} className="hover:bg-zinc-800/30 transition-all duration-200 group animate-slide-up" style={{animationDelay: `${0.1 * index}s`}}>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-white">
-                          {response.contact_name || 'Anonymous'}
-                        </div>
-                        <div className="text-sm text-zinc-400">
-                          {response.contact_email}
-                        </div>
-                        {response.contact_phone && (
-                          <div className="text-sm text-zinc-500">
-                            {response.contact_phone}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-zinc-700/50 text-zinc-300 bg-transparent">
-                        {response.forms?.[0]?.name}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-zinc-300">
-                      {response.forms?.[0]?.clients?.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-zinc-400">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2 text-zinc-500" />
-                        {new Date(response.submitted_at).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => navigate(`/response/${response.id}`)}
-                        className="inline-flex items-center px-4 py-2 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 hover:text-white text-sm rounded-full font-medium transition-all duration-200 border border-zinc-700/50 shadow-sm"
-                      >
-                        <Eye className="w-4 h-4 mr-2 text-zinc-400" />
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       {/* Pagination Controls */}
-      <div className="flex justify-end items-center mt-4 space-x-2">
-        <button
-          className="px-4 py-2 rounded-full border border-zinc-750 bg-[#1e1e1f] text-zinc-300 hover:text-white hover:bg-zinc-800 font-medium shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
-          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-        >
-          Prev
-        </button>
-        <span className="text-sm text-zinc-400">Page {currentPage} of {totalPages}</span>
-        <button
-          className="px-4 py-2 rounded-full border border-zinc-750 bg-[#1e1e1f] text-zinc-300 hover:text-white hover:bg-zinc-800 font-medium shadow-sm transition-all duration-200 disabled:opacity-30 disabled:pointer-events-none"
-          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages || totalPages === 0}
-        >
-          Next
-        </button>
+      <div className="flex justify-between items-center pt-3 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="flex items-center space-x-2">
+          <span>Page size:</span>
+          <select
+            value={pageSize}
+            onChange={e => setPageSize(Number(e.target.value))}
+            className="px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-900 dark:text-white focus:outline-none cursor-pointer"
+          >
+            <option value={10} className="bg-white dark:bg-[#18181b]">10</option>
+            <option value={20} className="bg-white dark:bg-[#18181b]">20</option>
+            <option value={30} className="bg-white dark:bg-[#18181b]">30</option>
+          </select>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span>Page {currentPage} of {totalPages || 1}</span>
+          <button
+            className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <button
+            className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   )

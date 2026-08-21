@@ -12,7 +12,6 @@ import FolderModal from '../components/folders/FolderModal'
 import FolderBadge from '../components/folders/FolderBadge'
 import BulkActions from '../components/folders/BulkActions'
 import { FormCard } from '../components/ui/form-card'
-import { Pagination } from '../components/ui/pagination'
 import { 
   getFolders, 
   createFolder, 
@@ -64,10 +63,6 @@ export default function Forms() {
     currentStep: '',
     progress: 0
   })
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
   
   // Folder state
   const [folders, setFolders] = useState<FolderType[]>([])
@@ -582,17 +577,6 @@ export default function Forms() {
     }
   })
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredForms.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const endIndex = startIndex + ITEMS_PER_PAGE
-  const paginatedForms = filteredForms.slice(startIndex, endIndex)
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, selectedFolderId])
-
   return (
     <>
       {/* Folder Modal */}
@@ -639,22 +623,22 @@ export default function Forms() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto bg-white dark:bg-[#0d0d0d]">
-          <div className="p-8 space-y-6 max-w-6xl mx-auto">
+          <div className="p-8 space-y-5 max-w-6xl mx-auto">
             {/* OpenAI API Keys-Style Header */}
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
                 Forms
               </h1>
 
-              {/* Underline Tabs (OpenAI API Keys / Settings style) */}
+              {/* Underline Tabs */}
               <div className="flex items-center gap-6 border-b border-zinc-200 dark:border-zinc-800 mt-4 text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setSelectedFolderId(null)}
-                  className={`pb-3 relative transition-colors ${
+                  className={`pb-2.5 relative transition-colors ${
                     selectedFolderId === null
                       ? 'text-zinc-950 dark:text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-zinc-950 dark:after:bg-white'
-                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
                   }`}
                 >
                   All Forms
@@ -662,10 +646,10 @@ export default function Forms() {
                 <button
                   type="button"
                   onClick={() => setSelectedFolderId('uncategorized')}
-                  className={`pb-3 relative transition-colors ${
+                  className={`pb-2.5 relative transition-colors ${
                     selectedFolderId === 'uncategorized'
                       ? 'text-zinc-950 dark:text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-zinc-950 dark:after:bg-white'
-                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
                   }`}
                 >
                   Uncategorized
@@ -673,156 +657,133 @@ export default function Forms() {
               </div>
             </div>
 
-            {/* OpenAI Action Bar (+ Create form, Search, Filter pills) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <div className="flex items-center gap-2 flex-wrap">
+            {/* Top Action Row */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2">
                 <button 
                   onClick={() => setIsTypeModalOpen(true)} 
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full font-bold text-xs shadow-sm transition-all hover:scale-[1.01]"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-semibold text-xs shadow-xs transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Create new form</span>
                 </button>
+              </div>
+            </div>
 
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-[#18181b] text-xs font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5"
+            {/* OpenAI Search & Filter Chips Row */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {/* Search Pill */}
+              <div className="relative min-w-[200px] max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1 bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600"
+                />
+              </div>
+
+              {/* Active Filter Chip */}
+              <button
+                type="button"
+                className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <span>✓ Active</span>
+              </button>
+
+              {/* Add Filter Chip */}
+              <button
+                type="button"
+                className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add filter</span>
+              </button>
+
+              <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-1 font-normal">
+                {filteredForms.length} result{filteredForms.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3 pt-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-10 rounded-lg bg-zinc-100 dark:bg-zinc-900/60 animate-pulse border border-zinc-200/50 dark:border-zinc-800/40" />
+                ))}
+              </div>
+            ) : forms.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                </div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">No forms yet</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-4 text-xs max-w-md mx-auto">Create your first form to start collecting responses.</p>
+                <button 
+                  onClick={() => setIsTypeModalOpen(true)} 
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-semibold text-xs shadow-xs"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>Active</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Your First Form</span>
                 </button>
               </div>
-
-              <div className="flex items-center gap-3">
-                <div className="relative min-w-[240px]">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                  <input
-                    type="text"
-                    placeholder="Search forms..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-4 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  />
+            ) : filteredForms.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
                 </div>
-                <span className="text-xs text-zinc-400 font-medium">
-                  {filteredForms.length} result{filteredForms.length !== 1 ? 's' : ''}
-                </span>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">No forms found</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-4 text-xs max-w-md mx-auto">No forms match your search query.</p>
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="px-3.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Clear Search
+                </button>
               </div>
-            </div>
-
-
-      {loading ? (
-        <div className="space-y-6">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
-              theme === 'light' 
-                ? 'bg-white/50 border-gray-200' 
-                : 'bg-white/10 border-white/20'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="space-y-3">
-                  <div className={`h-6 rounded-lg w-48 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-4 rounded-lg w-32 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-3 rounded-lg w-24 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
+            ) : (
+              <>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-left border-collapse font-sans">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800/80 text-[11px] font-normal text-zinc-400 dark:text-zinc-500">
+                        <th className="py-2.5 px-3">Name</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Workspace</th>
+                        <th className="py-2.5 px-3">Responses</th>
+                        <th className="py-2.5 px-3">Created</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredForms.map((form, index) => (
+                        <FormCard
+                          key={form.id}
+                          form={form}
+                          index={index}
+                          responseCount={responseCounts[form.id] || 0}
+                          isSelected={selectedFormIds.has(form.id)}
+                          onToggleSelect={() => toggleFormSelection(form.id)}
+                          onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
+                          onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
+                          onCopyEmbed={() => copyEmbedCode(form.id)}
+                          onPreview={() => window.open(`/form/${form.id}`, '_blank')}
+                          onEdit={() => openEditModal(form.id)}
+                          onDuplicate={() => duplicateForm(form.id)}
+                          onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
+                          onDelete={() => deleteForm(form.id)}
+                          folders={folders}
+                          openMenuId={openMenuId}
+                          onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
+                          theme={theme}
+                          FolderBadge={FolderBadge}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex space-x-3">
-                  <div className={`h-10 w-24 rounded-lg ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-10 w-10 rounded-lg ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : forms.length === 0 ? (
-        <div className="text-center py-16 animate-fade-in">
-          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <FileText className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
-          </div>
-          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No forms yet</h3>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-base max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
-          <button 
-            onClick={() => setIsTypeModalOpen(true)} 
-            className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Your First Form
-          </button>
-        </div>
-      ) : filteredForms.length === 0 ? (
-        <div className="text-center py-16 animate-fade-in">
-          <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <Search className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
-          </div>
-          <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">No forms found</h3>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-base max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150"
-          >
-            Clear Search
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="w-full overflow-x-auto border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white dark:bg-[#121212]">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                  <th className="py-3 px-4">Name</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Workspace</th>
-                  <th className="py-3 px-4">Responses</th>
-                  <th className="py-3 px-4">Created</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedForms.map((form, index) => (
-                  <FormCard
-                    key={form.id}
-                    form={form}
-                    index={index}
-                    responseCount={responseCounts[form.id] || 0}
-                    isSelected={selectedFormIds.has(form.id)}
-                    onToggleSelect={() => toggleFormSelection(form.id)}
-                    onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
-                    onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
-                    onCopyEmbed={() => copyEmbedCode(form.id)}
-                    onPreview={() => window.open(`/form/${form.id}`, '_blank')}
-                    onEdit={() => openEditModal(form.id)}
-                    onDuplicate={() => duplicateForm(form.id)}
-                    onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
-                    onDelete={() => deleteForm(form.id)}
-                    folders={folders}
-                    openMenuId={openMenuId}
-                    onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
-                    theme={theme}
-                    FolderBadge={FolderBadge}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            theme={theme}
-          />
-        </>
-      )}
+              </>
+            )}
 
           </div>
         </div>

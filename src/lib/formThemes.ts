@@ -375,10 +375,12 @@ export interface FormDesignMeta {
   theme?: FormTheme;
   buttonRadius?: string;
   cardRadius?: string;
+  headingColor?: string;
+  descriptionColor?: string;
 }
 
 /**
- * Extracts design metadata (theme, button radius, card radius) seamlessly from description or formTheme
+ * Extracts design metadata (theme, button radius, card radius, headingColor, descriptionColor) seamlessly from description or formTheme
  */
 export function extractDesignMeta(
   description?: string | null,
@@ -387,11 +389,15 @@ export function extractDesignMeta(
   theme: FormTheme;
   buttonRadius: string;
   cardRadius: string;
+  headingColor?: string;
+  descriptionColor?: string;
   cleanDescription: string;
 } {
   let theme: FormTheme = 'generic';
   let buttonRadius = 'xl';
   let cardRadius = '2xl';
+  let headingColor: string | undefined = undefined;
+  let descriptionColor: string | undefined = undefined;
   let cleanDescription = description || '';
 
   // 1. Check metadata embedded in description: <!--style:{...}-->
@@ -403,6 +409,8 @@ export function extractDesignMeta(
         if (parsed.theme && formThemes[parsed.theme]) theme = parsed.theme;
         if (parsed.buttonRadius) buttonRadius = parsed.buttonRadius;
         if (parsed.cardRadius) cardRadius = parsed.cardRadius;
+        if (parsed.headingColor) headingColor = parsed.headingColor;
+        if (parsed.descriptionColor) descriptionColor = parsed.descriptionColor;
       }
       cleanDescription = description.replace(/<!--style:.*?-->/g, '').trim();
     } catch (e) {
@@ -417,6 +425,8 @@ export function extractDesignMeta(
         const [k, v] = parts[i].split(':');
         if (k === 'button' && v) buttonRadius = v;
         if (k === 'card' && v) cardRadius = v;
+        if (k === 'heading' && v) headingColor = v.startsWith('#') ? v : `#${v}`;
+        if (k === 'description' && v) descriptionColor = v.startsWith('#') ? v : `#${v}`;
       }
     }
   }
@@ -443,6 +453,8 @@ export function extractDesignMeta(
     theme: validTheme,
     buttonRadius,
     cardRadius,
+    headingColor,
+    descriptionColor,
     cleanDescription,
   };
 }
@@ -468,7 +480,7 @@ export function getThemeConfig(themeRaw?: string): FormThemeConfig {
 }
 
 /**
- * Parses composite theme string e.g. "soft-ui|button:full|card:3xl"
+ * Parses composite theme string e.g. "soft-ui|button:full|card:3xl|heading:#000000|description:#666666"
  */
 export function parseThemeString(
   themeString?: string | null,
@@ -477,6 +489,8 @@ export function parseThemeString(
   theme: FormTheme;
   buttonRadius: string;
   cardRadius: string;
+  headingColor?: string;
+  descriptionColor?: string;
 } {
   return extractDesignMeta(undefined, themeString);
 }
@@ -490,14 +504,19 @@ export function cleanColorString(colorString?: string | null): string {
 }
 
 /**
- * Encodes theme, button radius, and card radius into string
+ * Encodes theme, button radius, card radius, and custom typography colors into string
  */
 export function encodeThemeString(
   theme: FormTheme,
   buttonRadius: string = 'xl',
-  cardRadius: string = '2xl'
+  cardRadius: string = '2xl',
+  headingColor?: string,
+  descriptionColor?: string
 ): string {
-  return `${theme}|button:${buttonRadius}|card:${cardRadius}`;
+  let str = `${theme}|button:${buttonRadius}|card:${cardRadius}`;
+  if (headingColor) str += `|heading:${headingColor.replace('#', '')}`;
+  if (descriptionColor) str += `|description:${descriptionColor.replace('#', '')}`;
+  return str;
 }
 
 export function getButtonRadiusValue(radius?: string): string {

@@ -70,10 +70,10 @@ export const FormCard: React.FC<FormCardProps> = ({
   }, [form.created_at])
 
   return (
-    <tr className={`border-b border-zinc-200 dark:border-zinc-800/80 hover:bg-zinc-50 dark:hover:bg-[#18181b]/50 transition-colors text-xs text-zinc-900 dark:text-zinc-200 group select-none font-sans ${isSelected ? 'bg-zinc-100 dark:bg-[#18181b]' : ''}`}>
+    <tr className={`border-b border-zinc-200/70 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-[#18181b]/70 transition-colors text-xs text-zinc-800 dark:text-zinc-300 group select-none font-sans ${isSelected ? 'bg-zinc-100 dark:bg-[#18181b]' : ''}`}>
       {/* Checkbox + Name */}
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-3">
+      <td className="py-2.5 px-3">
+        <div className="flex items-center gap-2.5">
           <input
             type="checkbox"
             checked={isSelected}
@@ -84,7 +84,7 @@ export const FormCard: React.FC<FormCardProps> = ({
             <button
               type="button"
               onClick={onEdit}
-              className="font-medium text-xs text-zinc-900 dark:text-zinc-100 hover:underline text-left truncate block max-w-[200px] sm:max-w-[280px]"
+              className="font-medium text-xs text-zinc-900 dark:text-zinc-200 hover:text-zinc-950 dark:hover:text-white truncate block max-w-[200px] sm:max-w-[260px] text-left"
             >
               {form.name || 'Untitled Form'}
             </button>
@@ -97,42 +97,39 @@ export const FormCard: React.FC<FormCardProps> = ({
         </div>
       </td>
 
-      {/* Status */}
-      <td className="py-3 px-4">
-        <span className="inline-flex items-center gap-1.5 text-xs text-zinc-700 dark:text-zinc-300">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span>Active</span>
-        </span>
+      {/* Status (Plain text like OpenAI UI) */}
+      <td className="py-2.5 px-3 text-zinc-700 dark:text-zinc-300 text-xs">
+        {form.is_active ? 'Active' : 'Archived'}
       </td>
 
       {/* Workspace / Client */}
-      <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400 truncate max-w-[140px]">
+      <td className="py-2.5 px-3 text-zinc-600 dark:text-zinc-400 text-xs truncate max-w-[140px]">
         {form.clients?.name || 'Default Workspace'}
       </td>
 
       {/* Responses */}
-      <td className="py-3 px-4">
+      <td className="py-2.5 px-3 text-xs text-zinc-600 dark:text-zinc-400">
         <button
           type="button"
           onClick={onViewResponses}
-          className="text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:underline"
+          className="hover:text-zinc-900 dark:hover:text-white hover:underline"
         >
           {responseCount}
         </button>
       </td>
 
       {/* Created Date */}
-      <td className="py-3 px-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+      <td className="py-2.5 px-3 text-zinc-500 dark:text-zinc-400 text-xs whitespace-nowrap">
         {formattedDate}
       </td>
 
-      {/* Actions (Pencil, Preview, Copy Embed, Duplicate, Delete) */}
-      <td className="py-3 px-4 text-right">
-        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+      {/* Actions (OpenAI style icons: Edit pencil, Copy Embed, Duplicate, Delete trash) */}
+      <td className="py-2.5 px-3 text-right">
+        <div className="flex items-center justify-end gap-1">
           <button
             type="button"
             onClick={onEdit}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             title="Edit Form"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -140,7 +137,7 @@ export const FormCard: React.FC<FormCardProps> = ({
           <button
             type="button"
             onClick={onPreview}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             title="Preview Form"
           >
             <Eye className="w-3.5 h-3.5" />
@@ -148,7 +145,7 @@ export const FormCard: React.FC<FormCardProps> = ({
           <button
             type="button"
             onClick={onCopyEmbed}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             title="Copy Embed Code"
           >
             <Code className="w-3.5 h-3.5" />
@@ -156,7 +153,7 @@ export const FormCard: React.FC<FormCardProps> = ({
           <button
             type="button"
             onClick={onDuplicate}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             title="Duplicate"
           >
             <Duplicate className="w-3.5 h-3.5" />
@@ -164,7 +161,7 @@ export const FormCard: React.FC<FormCardProps> = ({
           <button
             type="button"
             onClick={onDelete}
-            className="p-1 rounded text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
             title="Delete"
           >
             <Trash2 className="w-3.5 h-3.5" />

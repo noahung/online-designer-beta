@@ -291,6 +291,8 @@ export default function FormEmbed() {
   const [formTheme, setFormTheme] = useState<string>('generic')
   const [buttonRadius, setButtonRadius] = useState<string>('xl')
   const [cardRadius, setCardRadius] = useState<string>('2xl')
+  const [headingColor, setHeadingColor] = useState<string | undefined>(undefined)
+  const [descriptionColor, setDescriptionColor] = useState<string | undefined>(undefined)
 
   // Auto-inject dynamic Google Fonts, CSS variables, and glassmorphic tokens
   useFormThemeInjector(formTheme, formColors)
@@ -469,6 +471,8 @@ export default function FormEmbed() {
       setFormTheme(design.theme)
       setButtonRadius(design.buttonRadius)
       setCardRadius(design.cardRadius)
+      setHeadingColor(design.headingColor)
+      setDescriptionColor(design.descriptionColor)
 
       const { data: s, error: stepsError } = await supabase
         .from('form_steps')
@@ -2226,10 +2230,20 @@ export default function FormEmbed() {
         />
 
         {!embedHideTitle && (
-          <h1 className={currentTheme.styles.text.heading}>{step.title || formName}</h1>
+          <h1
+            className={currentTheme.styles.text.heading}
+            style={headingColor ? { color: headingColor } : undefined}
+          >
+            {step.title || formName}
+          </h1>
         )}
         {step.description && (
-          <p className={currentTheme.styles.text.subheading || currentTheme.styles.text.body}>{step.description}</p>
+          <p
+            className={currentTheme.styles.text.subheading || currentTheme.styles.text.body}
+            style={descriptionColor ? { color: descriptionColor } : undefined}
+          >
+            {step.description}
+          </p>
         )}
 
         {step.question_type === 'contact_fields' ? (

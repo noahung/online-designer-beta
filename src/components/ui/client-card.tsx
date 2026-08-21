@@ -45,7 +45,7 @@ const ClientCard: React.FC<ClientCardProps> = ({
 
   return (
     <motion.div
-      className="relative overflow-visible h-full bg-[#1e1e1f] dark:bg-[#1e1e1f] rounded-2xl border border-zinc-200/50 dark:border-zinc-800/60 p-5 hover:bg-[#282829] dark:hover:bg-[#282829] transition-all duration-200 shadow-sm"
+      className="relative overflow-visible h-full bg-white dark:bg-[#18181b] rounded-2xl border border-zinc-200 dark:border-zinc-800/80 p-5 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-50/60 dark:hover:bg-[#1f1f23] transition-all duration-200 shadow-xs"
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -56,7 +56,7 @@ const ClientCard: React.FC<ClientCardProps> = ({
           <div className="flex items-center space-x-3">
             {/* Round Avatar Container */}
             {client.logo_url ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 dark:bg-white/5 border border-zinc-200/20 dark:border-zinc-800/50 flex items-center justify-center p-1.5">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-zinc-800/60 flex items-center justify-center p-1.5">
                 <img
                   src={client.logo_url}
                   alt={`${client.name} logo`}
@@ -64,7 +64,7 @@ const ClientCard: React.FC<ClientCardProps> = ({
                 />
               </div>
             ) : (
-              <div className="w-10 h-10 rounded-full bg-zinc-800 dark:bg-zinc-800 border border-zinc-700/50 flex items-center justify-center text-zinc-400">
+              <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/50 flex items-center justify-center text-zinc-500 dark:text-zinc-400">
                 <Building className="w-5 h-5" />
               </div>
             )}
@@ -81,20 +81,20 @@ const ClientCard: React.FC<ClientCardProps> = ({
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               title="Actions"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-40 rounded-xl bg-[#1e1e1f] border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden z-20">
+              <div className="absolute right-0 top-full mt-1.5 w-40 rounded-xl bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 shadow-xl overflow-hidden z-20">
                 <button
                   onClick={() => {
                     onEdit()
                     setMenuOpen(false)
                   }}
-                  className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors text-left"
+                  className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
                 >
                   <Pencil className="w-3.5 h-3.5 text-zinc-400" />
                   <span>Edit Client</span>
@@ -105,7 +105,7 @@ const ClientCard: React.FC<ClientCardProps> = ({
                     onDelete()
                     setMenuOpen(false)
                   }}
-                  className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors text-left"
+                  className="w-full flex items-center space-x-2.5 px-3 py-2.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete Client</span>
@@ -117,35 +117,35 @@ const ClientCard: React.FC<ClientCardProps> = ({
 
         {/* Middle Section: Client Name & Description */}
         <div className="flex-1 space-y-1">
-          <h3 className="font-semibold text-base text-white truncate">
+          <h3 className="font-semibold text-base text-zinc-900 dark:text-white truncate">
             {client.name}
           </h3>
-          <p className="text-xs text-zinc-400 font-normal leading-relaxed line-clamp-2">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-normal leading-relaxed line-clamp-2">
             Forms responses and custom branding settings for {client.name}.
           </p>
         </div>
 
         {/* Bottom Section: Brand Colors, Meta, and Details */}
-        <div className="pt-2 border-t border-zinc-800/40 flex items-center justify-between">
+        <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800/40 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium uppercase tracking-wider">
               Colors:
             </span>
             <div className="flex items-center space-x-1.5">
               <div
-                className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
+                className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/20 shadow-xs"
                 style={{ backgroundColor: client.primary_color }}
                 title={`Primary: ${client.primary_color}`}
               />
               <div
-                className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
+                className="w-3.5 h-3.5 rounded-full border border-black/10 dark:border-white/20 shadow-xs"
                 style={{ backgroundColor: client.secondary_color }}
                 title={`Secondary: ${client.secondary_color}`}
               />
             </div>
           </div>
           
-          <span className="text-[10px] text-zinc-500 font-medium">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
             Added {new Date(client.created_at).toLocaleDateString()}
           </span>
         </div>

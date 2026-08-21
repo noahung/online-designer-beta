@@ -47,7 +47,13 @@ import {
   Repeat,
   BookmarkPlus,
   FolderOpen,
-  Settings
+  Settings,
+  CheckCircle2,
+  AlertCircle,
+  Send,
+  Mail,
+  Zap,
+  ExternalLink
 } from 'lucide-react'
 import {
   DndContext,
@@ -637,7 +643,15 @@ export default function FormBuilder() {
   const [description, setDescription] = useState('Interactive form to help customers design their perfect windows and doors')
   const [welcomeMessage, setWelcomeMessage] = useState('Welcome to our design tool! Let\'s create the perfect windows and doors for your home.')
   const [clientId, setClientId] = useState<string | null>(null)
-  const [clients, setClients] = useState<{ id: string; name: string; logo_url?: string }[]>([])
+  const [clients, setClients] = useState<{
+    id: string;
+    name: string;
+    logo_url?: string | null;
+    webhook_url?: string | null;
+    client_email?: string | null;
+    additional_emails?: string[];
+    email_notifications_enabled?: boolean;
+  }[]>([])
   // Theme selection & styling
   const [formTheme, setFormTheme] = useState<FormTheme>('generic')
   const [buttonRadius, setButtonRadius] = useState<string>('xl')
@@ -647,6 +661,8 @@ export default function FormBuilder() {
   const [primaryButtonTextColor, setPrimaryButtonTextColor] = useState('#FFFFFF')
   const [secondaryButtonColor, setSecondaryButtonColor] = useState('#F1F5F9')
   const [secondaryButtonTextColor, setSecondaryButtonTextColor] = useState('#334155')
+  const [headingColor, setHeadingColor] = useState<string | undefined>(undefined)
+  const [descriptionColor, setDescriptionColor] = useState<string | undefined>(undefined)
   const [steps, setSteps] = useState<Step[]>([])
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [activeStudioTab, setActiveStudioTab] = useState<StudioTab>('content')
@@ -672,6 +688,11 @@ export default function FormBuilder() {
   const [showFormThemeModal, setShowFormThemeModal] = useState(false)
   const [showButtonColoursModal, setShowButtonColoursModal] = useState(false)
   const [showEmbedModal, setShowEmbedModal] = useState(false)
+
+  // Integrations state
+  const [testingWebhook, setTestingWebhook] = useState(false)
+  const [webhookTestResult, setWebhookTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [savingIntegration, setSavingIntegration] = useState(false)
 
   // Logic modal state
   const [showLogicBuilder, setShowLogicBuilder] = useState(false)
@@ -802,7 +823,10 @@ export default function FormBuilder() {
 
   const fetchClients = async () => {
     if (!user) return
-    const { data, error } = await supabase.from('clients').select('id,name').eq('user_id', user.id)
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, name, logo_url, webhook_url, client_email, additional_emails, email_notifications_enabled')
+      .eq('user_id', user.id)
     if (error) {
       console.error(error)
       push({ type: 'error', message: 'Error loading clients' })
@@ -867,6 +891,8 @@ export default function FormBuilder() {
       setFormTheme(design.theme)
       setButtonRadius(design.buttonRadius)
       setCardRadius(design.cardRadius)
+      setHeadingColor(design.headingColor)
+      setDescriptionColor(design.descriptionColor)
       setPrimaryButtonColor(cleanPrimary)
       setPrimaryButtonTextColor(cleanColorString(formData.primary_button_text_color) || '#FFFFFF')
       setSecondaryButtonColor(cleanSecondary)
@@ -1388,6 +1414,8 @@ export default function FormBuilder() {
         theme: formTheme,
         buttonRadius,
         cardRadius,
+        headingColor: headingColor || undefined,
+        descriptionColor: descriptionColor || undefined,
       })
       const safeTheme = formTheme === 'soft-ui' ? 'soft-ui' : 'generic'
 
@@ -1986,31 +2014,34 @@ export default function FormBuilder() {
 
       {/* Main Studio Body Based on Active Tab */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Tab 1: Content (Visual Editor Studio) */}
+        {/* Left Sidebar: Steps & Flow Navigation (Always persistent) */}
+        <StudioSidebar
+          steps={steps}
+          activeStepIndex={selectedStepIndex ?? 0}
+          onSelectStep={(idx) => {
+            setSelectedStepIndex(idx)
+            if (activeStudioTab !== 'content') setActiveStudioTab('content')
+          }}
+          onAddStep={() => setShowStepTypeDropdown(true)}
+          onDuplicateStep={duplicateStep}
+          onDeleteStep={deleteStep}
+          onReorderSteps={handleDragEnd}
+          welcomeScreen={{
+            enabled: true,
+            title: 'Welcome Screen',
+          }}
+          onToggleWelcomeScreen={() => {
+            setSettingsDrawerTab('general')
+            setShowSettingsDrawer(true)
+          }}
+          endingScreen={{
+            title: 'A Thank you!',
+          }}
+        />
+
+        {/* Tab 1: Content (Visual Editor Studio Canvas & Inspector) */}
         {activeStudioTab === 'content' && (
           <>
-            {/* Left Sidebar: Pages & Step Sequence */}
-            <StudioSidebar
-              steps={steps}
-              activeStepIndex={selectedStepIndex ?? 0}
-              onSelectStep={(idx) => setSelectedStepIndex(idx)}
-              onAddStep={() => setShowStepTypeDropdown(true)}
-              onDuplicateStep={duplicateStep}
-              onDeleteStep={deleteStep}
-              onReorderSteps={handleDragEnd}
-              welcomeScreen={{
-                enabled: true,
-                title: 'Welcome Screen'
-              }}
-              onToggleWelcomeScreen={() => {
-                setSettingsDrawerTab('general')
-                setShowSettingsDrawer(true)
-              }}
-              endingScreen={{
-                title: 'A Thank you!'
-              }}
-            />
-
             {/* Center Canvas: Live Form Studio Card (Reflecting Theme & Button Styles Live!) */}
             <StudioCanvas
               currentStep={currentStep}
@@ -2040,7 +2071,7 @@ export default function FormBuilder() {
                   handleFileChange(selectedStepIndex, optIdx, file)
                 }
               }}
-              clientLogo={clients.find((c) => c.id === clientId)?.logo_url}
+              clientLogo={clients.find((c) => c.id === clientId)?.logo_url || undefined}
               formTheme={formTheme}
               primaryButtonColor={primaryButtonColor}
               primaryButtonTextColor={primaryButtonTextColor}
@@ -2048,6 +2079,8 @@ export default function FormBuilder() {
               secondaryButtonTextColor={secondaryButtonTextColor}
               buttonRadius={buttonRadius}
               cardRadius={cardRadius}
+              headingColor={headingColor}
+              descriptionColor={descriptionColor}
               totalSteps={steps.length || 1}
               currentStepIndex={selectedStepIndex ?? 0}
             />
@@ -2092,50 +2125,446 @@ export default function FormBuilder() {
           </div>
         )}
 
-        {/* Tab 3: Connect (Integrations) */}
-        {activeStudioTab === 'connect' && (
-          <div className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Form Integrations</h2>
-              <p className="text-sm text-slate-500">Connect this form to CRM systems, Zapier webhooks, and email notifications.</p>
-            </div>
+        {/* Tab 3: Connect (OpenAI Platform-Style Form Integrations) */}
+        {activeStudioTab === 'connect' && (() => {
+          const currentClient = clients.find((c) => c.id === clientId)
+          const webhookUrl = currentClient?.webhook_url || ''
+          const emailEnabled = currentClient?.email_notifications_enabled ?? true
+          const clientEmail = currentClient?.client_email || ''
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-                <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm">
-                  ⚡
+          const handleSaveWebhook = async (url: string) => {
+            if (!clientId) {
+              push({ type: 'error', message: 'Please select a client workspace for this form first' })
+              return
+            }
+            setSavingIntegration(true)
+            try {
+              const { error } = await supabase
+                .from('clients')
+                .update({ webhook_url: url.trim() || null })
+                .eq('id', clientId)
+              if (error) throw error
+              setClients((prev) =>
+                prev.map((c) => (c.id === clientId ? { ...c, webhook_url: url.trim() || null } : c))
+              )
+              push({ type: 'success', message: 'Zapier webhook URL updated successfully!' })
+            } catch (err: any) {
+              push({ type: 'error', message: `Failed to save webhook: ${err.message}` })
+            } finally {
+              setSavingIntegration(false)
+            }
+          }
+
+          const handleSaveEmail = async (enabled: boolean, email: string) => {
+            if (!clientId) {
+              push({ type: 'error', message: 'Please select a client workspace for this form first' })
+              return
+            }
+            setSavingIntegration(true)
+            try {
+              const { error } = await supabase
+                .from('clients')
+                .update({
+                  email_notifications_enabled: enabled,
+                  client_email: email.trim() || null,
+                })
+                .eq('id', clientId)
+              if (error) throw error
+              setClients((prev) =>
+                prev.map((c) =>
+                  c.id === clientId
+                    ? { ...c, email_notifications_enabled: enabled, client_email: email.trim() || null }
+                    : c
+                )
+              )
+              push({ type: 'success', message: 'Email notification settings saved!' })
+            } catch (err: any) {
+              push({ type: 'error', message: `Failed to save email settings: ${err.message}` })
+            } finally {
+              setSavingIntegration(false)
+            }
+          }
+
+          const handleSendTestWebhook = async () => {
+            if (!webhookUrl) {
+              push({ type: 'error', message: 'Please enter and save a Zapier webhook URL first' })
+              return
+            }
+            setTestingWebhook(true)
+            setWebhookTestResult(null)
+            try {
+              const testPayload = {
+                event: 'form_submission_test',
+                form_id: formId || 'test_form_id',
+                form_name: name,
+                client_name: currentClient?.name || 'Default Client',
+                timestamp: new Date().toISOString(),
+                test: true,
+                data: {
+                  contact_name: 'John Doe (Test)',
+                  contact_email: 'john.doe@example.com',
+                  contact_phone: '+44 7700 900077',
+                  contact_postcode: 'SW1A 1AA',
+                  answers: steps.map((s, idx) => ({
+                    step_order: idx + 1,
+                    question: s.title || `Step ${idx + 1}`,
+                    question_type: s.question_type,
+                    answer_text: s.options?.[0]?.label || 'Test Answer Value',
+                  })),
+                },
+              }
+
+              await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(testPayload),
+                mode: 'no-cors',
+              })
+
+              setWebhookTestResult({
+                success: true,
+                message: 'Test payload successfully dispatched to Zapier webhook!',
+              })
+              push({ type: 'success', message: 'Test webhook sent successfully!' })
+            } catch (err: any) {
+              setWebhookTestResult({
+                success: false,
+                message: `Failed to send webhook: ${err.message || 'Network error'}`,
+              })
+              push({ type: 'error', message: `Webhook test failed: ${err.message}` })
+            } finally {
+              setTestingWebhook(false)
+            }
+          }
+
+          return (
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 max-w-5xl mx-auto w-full space-y-7 font-sans bg-white dark:bg-[#0d0d0d]">
+              {/* Top Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
+                    Integrations &amp; Workflows
+                  </h2>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Connect form submission data to automated workflows, CRM pipelines, and notification channels.
+                  </p>
                 </div>
-                <h3 className="font-semibold text-slate-900 dark:text-white">Zapier Webhook</h3>
-                <p className="text-xs text-slate-500">Automatically push new form submissions into your Zapier workflows and Google Sheets.</p>
-                <button
-                  type="button"
-                  onClick={() => setShowEmbedModal(true)}
-                  className="px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-200"
-                >
-                  Configure Zapier
-                </button>
+                {currentClient && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Workspace: {currentClient.name}</span>
+                  </div>
+                )}
               </div>
 
-              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
-                  ✉️
+              {/* Section 1: Automations & Data Routing (OpenAI Platform 3-Card Grid) */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase">
+                  Automations &amp; Data Routing
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {/* Card 1: Zapier Webhook */}
+                  <div className="rounded-xl p-4 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between space-y-3 shadow-xs">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-amber-500">
+                          <Zap className="w-3.5 h-3.5" />
+                        </div>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            webhookUrl
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                          }`}
+                        >
+                          {webhookUrl ? 'Active' : 'Unset'}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          Zapier Automation Webhook
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed line-clamp-2">
+                          Push every completed customer submission directly into your Zapier zaps and triggers.
+                        </p>
+                      </div>
+                      <input
+                        type="url"
+                        defaultValue={webhookUrl}
+                        key={webhookUrl}
+                        id="zapier-card-input"
+                        placeholder="https://hooks.zapier.com/..."
+                        className="w-full px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('zapier-card-input') as HTMLInputElement
+                            if (el) handleSaveWebhook(el.value)
+                          }}
+                          disabled={savingIntegration}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendTestWebhook}
+                          disabled={!webhookUrl || testingWebhook}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                        >
+                          <Send className="w-2.5 h-2.5 text-indigo-500" />
+                          <span>{testingWebhook ? 'Testing...' : 'Test'}</span>
+                        </button>
+                      </div>
+                      <a
+                        href="https://zapier.com/apps/webhook/integrations"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1"
+                        title="Open Zapier"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Google Sheets Sync */}
+                  <div className="rounded-xl p-4 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between space-y-3 shadow-xs">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-emerald-500">
+                          <FileText className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                          Via Webhook
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          Google Sheets Row Sync
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          Append every customer design quote and submission as a new row in Google Sheets in real-time.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={handleSendTestWebhook}
+                        disabled={!webhookUrl}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                      >
+                        <Copy className="w-2.5 h-2.5" />
+                        <span>Send Test Row</span>
+                      </button>
+                      <span className="text-[10px] text-zinc-400">Automated</span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Custom REST API Endpoint */}
+                  <div className="rounded-xl p-4 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between space-y-3 shadow-xs">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-blue-500">
+                          <Code className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-400">JSON POST</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          Custom REST Webhook
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          Forward submissions to your backend API endpoint or Make.com scenario via raw JSON.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const payload = JSON.stringify({
+                            event: 'form_submission',
+                            form_id: formId || 'form_id',
+                            form_name: name,
+                            client_name: currentClient?.name,
+                            timestamp: new Date().toISOString(),
+                          }, null, 2)
+                          navigator.clipboard.writeText(payload)
+                          push({ type: 'success', message: 'Schema copied to clipboard!' })
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        <Copy className="w-2.5 h-2.5" />
+                        <span>Copy Schema</span>
+                      </button>
+                      <span className="text-[10px] text-zinc-400">REST v1</span>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-semibold text-slate-900 dark:text-white">Email Notifications</h3>
-                <p className="text-xs text-slate-500">Send instant email alerts to your sales team with full submission specifications.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSettingsDrawerTab('general')
-                    setShowSettingsDrawer(true)
-                  }}
-                  className="px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-200"
-                >
-                  Email Settings
-                </button>
               </div>
+
+              {/* Section 2: Alerts & Team Communications */}
+              <div className="space-y-3 pt-2">
+                <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase">
+                  Alerts &amp; Notifications
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {/* Card 4: Email Alerts */}
+                  <div className="rounded-xl p-4 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between space-y-3 shadow-xs">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-indigo-500">
+                          <Mail className="w-3.5 h-3.5" />
+                        </div>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            emailEnabled && clientEmail
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                          }`}
+                        >
+                          {emailEnabled && clientEmail ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          Email Lead Notifications
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          Instant email alerts with itemized product configurations sent directly to your sales team.
+                        </p>
+                      </div>
+                      <input
+                        type="email"
+                        defaultValue={clientEmail}
+                        key={clientEmail}
+                        id="email-card-input"
+                        placeholder="sales@company.com"
+                        className="w-full px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[11px] text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById('email-card-input') as HTMLInputElement
+                          if (el) handleSaveEmail(true, el.value)
+                        }}
+                        disabled={savingIntegration}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        Save Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEmail(!emailEnabled, clientEmail)}
+                        className="text-[10px] font-medium text-indigo-500 hover:text-indigo-600 transition-colors"
+                      >
+                        {emailEnabled ? 'Turn Off' : 'Turn On'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card 5: HubSpot CRM */}
+                  <div className="rounded-xl p-4 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between space-y-3 shadow-xs">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-orange-500">
+                          <User className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                          CRM Sync
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          HubSpot / CRM Deals
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          Automatically creates new Contacts and Deals in HubSpot when customers submit their design.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={handleSendTestWebhook}
+                        disabled={!webhookUrl}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
+                      >
+                        <Zap className="w-2.5 h-2.5 text-amber-500" />
+                        <span>Trigger Sync</span>
+                      </button>
+                      <span className="text-[10px] text-zinc-400">Via Zapier</span>
+                    </div>
+                  </div>
+
+                  {/* Card 6: Customer Auto-responder */}
+                  <div className="rounded-xl p-4 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between space-y-3 shadow-xs">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-purple-500">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                          Automatic
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          Customer Copy Email
+                        </h4>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                          Sends a branded confirmation email copy with the chosen windows/doors specifications to the customer.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => push({ type: 'info', message: 'Configured automatically for all contact form submissions.' })}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/80 bg-zinc-50 dark:bg-zinc-800/80 text-[11px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        <span>Details</span>
+                      </button>
+                      <span className="text-[10px] text-emerald-500 font-medium">Ready</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Webhook Test Alert Box */}
+              {webhookTestResult && (
+                <div
+                  className={`p-3 rounded-xl text-xs flex items-center gap-2.5 animate-fade-in ${
+                    webhookTestResult.success
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
+                      : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
+                  }`}
+                >
+                  {webhookTestResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  <span>{webhookTestResult.message}</span>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Tab 4: Share & Embed Studio */}
         {activeStudioTab === 'share' && (
@@ -2149,33 +2578,38 @@ export default function FormBuilder() {
 
       {/* Add Step Type Modal */}
       {showStepTypeDropdown && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${theme === 'light'
-            ? 'bg-white border border-gray-200'
-            : 'bg-slate-800 border border-white/20'
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className={`w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border transition-all ${theme === 'light'
+            ? 'bg-white border-zinc-200 text-zinc-900 shadow-zinc-200/50'
+            : 'bg-[#18181b] border-zinc-800 text-zinc-100 shadow-black/70'
             }`}>
-            <div className={`sticky top-0 px-6 py-4 border-b backdrop-blur-xl ${theme === 'light'
-              ? 'bg-white/95 border-gray-200'
-              : 'bg-slate-800/95 border-white/20'
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${theme === 'light'
+              ? 'border-zinc-100 bg-white'
+              : 'border-zinc-800/80 bg-[#18181b]'
               }`}>
-              <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-semibold ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                  }`}>
+              <div>
+                <h2 className={`text-base font-semibold tracking-tight ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
                   Choose Step Type
                 </h2>
-                <button
-                  onClick={() => setShowStepTypeDropdown(false)}
-                  className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
-                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                    }`}
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                  Select a step component to add to your multi-step flow
+                </p>
               </div>
+              <button
+                onClick={() => setShowStepTypeDropdown(false)}
+                className={`p-1.5 rounded-lg transition-colors ${theme === 'light'
+                  ? 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                  }`}
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Modal Content / Cards */}
+            <div className="p-5 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {stepTypes.map((stepType) => (
                   <button
                     key={stepType.type}
@@ -2183,22 +2617,24 @@ export default function FormBuilder() {
                       addStep(stepType.type)
                       setShowStepTypeDropdown(false)
                     }}
-                    className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${theme === 'light'
-                      ? 'bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 hover:shadow-md'
-                      : 'bg-white/5 hover:bg-white/10 border-white/20 hover:border-blue-400/50'
+                    className={`group flex items-start gap-3.5 p-3.5 rounded-xl border text-left transition-all duration-150 ${theme === 'light'
+                      ? 'bg-white hover:bg-zinc-50/90 border-zinc-200/80 hover:border-zinc-300 shadow-sm'
+                      : 'bg-zinc-900/50 hover:bg-zinc-800/80 border-zinc-800/90 hover:border-zinc-700'
                       }`}
                   >
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${theme === 'light' ? 'bg-blue-50' : 'bg-blue-500/20'
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${theme === 'light'
+                      ? 'bg-zinc-100 border border-zinc-200/80 text-zinc-600 group-hover:text-zinc-900 group-hover:border-zinc-300'
+                      : 'bg-zinc-800/90 border border-zinc-700/60 text-zinc-300 group-hover:text-white group-hover:border-zinc-600'
                       }`}>
-                      <div className={theme === 'light' ? 'text-blue-600' : 'text-blue-300'}>
-                        {stepType.icon}
-                      </div>
+                      {stepType.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold text-base mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                        }`}>{stepType.title}</p>
-                      <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                        }`}>{stepType.description}</p>
+                      <p className={`font-medium text-sm leading-snug ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-200 group-hover:text-white'}`}>
+                        {stepType.title}
+                      </p>
+                      <p className={`text-xs mt-0.5 leading-relaxed ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400 group-hover:text-zinc-300'}`}>
+                        {stepType.description}
+                      </p>
                     </div>
                   </button>
                 ))}
@@ -2209,21 +2645,31 @@ export default function FormBuilder() {
                     setShowStepTypeDropdown(false)
                     setShowLoadTemplateModal(true)
                   }}
-                  className={`flex items-start p-4 rounded-xl border-2 transition-all duration-200 text-left hover:scale-105 ${theme === 'light'
-                    ? 'bg-purple-50 hover:bg-purple-100 border-purple-200 hover:border-purple-300 hover:shadow-md'
-                    : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-400/30 hover:border-purple-400/50'
+                  className={`group flex items-start gap-3.5 p-3.5 rounded-xl border text-left transition-all duration-150 ${theme === 'light'
+                    ? 'bg-zinc-50/60 hover:bg-zinc-100/80 border-dashed border-zinc-300 hover:border-zinc-400'
+                    : 'bg-zinc-900/40 hover:bg-zinc-800/60 border-dashed border-zinc-700 hover:border-zinc-600'
                     }`}
                 >
-                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl mr-4 flex-shrink-0 ${theme === 'light' ? 'bg-purple-100' : 'bg-purple-500/20'
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${theme === 'light'
+                    ? 'bg-zinc-100 border border-zinc-200/80 text-zinc-600 group-hover:text-zinc-900 group-hover:border-zinc-300'
+                    : 'bg-zinc-800/90 border border-zinc-700/60 text-zinc-300 group-hover:text-white group-hover:border-zinc-600'
                     }`}>
-                    <FolderOpen className={`w-6 h-6 ${theme === 'light' ? 'text-purple-600' : 'text-purple-300'
-                      }`} />
+                    <FolderOpen className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-semibold text-base mb-1 ${theme === 'light' ? 'text-gray-900' : 'text-white'
-                      }`}>Create from Template</p>
-                    <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                      }`}>Use a saved template to create a new step</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`font-medium text-sm leading-snug ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-200 group-hover:text-white'}`}>
+                        Create from Template
+                      </p>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded border ${
+                        theme === 'light' ? 'bg-zinc-200/60 text-zinc-600 border-zinc-300/80' : 'bg-zinc-800 text-zinc-400 border-zinc-700/80'
+                      }`}>
+                        Preset
+                      </span>
+                    </div>
+                    <p className={`text-xs mt-0.5 leading-relaxed ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400 group-hover:text-zinc-300'}`}>
+                      Use a saved template to create a new step
+                    </p>
                   </div>
                 </button>
               </div>
@@ -2300,6 +2746,10 @@ export default function FormBuilder() {
         onChangeButtonRadius={setButtonRadius}
         cardRadius={cardRadius}
         onChangeCardRadius={setCardRadius}
+        headingColor={headingColor}
+        onChangeHeadingColor={setHeadingColor}
+        descriptionColor={descriptionColor}
+        onChangeDescriptionColor={setDescriptionColor}
         systemTheme={theme}
         onSave={save}
         isSaving={saving}

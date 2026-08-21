@@ -116,6 +116,48 @@ export default function StudioInspector({
           </div>
         </div>
 
+        {/* Grid Layout / Columns (for Picture Choice steps) */}
+        {currentStep.question_type === 'image_selection' && (
+          <div className="space-y-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 block">
+              Cards per row (Desktop Grid)
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { cols: 1, label: '1 col' },
+                { cols: 2, label: '2 cols' },
+                { cols: 3, label: '3 cols' },
+                { cols: 4, label: '4 cols' },
+              ].map((c) => {
+                const isSelected = (currentStep.images_per_row || 2) === c.cols
+                return (
+                  <button
+                    key={c.cols}
+                    type="button"
+                    onClick={() => onUpdateStep({ images_per_row: c.cols })}
+                    className={`py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                      isSelected
+                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-transparent shadow-xs'
+                        : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-[#18181b] text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[11px] text-zinc-400">
+              {(currentStep.images_per_row || 2) === 2
+                ? '4 cards will form a 2x2 grid, 6 cards form 2x3.'
+                : (currentStep.images_per_row || 2) === 3
+                ? '6 cards will form a 3x2 grid.'
+                : (currentStep.images_per_row || 2) === 4
+                ? '8 cards will form a 4x2 grid.'
+                : 'Cards will stack vertically in a single column.'}
+            </p>
+          </div>
+        )}
+
         {/* Core Toggles (OpenAI switches) */}
         <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
           {/* Required */}

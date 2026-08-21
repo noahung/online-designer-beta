@@ -18,90 +18,95 @@ export default function FormTypeSelectionModal({
   if (!isOpen) return null
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div
-        className={`w-full max-w-2xl rounded-2xl shadow-2xl border animate-scale-in ${
+        className={`w-full max-w-2xl rounded-2xl shadow-2xl border transition-all ${
           theme === 'light'
-            ? 'bg-white border-gray-200'
-            : 'bg-[#1a1a2e] border-white/10'
+            ? 'bg-white border-zinc-200 text-zinc-900 shadow-zinc-200/50'
+            : 'bg-[#18181b] border-zinc-800 text-zinc-100 shadow-black/70'
         }`}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-8 pt-8 pb-4 border-b ${
-          theme === 'light' ? 'border-gray-100' : 'border-white/10'
+        <div className={`flex items-center justify-between px-6 py-4.5 border-b ${
+          theme === 'light' ? 'border-zinc-100 bg-white' : 'border-zinc-800/80 bg-[#18181b]'
         }`}>
           <div>
-            <h2 className={`text-2xl font-bold ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+            <h2 className={`text-base font-semibold tracking-tight ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
               Choose Form Type
             </h2>
-            <p className={`mt-1 text-sm ${theme === 'light' ? 'text-gray-500' : 'text-white/60'}`}>
-              Select the layout that best suits your use case
+            <p className={`mt-0.5 text-xs ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              Select the layout format for your new form
             </p>
           </div>
           <button
             onClick={onClose}
-            className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+            className={`p-1.5 rounded-lg transition-colors ${
               theme === 'light'
-                ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                : 'text-white/40 hover:text-white hover:bg-white/10'
+                ? 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
             }`}
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Cards */}
-        <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Multi-Step */}
           <button
             onClick={() => onSelect('multi_step')}
-            className={`group relative text-left p-6 rounded-2xl border-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl ${
+            className={`group relative text-left p-5 rounded-xl border transition-all duration-150 flex flex-col justify-between ${
               theme === 'light'
-                ? 'border-gray-200 hover:border-orange-400 bg-white hover:bg-orange-50/50'
-                : 'border-white/10 hover:border-orange-400/60 bg-white/5 hover:bg-orange-500/10'
+                ? 'border-zinc-200/80 hover:border-zinc-300 bg-white hover:bg-zinc-50/90 shadow-sm'
+                : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800/80'
             }`}
           >
-            {/* Icon */}
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mb-4 shadow-lg shadow-orange-500/25 group-hover:shadow-orange-500/40 transition-shadow">
-              <Layers className="h-6 w-6 text-white" />
-            </div>
+            <div>
+              {/* Icon */}
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3.5 border transition-colors ${
+                theme === 'light'
+                  ? 'bg-zinc-100 border-zinc-200 text-zinc-700 group-hover:text-zinc-900 group-hover:border-zinc-300'
+                  : 'bg-zinc-800 border-zinc-700/60 text-zinc-300 group-hover:text-white group-hover:border-zinc-600'
+              }`}>
+                <Layers className="h-4 w-4" />
+              </div>
 
-            <h3 className={`text-lg font-bold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-              Multi-Step Form
-            </h3>
-            <p className={`text-sm leading-relaxed mb-4 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'}`}>
-              Guide users through one question at a time. Perfect for product configurators,
-              online designers, and complex workflows.
-            </p>
+              <h3 className={`text-sm font-semibold mb-1 ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
+                Multi-Step Form
+              </h3>
+              <p className={`text-xs leading-relaxed mb-4 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                Guide users through one question at a time. Ideal for product configurators and custom workflows.
+              </p>
 
-            {/* Example visual */}
-            <div className={`rounded-lg p-3 space-y-1.5 ${
-              theme === 'light' ? 'bg-gray-50' : 'bg-white/5'
-            }`}>
-              {['Step 1: Choose style', 'Step 2: Pick colour', 'Step 3: Measurements'].map((label, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    i === 0
-                      ? 'bg-orange-500 text-white'
-                      : theme === 'light' ? 'bg-gray-200 text-gray-400' : 'bg-white/10 text-white/30'
-                  }`}>
-                    {i + 1}
-                  </span>
-                  <span className={`text-xs ${
-                    i === 0
-                      ? theme === 'light' ? 'text-gray-700 font-medium' : 'text-white/80 font-medium'
-                      : theme === 'light' ? 'text-gray-400' : 'text-white/30'
-                  }`}>
-                    {label}
-                  </span>
-                </div>
-              ))}
+              {/* Example visual */}
+              <div className={`rounded-lg p-2.5 space-y-1.5 border ${
+                theme === 'light' ? 'bg-zinc-50 border-zinc-200/60' : 'bg-zinc-950/60 border-zinc-800/80'
+              }`}>
+                {['Step 1: Choose style', 'Step 2: Pick colour', 'Step 3: Measurements'].map((label, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className={`w-4 h-4 rounded text-[10px] font-semibold flex items-center justify-center flex-shrink-0 ${
+                      i === 0
+                        ? theme === 'light' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'
+                        : theme === 'light' ? 'bg-zinc-200 text-zinc-500' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {i + 1}
+                    </span>
+                    <span className={`text-[11px] truncate ${
+                      i === 0
+                        ? theme === 'light' ? 'text-zinc-800 font-medium' : 'text-zinc-200 font-medium'
+                        : theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'
+                    }`}>
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="mt-4 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-              <span className={`text-xs font-medium ${theme === 'light' ? 'text-orange-600' : 'text-orange-400'}`}>
-                Current builder
+              <span className={`w-1.5 h-1.5 rounded-full ${theme === 'light' ? 'bg-emerald-500' : 'bg-emerald-400'}`}></span>
+              <span className={`text-[11px] font-medium ${theme === 'light' ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                Recommended for configurators
               </span>
             </div>
           </button>
@@ -109,48 +114,53 @@ export default function FormTypeSelectionModal({
           {/* Single-Page */}
           <button
             onClick={() => onSelect('single_page')}
-            className={`group relative text-left p-6 rounded-2xl border-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl ${
+            className={`group relative text-left p-5 rounded-xl border transition-all duration-150 flex flex-col justify-between ${
               theme === 'light'
-                ? 'border-gray-200 hover:border-blue-400 bg-white hover:bg-blue-50/50'
-                : 'border-white/10 hover:border-blue-400/60 bg-white/5 hover:bg-blue-500/10'
+                ? 'border-zinc-200/80 hover:border-zinc-300 bg-white hover:bg-zinc-50/90 shadow-sm'
+                : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800/80'
             }`}
           >
-            {/* Icon */}
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-shadow">
-              <AlignLeft className="h-6 w-6 text-white" />
-            </div>
+            <div>
+              {/* Icon */}
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3.5 border transition-colors ${
+                theme === 'light'
+                  ? 'bg-zinc-100 border-zinc-200 text-zinc-700 group-hover:text-zinc-900 group-hover:border-zinc-300'
+                  : 'bg-zinc-800 border-zinc-700/60 text-zinc-300 group-hover:text-white group-hover:border-zinc-600'
+              }`}>
+                <AlignLeft className="h-4 w-4" />
+              </div>
 
-            <h3 className={`text-lg font-bold mb-2 ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
-              Single-Page Form
-            </h3>
-            <p className={`text-sm leading-relaxed mb-4 ${theme === 'light' ? 'text-gray-500' : 'text-white/60'}`}>
-              All fields on one scrollable page. Ideal for contact forms,
-              questionnaires, and simple data collection.
-            </p>
+              <h3 className={`text-sm font-semibold mb-1 ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
+                Single-Page Form
+              </h3>
+              <p className={`text-xs leading-relaxed mb-4 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                All questions on one scrollable page. Ideal for contact forms and quick questionnaires.
+              </p>
 
-            {/* Example visual */}
-            <div className={`rounded-lg p-3 space-y-1.5 ${
-              theme === 'light' ? 'bg-gray-50' : 'bg-white/5'
-            }`}>
-              {[
-                { label: 'Full Name', type: 'text' },
-                { label: 'Email Address', type: 'email' },
-                { label: 'Message', type: 'textarea' },
-              ].map((field, i) => (
-                <div key={i} className={`rounded p-1.5 ${
-                  theme === 'light' ? 'bg-white border border-gray-200' : 'bg-white/10 border border-white/10'
-                }`}>
-                  <div className={`text-xs ${theme === 'light' ? 'text-gray-500' : 'text-white/50'}`}>
-                    {field.label}
+              {/* Example visual */}
+              <div className={`rounded-lg p-2.5 space-y-1.5 border ${
+                theme === 'light' ? 'bg-zinc-50 border-zinc-200/60' : 'bg-zinc-950/60 border-zinc-800/80'
+              }`}>
+                {[
+                  { label: 'Full Name' },
+                  { label: 'Email Address' },
+                  { label: 'Message' },
+                ].map((field, i) => (
+                  <div key={i} className={`rounded px-2 py-1 border ${
+                    theme === 'light' ? 'bg-white border-zinc-200 text-zinc-500' : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                  }`}>
+                    <div className="text-[11px] truncate">
+                      {field.label}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             <div className="mt-4 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-              <span className={`text-xs font-medium ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`}>
-                New
+              <span className={`w-1.5 h-1.5 rounded-full ${theme === 'light' ? 'bg-blue-500' : 'bg-blue-400'}`}></span>
+              <span className={`text-[11px] font-medium ${theme === 'light' ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                Fast single-scroll layout
               </span>
             </div>
           </button>

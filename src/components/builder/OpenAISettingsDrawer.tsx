@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Sliders, FileText, Building2, Check, Palette, CornerDownRight } from 'lucide-react';
-import { formThemes, FormTheme, FormThemeConfig, getThemeConfig } from '../../lib/formThemes';
+import { formThemes, FormTheme, FormThemeConfig, getThemeConfig, getButtonRadiusValue, getCardRadiusValue } from '../../lib/formThemes';
 
 export type SettingsDrawerTab = 'theme' | 'buttons' | 'general' | 'client';
 
@@ -35,6 +35,10 @@ interface OpenAISettingsDrawerProps {
   onChangeButtonRadius?: (radius: string) => void;
   cardRadius?: string; // 'none' | 'xl' | '2xl' | '3xl'
   onChangeCardRadius?: (radius: string) => void;
+  headingColor?: string;
+  onChangeHeadingColor?: (color: string) => void;
+  descriptionColor?: string;
+  onChangeDescriptionColor?: (color: string) => void;
   systemTheme?: 'light' | 'dark';
   onSave?: () => Promise<void> | void;
   isSaving?: boolean;
@@ -69,6 +73,10 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
   onChangeButtonRadius,
   cardRadius = '2xl',
   onChangeCardRadius,
+  headingColor,
+  onChangeHeadingColor,
+  descriptionColor,
+  onChangeDescriptionColor,
   systemTheme = 'dark',
   onSave,
   isSaving = false,
@@ -357,6 +365,31 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
                 </div>
               )}
 
+              {/* Form Card Corner Radius (Also in Buttons & Radius Tab!) */}
+              {onChangeCardRadius && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Form Card Corner Radius
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {cardRadiusOptions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => onChangeCardRadius(opt.id)}
+                        className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
+                          cardRadius === opt.id
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                            : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Next Button Colors */}
               <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 space-y-3">
                 <div className="flex items-center justify-between">
@@ -364,12 +397,11 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
                     Primary Action (Next / Submit)
                   </h4>
                   <span
-                    className={`px-3 py-1 text-xs font-bold shadow-xs ${
-                      buttonRadius === 'full' ? 'rounded-full' : buttonRadius === 'none' ? 'rounded-none' : 'rounded-xl'
-                    }`}
+                    className="px-3 py-1 text-xs font-bold shadow-xs transition-all"
                     style={{
                       backgroundColor: primaryButtonColor,
                       color: primaryButtonTextColor,
+                      borderRadius: getButtonRadiusValue(buttonRadius),
                     }}
                   >
                     Next Step →
@@ -426,12 +458,11 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
                     Secondary Action (Previous)
                   </h4>
                   <span
-                    className={`px-3 py-1 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 shadow-xs ${
-                      buttonRadius === 'full' ? 'rounded-full' : buttonRadius === 'none' ? 'rounded-none' : 'rounded-xl'
-                    }`}
+                    className="px-3 py-1 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 shadow-xs transition-all"
                     style={{
                       backgroundColor: secondaryButtonColor,
                       color: secondaryButtonTextColor,
+                      borderRadius: getButtonRadiusValue(buttonRadius),
                     }}
                   >
                     ← Previous
@@ -477,6 +508,126 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
                         className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* ─── Typography & Content Colors ─── */}
+                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                      Typography & Text Colors
+                    </h4>
+                    {(headingColor || descriptionColor) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onChangeHeadingColor) onChangeHeadingColor('');
+                          if (onChangeDescriptionColor) onChangeDescriptionColor('');
+                        }}
+                        className="text-[11px] font-medium text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 transition-colors"
+                      >
+                        Reset to default
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 mb-3">
+                    Customize the heading and guidance text colors to match your client's brand palette.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Heading Color */}
+                    {onChangeHeadingColor && (
+                      <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                            Heading / Title Color
+                          </label>
+                          <span
+                            className="text-xs font-bold px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+                            style={{ color: headingColor || (systemTheme === 'light' ? '#0f172a' : '#ffffff') }}
+                          >
+                            Title Sample
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={headingColor || (systemTheme === 'light' ? '#0f172a' : '#ffffff')}
+                            onChange={(e) => onChangeHeadingColor(e.target.value)}
+                            className="w-9 h-9 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent cursor-pointer p-0.5"
+                          />
+                          <input
+                            type="text"
+                            placeholder={systemTheme === 'light' ? '#0F172A' : '#FFFFFF'}
+                            value={headingColor || ''}
+                            onChange={(e) => onChangeHeadingColor(e.target.value)}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {['#0F172A', '#1E293B', '#1E3A8A', '#4338CA', '#047857', '#B45309', '#BE123C', '#FFFFFF'].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => onChangeHeadingColor(c)}
+                              className="w-5 h-5 rounded-md border border-zinc-300 dark:border-zinc-600 transition-transform hover:scale-110 shadow-xs"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Description Color */}
+                    {onChangeDescriptionColor && (
+                      <div className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                            Description Color
+                          </label>
+                          <span
+                            className="text-xs px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+                            style={{ color: descriptionColor || (systemTheme === 'light' ? '#64748b' : '#94a3b8') }}
+                          >
+                            Subtitle Sample
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={descriptionColor || (systemTheme === 'light' ? '#64748b' : '#94a3b8')}
+                            onChange={(e) => onChangeDescriptionColor(e.target.value)}
+                            className="w-9 h-9 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent cursor-pointer p-0.5"
+                          />
+                          <input
+                            type="text"
+                            placeholder={systemTheme === 'light' ? '#64748B' : '#94A3B8'}
+                            value={descriptionColor || ''}
+                            onChange={(e) => onChangeDescriptionColor(e.target.value)}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {['#64748B', '#475569', '#3B82F6', '#6366F1', '#10B981', '#F59E0B', '#EC4899', '#94A3B8'].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => onChangeDescriptionColor(c)}
+                              className="w-5 h-5 rounded-md border border-zinc-300 dark:border-zinc-600 transition-transform hover:scale-110 shadow-xs"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

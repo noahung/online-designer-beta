@@ -183,7 +183,7 @@ export default function Layout() {
       </aside>
 
       {/* Main App Content Viewport */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#0d0d0d]">
+      <main className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden min-h-0 bg-white dark:bg-[#0d0d0d]">
         <Outlet />
       </main>
     </div>
