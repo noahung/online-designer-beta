@@ -634,71 +634,82 @@ export default function Forms() {
           onDeleteFolder={handleDeleteFolder}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onCreateForm={() => setIsTypeModalOpen(true)}
         />
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-8">
-              <div className="animate-slide-up">
-                <h1 className={`text-3xl font-semibold text-zinc-900 dark:text-white`}>
-                  Forms
-                </h1>
-                <p className={`mt-2 text-base text-zinc-500 dark:text-zinc-400`}>
-                  Create and manage your client forms
-                </p>
-              </div>
-              <button 
-                onClick={() => setIsTypeModalOpen(true)} 
-                className="group flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-medium transition-colors duration-150 animate-slide-up"
-                style={{animationDelay: '0.2s'}}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Form
-        </button>
-      </div>
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-[#0d0d0d]">
+          <div className="p-8 space-y-6 max-w-6xl mx-auto">
+            {/* OpenAI API Keys-Style Header */}
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                Forms
+              </h1>
 
-      {/* Search Bar */}
-      {forms.length > 0 && (
-        <div className="mb-6 animate-slide-up" style={{animationDelay: '0.3s'}}>
-          <div className="relative">
-            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-              theme === 'light' ? 'text-gray-400' : 'text-white/40'
-            }`} />
-            <input
-              type="text"
-              placeholder="Search forms by name, internal name, description, or client..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all duration-200 ${
-                theme === 'light'
-                  ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-200'
-                  : 'bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-zinc-700 focus:ring-1 focus:ring-zinc-800'
-              } focus:outline-none`}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className={`absolute right-4 top-1/2 transform -translate-y-1/2 text-sm font-medium transition-colors ${
-                  theme === 'light'
-                    ? 'text-gray-500 hover:text-gray-700'
-                    : 'text-white/60 hover:text-white'
-                }`}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <p className={`mt-2 text-sm ${
-              theme === 'light' ? 'text-gray-600' : 'text-white/60'
-            }`}>
-              Found {filteredForms.length} form{filteredForms.length !== 1 ? 's' : ''}
-              {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
-            </p>
-          )}
-        </div>
-      )}
+              {/* Underline Tabs (OpenAI API Keys / Settings style) */}
+              <div className="flex items-center gap-6 border-b border-zinc-200 dark:border-zinc-800 mt-4 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolderId(null)}
+                  className={`pb-3 relative transition-colors ${
+                    selectedFolderId === null
+                      ? 'text-zinc-950 dark:text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-zinc-950 dark:after:bg-white'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  All Forms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolderId('uncategorized')}
+                  className={`pb-3 relative transition-colors ${
+                    selectedFolderId === 'uncategorized'
+                      ? 'text-zinc-950 dark:text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-zinc-950 dark:after:bg-white'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Uncategorized
+                </button>
+              </div>
+            </div>
+
+            {/* OpenAI Action Bar (+ Create form, Search, Filter pills) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button 
+                  onClick={() => setIsTypeModalOpen(true)} 
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-full font-bold text-xs shadow-sm transition-all hover:scale-[1.01]"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create new form</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-[#18181b] text-xs font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>Active</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="relative min-w-[240px]">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                  <input
+                    type="text"
+                    placeholder="Search forms..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-4 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                  />
+                </div>
+                <span className="text-xs text-zinc-400 font-medium">
+                  {filteredForms.length} result{filteredForms.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+
 
       {loading ? (
         <div className="space-y-6">
@@ -763,30 +774,44 @@ export default function Forms() {
         </div>
       ) : (
         <>
-          <div className="space-y-6">
-            {paginatedForms.map((form, index) => (
-              <FormCard
-                key={form.id}
-                form={form}
-                index={index}
-                responseCount={responseCounts[form.id] || 0}
-                isSelected={selectedFormIds.has(form.id)}
-                onToggleSelect={() => toggleFormSelection(form.id)}
-                onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
-                onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
-                onCopyEmbed={() => copyEmbedCode(form.id)}
-                onPreview={() => window.open(`/form/${form.id}`, '_blank')}
-                onEdit={() => openEditModal(form.id)}
-                onDuplicate={() => duplicateForm(form.id)}
-                onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
-                onDelete={() => deleteForm(form.id)}
-                folders={folders}
-                openMenuId={openMenuId}
-                onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
-                theme={theme}
-                FolderBadge={FolderBadge}
-              />
-            ))}
+          <div className="w-full overflow-x-auto border border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white dark:bg-[#121212]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <th className="py-3 px-4">Name</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Workspace</th>
+                  <th className="py-3 px-4">Responses</th>
+                  <th className="py-3 px-4">Created</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedForms.map((form, index) => (
+                  <FormCard
+                    key={form.id}
+                    form={form}
+                    index={index}
+                    responseCount={responseCounts[form.id] || 0}
+                    isSelected={selectedFormIds.has(form.id)}
+                    onToggleSelect={() => toggleFormSelection(form.id)}
+                    onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
+                    onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
+                    onCopyEmbed={() => copyEmbedCode(form.id)}
+                    onPreview={() => window.open(`/form/${form.id}`, '_blank')}
+                    onEdit={() => openEditModal(form.id)}
+                    onDuplicate={() => duplicateForm(form.id)}
+                    onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
+                    onDelete={() => deleteForm(form.id)}
+                    folders={folders}
+                    openMenuId={openMenuId}
+                    onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
+                    theme={theme}
+                    FolderBadge={FolderBadge}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
@@ -798,6 +823,7 @@ export default function Forms() {
           />
         </>
       )}
+
           </div>
         </div>
       </div>

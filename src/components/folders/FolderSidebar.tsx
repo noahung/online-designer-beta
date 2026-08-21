@@ -1,5 +1,15 @@
-import { useState, useEffect } from 'react'
-import { Folder, FolderPlus, Edit2, Trash2, MoreVertical, Inbox, ChevronRight, ChevronDown } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import {
+  Folder,
+  FolderPlus,
+  Edit2,
+  Trash2,
+  Inbox,
+  ChevronRight,
+  Search,
+  Plus,
+  Lock
+} from 'lucide-react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { Folder as FolderType } from '../../api/folders'
 
@@ -13,6 +23,7 @@ interface FolderSidebarProps {
   onDeleteFolder: (folderId: string) => void
   isCollapsed?: boolean
   onToggleCollapse?: () => void
+  onCreateForm?: () => void
 }
 
 export default function FolderSidebar({
@@ -24,229 +35,157 @@ export default function FolderSidebar({
   onEditFolder,
   onDeleteFolder,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  onCreateForm
 }: FolderSidebarProps) {
   const { theme } = useTheme()
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [searchFilter, setSearchFilter] = useState('')
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setOpenMenuId(null)
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
-  const handleMenuClick = (e: React.MouseEvent, folderId: string) => {
-    e.stopPropagation()
-    setOpenMenuId(openMenuId === folderId ? null : folderId)
-  }
-
-  const handleEdit = (e: React.MouseEvent, folder: FolderType) => {
-    e.stopPropagation()
-    setOpenMenuId(null)
-    onEditFolder(folder)
-  }
-
-  const handleDelete = (e: React.MouseEvent, folderId: string) => {
-    e.stopPropagation()
-    setOpenMenuId(null)
-    onDeleteFolder(folderId)
-  }
+  const filteredFolders = folders.filter((f) =>
+    f.name.toLowerCase().includes(searchFilter.toLowerCase())
+  )
 
   if (isCollapsed) {
     return (
-      <div className={`w-16 border-r transition-all duration-300 animate-slide-in-left ${
-        theme === 'light'
-          ? 'bg-white/50 border-gray-200'
-          : 'bg-white/5 border-white/10'
-      }`}>
+      <div className="w-14 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0d0d0d] flex flex-col items-center py-4 transition-all">
         <button
           onClick={onToggleCollapse}
-          className={`w-full p-4 flex items-center justify-center transition-colors ${
-            theme === 'light'
-              ? 'hover:bg-gray-100 text-gray-600'
-              : 'hover:bg-white/10 text-white/60'
-          }`}
-          title="Expand sidebar"
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          title="Expand workspaces"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     )
   }
 
   return (
-    <div className={`w-72 border-r transition-all duration-300 flex flex-col animate-slide-in-left ${
-      theme === 'light'
-        ? 'bg-white/50 border-gray-200'
-        : 'bg-white/5 border-white/10'
-    }`}>
-      {/* Header */}
-      <div className={`p-4 border-b flex items-center justify-between ${
-        theme === 'light' ? 'border-gray-200' : 'border-white/10'
-      }`}>
-        <h3 className={`font-semibold ${
-          theme === 'light' ? 'text-gray-900' : 'text-white'
-        }`}>
-          Folders
-        </h3>
-        <button
-          onClick={onToggleCollapse}
-          className={`p-1 rounded transition-colors ${
-            theme === 'light'
-              ? 'hover:bg-gray-100 text-gray-600'
-              : 'hover:bg-white/10 text-white/60'
-          }`}
-          title="Collapse sidebar"
-        >
-          <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
-        </button>
-      </div>
-
-      {/* Folder List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {/* All Forms */}
-        <button
-          onClick={() => onSelectFolder(null)}
-          className={`w-full flex items-center justify-between pl-[10px] pr-3 py-2.5 rounded-r-lg rounded-l-none border-l-2 transition-all ${
-            selectedFolderId === null
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100 font-semibold'
-              : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-white/5'
-          }`}
-        >
-          <div className="flex items-center space-x-3">
-            <Inbox className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
-            <span className="font-medium">All Forms</span>
-          </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            selectedFolderId === null
-              ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
-              : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400'
-          }`}>
-            {folders.reduce((sum, f) => sum + (f.form_count || 0), 0) + uncategorizedCount}
-          </span>
-        </button>
-
-        {/* Uncategorized */}
-        {uncategorizedCount > 0 && (
+    <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0d0d0d] flex flex-col select-none h-full font-sans">
+      {/* Top CTA & Search */}
+      <div className="p-3 space-y-2.5 border-b border-zinc-200 dark:border-zinc-800">
+        {onCreateForm && (
           <button
-            onClick={() => onSelectFolder('uncategorized')}
-            className={`w-full flex items-center justify-between pl-[10px] pr-3 py-2.5 rounded-r-lg rounded-l-none border-l-2 transition-all ${
-              selectedFolderId === 'uncategorized'
-                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100 font-semibold'
-                : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-white/5'
-            }`}
+            type="button"
+            onClick={onCreateForm}
+            className="w-full py-2 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-colors"
           >
-            <div className="flex items-center space-x-3">
-              <Folder className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
-              <span className="font-medium">Uncategorized</span>
-            </div>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${
-              selectedFolderId === 'uncategorized'
-                ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
-                : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400'
-            }`}>
-              {uncategorizedCount}
-            </span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create form</span>
           </button>
         )}
 
-        {/* Divider */}
-        {folders.length > 0 && (
-          <div className={`my-2 border-t ${
-            theme === 'light' ? 'border-gray-200' : 'border-white/10'
-          }`} />
-        )}
-
-        {/* User Folders */}
-        {folders.map((folder) => (
-          <div key={folder.id} className="relative">
-            <button
-              onClick={() => onSelectFolder(folder.id)}
-              className={`w-full flex items-center justify-between pl-[10px] pr-3 py-2.5 rounded-r-lg rounded-l-none border-l-2 transition-all ${
-                selectedFolderId === folder.id
-                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white border-zinc-900 dark:border-zinc-100 font-semibold'
-                  : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/50 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center space-x-3 flex-1 min-w-0">
-                <Folder className="w-5 h-5 flex-shrink-0" style={{ color: folder.color }} />
-                <span className="font-medium truncate">
-                  {folder.name}
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                  selectedFolderId === folder.id
-                    ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200'
-                    : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400'
-                }`}>
-                  {folder.form_count || 0}
-                </span>
-                
-                <button
-                  onClick={(e) => handleMenuClick(e, folder.id)}
-                  className={`p-1 rounded hover:bg-black/10 transition-colors ${
-                    theme === 'light' ? 'text-gray-500' : 'text-white/50'
-                  }`}
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </div>
-            </button>
-
-            {/* Context Menu */}
-            {openMenuId === folder.id && (
-              <div className={`absolute right-2 top-12 w-48 rounded-lg border shadow-lg z-10 overflow-hidden ${
-                theme === 'light'
-                  ? 'bg-white border-gray-200'
-                  : 'bg-gray-800 border-white/20'
-              }`}>
-                <button
-                  onClick={(e) => handleEdit(e, folder)}
-                  className={`w-full flex items-center space-x-2 px-4 py-2 transition-colors ${
-                    theme === 'light'
-                      ? 'hover:bg-gray-100 text-gray-700'
-                      : 'hover:bg-white/10 text-white'
-                  }`}
-                >
-                  <Edit2 className="w-4 h-4" />
-                  <span>Edit Folder</span>
-                </button>
-                <button
-                  onClick={(e) => handleDelete(e, folder.id)}
-                  className={`w-full flex items-center space-x-2 px-4 py-2 transition-colors ${
-                    theme === 'light'
-                      ? 'hover:bg-red-50 text-red-600'
-                      : 'hover:bg-red-500/10 text-red-400'
-                  }`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Folder</span>
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Search workspaces..."
+            className="w-full pl-8 pr-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-[#18181b] text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-500"
+          />
+        </div>
       </div>
 
-      {/* Create Folder Button */}
-      <div className={`p-3 border-t ${
-        theme === 'light' ? 'border-gray-200' : 'border-white/10'
-      }`}>
+      {/* Workspaces & Folders Section */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="flex items-center justify-between px-2 pt-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+            <Lock className="w-3 h-3" />
+            <span>Private Workspaces</span>
+          </div>
+          <button
+            type="button"
+            onClick={onCreateFolder}
+            className="p-1 rounded-md text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            title="Create new workspace"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* All Forms (Uncategorized / Root) */}
         <button
-          onClick={onCreateFolder}
-          className={`w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
-            theme === 'light'
-              ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
-              : 'bg-white hover:bg-zinc-100 text-zinc-900'
+          type="button"
+          onClick={() => onSelectFolder(null)}
+          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+            selectedFolderId === null
+              ? 'bg-zinc-200/80 dark:bg-[#212121] text-zinc-950 dark:text-white font-semibold'
+              : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#18181b] hover:text-zinc-900 dark:hover:text-zinc-200'
           }`}
         >
-          <FolderPlus className="w-5 h-5" />
-          <span>New Folder</span>
+          <div className="flex items-center gap-2 truncate">
+            <Inbox className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="truncate">All Forms</span>
+          </div>
+          {uncategorizedCount > 0 && (
+            <span className="text-[11px] text-zinc-400 font-normal">
+              {uncategorizedCount}
+            </span>
+          )}
         </button>
+
+        {/* Dynamic Folder List */}
+        <div className="space-y-0.5">
+          {filteredFolders.map((folder) => (
+            <div
+              key={folder.id}
+              onClick={() => onSelectFolder(folder.id)}
+              className={`group flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium cursor-pointer transition-colors ${
+                selectedFolderId === folder.id
+                  ? 'bg-zinc-200/80 dark:bg-[#212121] text-zinc-950 dark:text-white font-semibold'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#18181b] hover:text-zinc-900 dark:hover:text-zinc-200'
+              }`}
+            >
+              <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                <Folder
+                  className="w-3.5 h-3.5 flex-shrink-0 text-zinc-400"
+                />
+                <span className="truncate">{folder.name}</span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {folder.form_count !== undefined && (
+                  <span className="text-[11px] text-zinc-400 group-hover:hidden">
+                    {folder.form_count}
+                  </span>
+                )}
+                <div className="hidden group-hover:flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEditFolder(folder)
+                    }}
+                    className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                    title="Edit folder"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteFolder(folder.id)
+                    }}
+                    className="p-1 text-zinc-400 hover:text-red-500"
+                    title="Delete folder"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </aside>
   )
 }

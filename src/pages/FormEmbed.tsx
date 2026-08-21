@@ -6,6 +6,7 @@ import { formThemes } from '../lib/formThemes'
 import { Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { StepLogic } from '../types/formLogic'
+import { evaluateStepLogic } from '../lib/logicEngine'
 import SinglePageFormEmbed from '../components/single-page/SinglePageFormEmbed'
 import type { RenderedField } from '../components/single-page/FieldRenderer'
 
@@ -588,85 +589,14 @@ export default function FormEmbed() {
     console.log('🔍 [FORM] Evaluating logic for step:', currentStepId)
     const logic = stepLogicMap.get(currentStepId)
     if (!logic) {
-      console.log('   No logic found for this step')
       return null
     }
 
-    // Check if we should ignore logic (no rules and default action is just 'next step' without specific target)
-    if (logic.rules.length === 0 && !logic.default_action) {
-        console.log('   Logic object exists but is empty')
-        return null
+    const evaluation = evaluateStepLogic(currentStepId, response, logic, steps)
+    if (evaluation.isEnd) {
+      return steps.length
     }
-
-    console.log('   Found logic:', logic)
-    console.log('   User response:', response)
-
-    // Evaluate rules in order
-    if (logic.rules.length > 0) {
-      for (const rule of logic.rules) {
-        let allConditionsMet = true
-
-        // A rule with zero conditions should never auto-match — skip it
-        if (rule.conditions.length === 0) {
-          console.log('   ⚠️ Rule has no conditions, skipping:', rule.id)
-          continue
-        }
-
-        // Check all conditions (AND logic)
-        for (const condition of rule.conditions) {
-          if (condition.field_type === 'option') {
-            // Handle both Option object (from selectOption) and response object (from responses state)
-            const selectedId = response?.id || response?.option_id
-            console.log(`   Rule ${rule.id}: condition.option_id="${condition.option_id}" vs selectedId="${selectedId}" → ${condition.option_id === selectedId ? 'MATCH' : 'NO MATCH'}`)
-            if (condition.option_id !== selectedId) {
-              allConditionsMet = false
-              break
-            }
-          } else {
-            // Non-option condition types are not yet evaluated — treat as unmet so rule is skipped
-            console.log(`   Rule ${rule.id}: condition field_type "${condition.field_type}" not supported yet, skipping rule`)
-            allConditionsMet = false
-            break
-          }
-        }
-
-        // If all conditions met, apply this rule's action
-        if (allConditionsMet) {
-          console.log('   ✅ Rule matched:', rule)
-          // Handle "go to end" action explicitly
-          if (rule.action.type === 'go_to_end') {
-            console.log('   Action: Go to end')
-            return steps.length
-          }
-          
-          // Handle "go to step" action
-          if (rule.action.target_step_id) {
-            const targetIdx = steps.findIndex(s => s.id === rule.action.target_step_id)
-            console.log('   Action: Go to step ID', rule.action.target_step_id, 'Index:', targetIdx)
-            return targetIdx >= 0 ? targetIdx : null
-          }
-        }
-      }
-    }
-
-    // If no rules matched, check default action
-    if (logic.default_action) {
-      console.log('   Checking default action:', logic.default_action)
-      // Handle "go to end" default action
-      if (logic.default_action.action.type === 'go_to_end') {
-        console.log('   Default Action: Go to end')
-        return steps.length
-      }
-
-      if (logic.default_action.action.target_step_id) {
-        const targetIdx = steps.findIndex(s => s.id === logic.default_action.action.target_step_id)
-        console.log('   Default Action: Go to step ID', logic.default_action.action.target_step_id, 'Index:', targetIdx)
-        return targetIdx >= 0 ? targetIdx : null
-      }
-    }
-
-    console.log('   No matching rules and no valid default action target')
-    return null
+    return evaluation.targetStepIndex
   }
 
   const selectOption = (option: Option) => {

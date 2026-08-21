@@ -3,23 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import bannerImage from '../assets/images/banner.jpg'
-import { BentoCard } from '../components/ui/bento-card'
 import { 
   Users, 
   FileText, 
   BarChart3, 
-  TrendingUp, 
   Sparkles, 
-  Zap, 
-  Star, 
+  Plus, 
+  ArrowRight,
+  TrendingUp,
   Activity,
-  Plus,
-  Clock,
-  Eye,
-  MousePointerClick,
-  Target,
-  X
+  Layers,
+  Zap,
+  CheckCircle2
 } from 'lucide-react'
 
 interface Stats {
@@ -29,20 +24,11 @@ interface Stats {
   responseRate: number
 }
 
-interface RecentActivity {
-  id: string
-  type: 'form_created' | 'response_received' | 'client_added'
-  title: string
-  description: string
-  timestamp: Date
-  icon: any
-  color: string
-}
-
 export default function Dashboard() {
   const { user } = useAuth()
   const { theme } = useTheme()
   const navigate = useNavigate()
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d'>('7d')
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
     totalForms: 0,
@@ -50,8 +36,6 @@ export default function Dashboard() {
     responseRate: 0,
   })
   const [loading, setLoading] = useState(true)
-  const [showBanner, setShowBanner] = useState(true)
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
   const fetchStats = useCallback(async () => {
     if (!user) return
@@ -76,7 +60,6 @@ export default function Dashboard() {
           .eq('forms.user_id', user.id)
       ])
 
-      // Calculate response rate
       const responseRate = formsCount && formsCount > 0 ? 
         Math.round(((responsesCount || 0) / (formsCount * 10)) * 100) : 0
 
@@ -93,457 +76,198 @@ export default function Dashboard() {
     }
   }, [user])
 
-  const fetchRecentActivity = useCallback(async () => {
-    if (!user) return
-
-    try {
-      const [
-        { data: forms },
-        { data: responses },
-        { data: clients }
-      ] = await Promise.all([
-        supabase
-          .from('forms')
-          .select('id, name, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(2),
-        supabase
-          .from('responses')
-          .select('id, contact_name, submitted_at, forms!inner(user_id, name)')
-          .eq('forms.user_id', user.id)
-          .order('submitted_at', { ascending: false })
-          .limit(2),
-        supabase
-          .from('clients')
-          .select('id, name, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-      ])
-
-      const activities: RecentActivity[] = []
-
-      // Add forms
-      forms?.forEach(form => {
-        activities.push({
-          id: form.id,
-          type: 'form_created',
-          title: 'New form created',
-          description: form.name,
-          timestamp: new Date(form.created_at),
-          icon: FileText,
-          color: 'from-blue-500 to-cyan-500'
-        })
-      })
-
-      // Add responses
-      responses?.forEach(response => {
-        activities.push({
-          id: response.id,
-          type: 'response_received',
-          title: 'New response received',
-          description: `${response.contact_name || 'Anonymous'} - ${(response.forms as any).name}`,
-          timestamp: new Date(response.submitted_at),
-          icon: Activity,
-          color: 'from-green-500 to-emerald-500'
-        })
-      })
-
-      // Add clients
-      clients?.forEach(client => {
-        activities.push({
-          id: client.id,
-          type: 'client_added',
-          title: 'New client added',
-          description: client.name,
-          timestamp: new Date(client.created_at),
-          icon: Users,
-          color: 'from-purple-500 to-pink-500'
-        })
-      })
-
-      // Sort by timestamp
-      activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      
-      setRecentActivity(activities.slice(0, 5))
-    } catch (error) {
-      console.error('Error fetching recent activity:', error)
-    }
-  }, [user])
-
   useEffect(() => {
     fetchStats()
-    fetchRecentActivity()
-  }, [fetchStats, fetchRecentActivity])
-
-  const formatTimeAgo = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
-    
-    if (seconds < 60) return 'Just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
-    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
-    return date.toLocaleDateString()
-  }
-
-  const quickActions = useMemo(() => [
-    {
-      title: 'Create New Form',
-      description: 'Build a custom form for your clients',
-      icon: Plus,
-      action: () => navigate('/forms')
-    },
-    {
-      title: 'Add New Client',
-      description: 'Set up branding for a new client',
-      icon: Users,
-      action: () => navigate('/clients')
-    },
-    {
-      title: 'View Responses',
-      description: 'Check latest form submissions',
-      icon: Eye,
-      action: () => navigate('/responses')
-    },
-    {
-      title: 'Analytics',
-      description: 'View detailed performance metrics',
-      icon: BarChart3,
-      action: () => {}
-    }
-  ], [navigate])
+  }, [fetchStats])
 
   return (
-    <div className={`w-full min-h-full ${theme === 'light' ? 'bg-zinc-50/50' : ''}`}>
-      <div className="max-w-[1600px] mx-auto p-8">
-        {/* Promotional Banner */}
-        {showBanner && (
-          <div className="mb-8 relative overflow-hidden rounded-3xl animate-fade-in border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowBanner(false)}
-              className="absolute top-4 right-4 z-10 p-1.5 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-full transition-all duration-200 group"
-            >
-              <X className="w-4 h-4 text-white/80 group-hover:text-white" />
-            </button>
+    <div className="w-full min-h-full overflow-y-auto bg-white dark:bg-[#0d0d0d] text-zinc-900 dark:text-zinc-100 p-8 select-none font-sans">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Top Header: Title & Time Range Filter */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            Home
+          </h1>
 
-            {/* Banner Image */}
-            <img
-              src={bannerImage}
-              alt="Promotional Banner"
-              className="w-full h-[220px] object-cover opacity-60 dark:opacity-35 transition-all duration-300 filter grayscale"
-            />
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100">
-                Welcome back, Adel!
-              </h1>
-              <p className={`mt-1.5 text-sm ${
-                theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-              }`}>
-                Here's what's happening with your forms today
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => navigate('/forms')}
-                className="inline-flex items-center px-6 py-2.5 bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white text-sm font-medium rounded-full shadow-sm transition-all duration-150"
+          {/* Time Range Pills (OpenAI Platform style) */}
+          <div className="flex items-center p-1 rounded-xl bg-zinc-100 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 text-xs font-semibold">
+            {(['24h', '7d', '30d', '90d'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`px-3 py-1 rounded-lg transition-colors ${
+                  timeRange === range
+                    ? 'bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
+                }`}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Form
+                {range}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Hero Banner (OpenAI Promo style) */}
+        <div className="relative rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-gradient-to-r from-zinc-900 via-zinc-950 to-slate-900 text-white p-8 sm:p-10 shadow-lg">
+          <div className="relative z-10 max-w-xl space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-[11px] font-semibold text-emerald-300 border border-white/10">
+              <Sparkles className="w-3 h-3" />
+              <span>Next Gen Form Studio</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-tight">
+              Create interactive typeform experiences with AI
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-300">
+              Build smart multi-step workflows, conditional branching trees, and live embeds in minutes.
+            </p>
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/forms/new')}
+                className="px-5 py-2.5 rounded-full bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-100 transition-colors shadow-md flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create new form</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/forms')}
+                className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition-colors backdrop-blur-sm"
+              >
+                Browse Workspaces
               </button>
             </div>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className={`backdrop-blur-md rounded-2xl border p-6 animate-pulse ${
-                theme === 'light'
-                  ? 'bg-white border-gray-200'
-                  : 'bg-white/5 border-white/10'
-              }`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-16 h-16 rounded-xl ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
-                  }`}></div>
-                </div>
-                <div className={`h-4 rounded w-24 mb-3 ${
-                  theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
-                }`}></div>
-                <div className={`h-8 rounded w-16 ${
-                  theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
-                }`}></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" style={{ minHeight: '400px' }}>
-            <div className="md:col-span-2">
-              <BentoCard
-                title="Total Clients"
-                value={stats.totalClients}
-                subtitle="Active clients in your account"
-                delay={0.2}
-              />
+        {/* Metrics Grid (OpenAI Metrics Cards with Sparklines) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Responses */}
+          <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800/80 space-y-3">
+            <div className="flex items-center justify-between text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              <span>Total Responses</span>
+              <span className="text-emerald-500 font-bold">+14%</span>
             </div>
-            <BentoCard
-              title="Active Forms"
-              value={stats.totalForms}
-              subtitle="Forms ready to collect responses"
-              delay={0.4}
-            />
-            <BentoCard
-              title="Response Rate"
-              value={`${stats.responseRate}%`}
-              subtitle="Engagement across all forms"
-              delay={0.6}
-            />
-            <div className="md:col-span-2">
-              <BentoCard
-                title="Total Responses"
-                value={stats.totalResponses}
-                subtitle="Form submissions received this month"
-                delay={0.8}
-              />
+            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+              {stats.totalResponses.toLocaleString()}
             </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Quick Actions - Spans 2 columns */}
-          <div className="lg:col-span-2">
-            <div className={`backdrop-blur-md rounded-2xl border p-8 ${
-              theme === 'light'
-                ? 'bg-white border-zinc-200'
-                : 'bg-white/5 border-white/10'
-            }`}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className={`text-xl font-medium ${
-                  theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                }`}>
-                  Quick Actions
-                </h3>
-                <Zap className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {quickActions.map((action, index) => (
-                  <button
-                    key={action.title}
-                    onClick={action.action}
-                    className={`text-left p-6 rounded-xl border transition-all duration-200 hover:bg-zinc-50 dark:hover:bg-white/[0.08] hover:border-zinc-300 dark:hover:border-white/20 group will-change-transform ${
-                      theme === 'light'
-                        ? 'bg-white border-zinc-200'
-                        : 'bg-white/5 border-white/10'
-                    }`}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 transition-transform duration-300 ${
-                      theme === 'light' ? 'bg-zinc-100 text-zinc-700' : 'bg-white/10 text-zinc-300'
-                    }`}>
-                      <action.icon className="w-5 h-5" />
-                    </div>
-                    <h4 className={`text-base font-medium mb-1 ${
-                      theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                    }`}>
-                      {action.title}
-                    </h4>
-                    <p className={`text-sm ${
-                      theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                    }`}>
-                      {action.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Performance Insights */}
-            <div className={`mt-8 backdrop-blur-md rounded-2xl border p-8 ${
-              theme === 'light'
-                ? 'bg-white border-zinc-200'
-                : 'bg-white/5 border-white/10'
-            }`}>
-              <h3 className={`text-xl font-medium mb-6 ${
-                theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-              }`}>
-                Performance Insights
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className={`text-center p-6 rounded-xl border ${
-                  theme === 'light'
-                    ? 'bg-zinc-50 border-zinc-200'
-                    : 'bg-white/[0.02] border-white/5'
-                }`}>
-                  <MousePointerClick className="w-6 h-6 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
-                  <p className={`text-2xl font-semibold tracking-tight mb-1 ${
-                    theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                  }`}>
-                    {stats.totalResponses * 3}
-                  </p>
-                  <p className={`text-xs ${
-                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}>
-                    Total Clicks
-                  </p>
-                </div>
-
-                <div className={`text-center p-6 rounded-xl border ${
-                  theme === 'light'
-                    ? 'bg-zinc-50 border-zinc-200'
-                    : 'bg-white/[0.02] border-white/5'
-                }`}>
-                  <Target className="w-6 h-6 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
-                  <p className={`text-2xl font-semibold tracking-tight mb-1 ${
-                    theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                  }`}>
-                    {Math.round(stats.responseRate * 1.2)}%
-                  </p>
-                  <p className={`text-xs ${
-                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}>
-                    Conversion Rate
-                  </p>
-                </div>
-
-                <div className={`text-center p-6 rounded-xl border ${
-                  theme === 'light'
-                    ? 'bg-zinc-50 border-zinc-200'
-                    : 'bg-white/[0.02] border-white/5'
-                }`}>
-                  <Clock className="w-6 h-6 mx-auto mb-3 text-zinc-400 dark:text-zinc-500" />
-                  <p className={`text-2xl font-semibold tracking-tight mb-1 ${
-                    theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                  }`}>
-                    2.5m
-                  </p>
-                  <p className={`text-xs ${
-                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}>
-                    Avg. Time
-                  </p>
-                </div>
-              </div>
+            {/* Sparkline curve visualization */}
+            <div className="h-8 flex items-end gap-1.5 pt-2">
+              <div className="flex-1 h-3 rounded-full bg-emerald-500/20 dark:bg-emerald-500/30" />
+              <div className="flex-1 h-5 rounded-full bg-emerald-500/30 dark:bg-emerald-500/40" />
+              <div className="flex-1 h-4 rounded-full bg-emerald-500/25 dark:bg-emerald-500/35" />
+              <div className="flex-1 h-7 rounded-full bg-emerald-500/40 dark:bg-emerald-500/50" />
+              <div className="flex-1 h-8 rounded-full bg-emerald-500 text-white" />
             </div>
           </div>
 
-          {/* Recent Activity - Spans 1 column */}
-          <div className="lg:col-span-1">
-            <div className={`backdrop-blur-md rounded-2xl border p-8 ${
-              theme === 'light'
-                ? 'bg-white border-zinc-200'
-                : 'bg-white/5 border-white/10'
-            }`}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className={`text-xl font-medium ${
-                  theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                }`}>
-                  Recent Activity
-                </h3>
-                <Activity className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
+          {/* Card 2: Active Forms */}
+          <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800/80 space-y-3">
+            <div className="flex items-center justify-between text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              <span>Active Forms</span>
+              <span className="text-blue-500 font-bold">Live</span>
+            </div>
+            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+              {stats.totalForms}
+            </div>
+            {/* Horizontal progress bar */}
+            <div className="pt-3 space-y-1">
+              <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full w-3/4" />
               </div>
+              <div className="text-[10px] text-zinc-400">All forms responding normally</div>
+            </div>
+          </div>
 
-              <div className="space-y-4">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map((activity, index) => (
-                    <div
-                      key={activity.id}
-                      className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 ${
-                        theme === 'light'
-                          ? 'bg-zinc-50/50 border-zinc-100 hover:bg-zinc-100/50'
-                          : 'bg-white/5 border-white/5 hover:bg-white/[0.08]'
-                      }`}
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        theme === 'light' ? 'bg-zinc-100 text-zinc-500' : 'bg-white/10 text-zinc-400'
-                      }`}>
-                        <activity.icon className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-semibold text-sm mb-1 ${
-                          theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                        }`}>
-                          {activity.title}
-                        </p>
-                        <p className={`text-sm mb-2 truncate ${
-                          theme === 'light' ? 'text-zinc-600' : 'text-zinc-400'
-                        }`}>
-                          {activity.description}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Clock className={`w-3 h-3 ${
-                            theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'
-                          }`} />
-                          <span className={`text-xs ${
-                            theme === 'light' ? 'text-zinc-500' : 'text-zinc-500'
-                          }`}>
-                            {formatTimeAgo(activity.timestamp)}
-                          </span>
-                        </div>
-                      </div>
-                      <Star className="w-3.5 h-3.5 text-zinc-300 dark:text-zinc-600 flex-shrink-0 mt-1" />
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-12">
-                    <Activity className={`w-16 h-16 mx-auto mb-4 ${
-                      theme === 'light' ? 'text-zinc-200' : 'text-white/10'
-                    }`} />
-                    <p className={`text-sm ${
-                      theme === 'light' ? 'text-zinc-500' : 'text-zinc-500'
-                    }`}>
-                      No recent activity yet
-                    </p>
-                  </div>
-                )}
+          {/* Card 3: Connected Clients */}
+          <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800/80 space-y-3">
+            <div className="flex items-center justify-between text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              <span>Client Workspaces</span>
+              <span className="text-purple-500 font-bold">Active</span>
+            </div>
+            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+              {stats.totalClients}
+            </div>
+            {/* Horizontal progress bar */}
+            <div className="pt-3 space-y-1">
+              <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                <div className="bg-purple-500 h-full rounded-full w-2/3" />
               </div>
+              <div className="text-[10px] text-zinc-400">Custom branded portals</div>
+            </div>
+          </div>
+        </div>
 
-              {recentActivity.length > 0 && (
-                <button className={`w-full mt-6 py-2.5 rounded-xl border text-sm font-medium transition-colors duration-200 ${
-                  theme === 'light'
-                    ? 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300'
-                }`}>
-                  View All Activity
-                </button>
-              )}
+        {/* Section: Recommended Templates (OpenAI Recommended Models Grid) */}
+        <div className="space-y-4 pt-4">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Recommended Templates
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div
+              onClick={() => navigate('/forms/new')}
+              className="p-5 rounded-2xl bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer group shadow-sm space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                  📐
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  Popular
+                </span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white group-hover:underline">
+                  Multi-Step Design Quote
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                  Product dimensions, material image selections, and instant price qualification.
+                </p>
+              </div>
             </div>
 
-            {/* Quick Tip */}
-            <div className={`mt-8 backdrop-blur-md rounded-2xl border p-6 ${
-              theme === 'light'
-                ? 'bg-zinc-50 border-zinc-200'
-                : 'bg-white/[0.02] border-white/10'
-            }`}>
-              <div className="flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  theme === 'light' ? 'bg-zinc-100 text-zinc-600' : 'bg-white/10 text-zinc-300'
-                }`}>
-                  <Sparkles className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+            <div
+              onClick={() => navigate('/forms/new')}
+              className="p-5 rounded-2xl bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer group shadow-sm space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                  ⭐
                 </div>
-                <div>
-                  <h4 className={`font-medium text-sm mb-1 ${
-                    theme === 'light' ? 'text-zinc-800' : 'text-zinc-200'
-                  }`}>
-                    Pro Tip
-                  </h4>
-                  <p className={`text-xs leading-relaxed ${
-                    theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}>
-                    Use form templates to save time! Create reusable templates for common form types.
-                  </p>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  High Conversion
+                </span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white group-hover:underline">
+                  CSAT &amp; Feedback Survey
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                  Star ratings, conditional branching for low scores, and Google review redirects.
+                </p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => navigate('/forms/new')}
+              className="p-5 rounded-2xl bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 transition-all cursor-pointer group shadow-sm space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
+                  ⚡
                 </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                  Lead Gen
+                </span>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white group-hover:underline">
+                  B2B Lead Qualification
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                  Capture contact info, company size, and route leads directly into Zapier &amp; CRM.
+                </p>
               </div>
             </div>
           </div>
@@ -552,4 +276,3 @@ export default function Dashboard() {
     </div>
   )
 }
-

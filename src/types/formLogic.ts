@@ -3,7 +3,18 @@
  * Defines the structure for conditional branching/logic in forms
  */
 
-export type LogicConditionType = 'is' | 'is_not' | 'contains' | 'not_contains' | 'greater_than' | 'less_than'
+export type LogicConditionType = 
+  | 'is' 
+  | 'is_not' 
+  | 'contains' 
+  | 'not_contains' 
+  | 'greater_than' 
+  | 'less_than' 
+  | 'greater_than_or_equal' 
+  | 'less_than_or_equal'
+  | 'is_filled'
+  | 'is_empty'
+
 export type LogicActionType = 'go_to_step' | 'go_to_end' | 'skip_to_step'
 
 /**
@@ -11,10 +22,10 @@ export type LogicActionType = 'go_to_step' | 'go_to_end' | 'skip_to_step'
  */
 export interface LogicCondition {
   id: string
-  field_type: 'option' | 'text' | 'scale' | 'dimension'
+  field_type: 'option' | 'text' | 'scale' | 'dimension' | 'contact' | 'file' | 'boolean'
   // For option-based questions (image_selection, multiple_choice)
   option_id?: string
-  // For comparison-based questions (opinion_scale, dimensions, text)
+  // For comparison-based questions (opinion_scale, dimensions, text, numbers)
   condition_type?: LogicConditionType
   comparison_value?: string | number
 }
@@ -33,7 +44,8 @@ export interface LogicAction {
 export interface LogicRule {
   id: string
   step_id: string // The step this rule belongs to
-  conditions: LogicCondition[] // Multiple conditions can be AND'ed together
+  conditions: LogicCondition[] // Multiple conditions evaluated based on operator
+  operator?: 'AND' | 'OR' // Defaults to 'AND'
   action: LogicAction
   order: number // Order of evaluation (rules are checked in order)
 }
@@ -53,4 +65,15 @@ export interface StepLogic {
   step_id: string
   rules: LogicRule[] // If-Then, Else-If-Then rules
   default_action?: DefaultLogicAction // Else-Then rule
+}
+
+/**
+ * Result of evaluating step logic
+ */
+export interface LogicEvaluationResult {
+  targetStepId: string | null
+  targetStepIndex: number | null
+  isEnd: boolean
+  matchedRuleId?: string
+  ruleExplanation?: string
 }

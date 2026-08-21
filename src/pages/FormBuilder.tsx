@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,8 +11,15 @@ import EmbedModal from '../components/ui/EmbedModal'
 import LoadTemplateModal from '../components/templates/LoadTemplateModal'
 import LogicBuilder from '../components/LogicBuilder'
 import GlobalFlowchart from '../components/GlobalFlowchart'
+import FormFlowchart from '../components/workflow/FormFlowchart'
+import StudioHeader, { StudioTab, DeviceView } from '../components/builder/StudioHeader'
+import StudioSidebar from '../components/builder/StudioSidebar'
+import StudioCanvas from '../components/builder/StudioCanvas'
+import StudioInspector from '../components/builder/StudioInspector'
+import ShareEmbedStudio from '../components/builder/ShareEmbedStudio'
 import { formThemes } from '../lib/formThemes'
 import { StepLogic } from '../types/formLogic'
+import { evaluateStepLogic, cleanupDanglingLogicRules } from '../lib/logicEngine'
 import {
   ArrowLeft,
   Save,
@@ -639,11 +646,14 @@ export default function FormBuilder() {
   const [secondaryButtonTextColor, setSecondaryButtonTextColor] = useState('#374151')
   const [steps, setSteps] = useState<Step[]>([])
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
+  const [activeStudioTab, setActiveStudioTab] = useState<StudioTab>('content')
+  const [deviceView, setDeviceView] = useState<DeviceView>('desktop')
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [showSingleStepPreview, setShowSingleStepPreview] = useState(false)
   const [previewStepIndex, setPreviewStepIndex] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const loadedFormIdRef = useRef<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [showStepTypeDropdown, setShowStepTypeDropdown] = useState(false)
 
@@ -750,13 +760,17 @@ export default function FormBuilder() {
     if (user) {
       fetchClients()
       if (formId) {
-        loadExistingForm()
+        if (loadedFormIdRef.current !== formId) {
+          loadedFormIdRef.current = formId
+          loadExistingForm()
+        }
       } else {
+        loadedFormIdRef.current = null
         // For new forms, set initial load to false after a short delay to allow state to settle
         setTimeout(() => setIsInitialLoad(false), 100)
       }
     }
-  }, [user, formId])
+  }, [user?.id, formId])
 
   // Initialize history present state after initial load
   useEffect(() => {
@@ -901,8 +915,6 @@ export default function FormBuilder() {
         })
       }
       setStepLogicMap(logicMap)
-
-      push({ type: 'success', message: 'Form loaded successfully' })
       setIsInitialLoad(false)
     } catch (error) {
       console.error('Error loading form:', error)
@@ -1916,1344 +1928,180 @@ export default function FormBuilder() {
   }
 
   return (
-    <div className={`min-h-screen ${theme === 'light' ? 'bg-zinc-50' : 'bg-[#111111]'}`}>
-      {/* Header */}
-      <div className={`border-b px-6 py-4 ${theme === 'light'
-        ? 'border-zinc-200 bg-white shadow-sm'
-        : 'border-zinc-800 bg-[#1e1e1f]'
-        }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/forms')}
-              className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${theme === 'light'
-                ? 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-                }`}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
+    <div className={`min-h-screen flex flex-col ${theme === 'light' ? 'bg-slate-50' : 'bg-slate-950'}`}>
+      {/* Studio Header (Typeform + OpenAI) */}
+      <StudioHeader
+        formName={name}
+        onFormNameChange={setName}
+        activeTab={activeStudioTab}
+        onTabChange={(tab) => {
+          if (tab === 'results' && formId) {
+            navigate(`/forms/${formId}/responses`)
+          } else {
+            setActiveStudioTab(tab)
+          }
+        }}
+        deviceView={deviceView}
+        onDeviceViewChange={setDeviceView}
+        onSave={save}
+        onPreview={() => setShowPreview(true)}
+        onOpenDesign={() => setShowFormThemeModal(true)}
+        onOpenShare={() => setActiveStudioTab('share')}
+        onBack={() => navigate('/forms')}
+        isSaving={saving}
+        hasUnsavedChanges={false}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onUndo={undo}
+        onRedo={redo}
+      />
+
+      {/* Main Studio Body Based on Active Tab */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Tab 1: Content (Visual Editor Studio) */}
+        {activeStudioTab === 'content' && (
+          <>
+            {/* Left Sidebar: Pages & Step Sequence */}
+            <StudioSidebar
+              steps={steps}
+              activeStepIndex={selectedStepIndex ?? 0}
+              onSelectStep={(idx) => setSelectedStepIndex(idx)}
+              onAddStep={() => setShowStepTypeDropdown(true)}
+              onDuplicateStep={duplicateStep}
+              onDeleteStep={deleteStep}
+              onReorderSteps={handleDragEnd}
+              welcomeScreen={{
+                enabled: true,
+                title: 'Welcome Screen'
+              }}
+              onToggleWelcomeScreen={() => setShowFormSettingsModal(true)}
+              endingScreen={{
+                title: 'A Thank you!'
+              }}
+            />
+
+            {/* Center Canvas: Live Form Studio Card */}
+            <StudioCanvas
+              currentStep={currentStep}
+              deviceView={deviceView}
+              onUpdateStep={(updates) => {
+                if (selectedStepIndex !== null) {
+                  updateStep(selectedStepIndex, { ...currentStep, ...updates } as Step)
+                }
+              }}
+              onAddOption={() => {
+                if (selectedStepIndex !== null) {
+                  addOption(selectedStepIndex)
+                }
+              }}
+              onUpdateOption={(optIdx, updates) => {
+                if (selectedStepIndex !== null) {
+                  updateOption(selectedStepIndex, optIdx, updates)
+                }
+              }}
+              onDeleteOption={(optIdx) => {
+                if (selectedStepIndex !== null) {
+                  deleteOption(selectedStepIndex, optIdx)
+                }
+              }}
+              onImageUpload={(optIdx, file) => {
+                if (selectedStepIndex !== null) {
+                  handleFileChange(selectedStepIndex, optIdx, file)
+                }
+              }}
+              clientLogo={clients.find((c) => c.id === clientId)?.name ? undefined : undefined}
+            />
+
+            {/* Right Sidebar: Question Inspector & Logic */}
+            <StudioInspector
+              currentStep={currentStep}
+              onUpdateStep={(updates) => {
+                if (selectedStepIndex !== null) {
+                  updateStep(selectedStepIndex, { ...currentStep, ...updates } as Step)
+                }
+              }}
+              onOpenLogicBuilder={() => setShowLogicBuilder(true)}
+              hasLogicRules={Boolean(stepLogicMap.get(currentStep?.id || '')?.rules?.length)}
+              logicRuleCount={stepLogicMap.get(currentStep?.id || '')?.rules?.length || 0}
+            />
+          </>
+        )}
+
+        {/* Tab 2: Workflow (React Flow Interactive Flowchart) */}
+        {activeStudioTab === 'workflow' && (
+          <div className="flex-1 w-full h-full relative">
+            <FormFlowchart
+              steps={steps}
+              stepLogicMap={stepLogicMap}
+              onSelectStep={(id) => {
+                const idx = steps.findIndex((s) => s.id === id)
+                if (idx !== -1) {
+                  setSelectedStepIndex(idx)
+                  setActiveStudioTab('content')
+                }
+              }}
+              onOpenLogicModal={(step) => {
+                const idx = steps.findIndex((s) => s.id === step.id)
+                if (idx !== -1) {
+                  setSelectedStepIndex(idx)
+                  setShowLogicBuilder(true)
+                }
+              }}
+              selectedStepId={currentStep?.id}
+            />
+          </div>
+        )}
+
+        {/* Tab 3: Connect (Integrations) */}
+        {activeStudioTab === 'connect' && (
+          <div className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full space-y-6">
             <div>
-              <h1 className={`text-2xl font-semibold tracking-tight ${theme === 'light'
-                ? 'text-zinc-900'
-                : 'text-zinc-100'
-                }`}>
-                {isEditing ? 'Edit Form: ' : 'Create Form: '}{name || 'Untitled Form'}
-              </h1>
-              {clientId && (
-                <p className={`mt-1 text-xs ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}>
-                  {clients.find(c => c.id === clientId)?.name}
-                </p>
-              )}
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Form Integrations</h2>
+              <p className="text-sm text-slate-500">Connect this form to CRM systems, Zapier webhooks, and email notifications.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+                <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm">
+                  ⚡
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-white">Zapier Webhook</h3>
+                <p className="text-xs text-slate-500">Automatically push new form submissions into your Zapier workflows and Google Sheets.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowEmbedModal(true)}
+                  className="px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-200"
+                >
+                  Configure Zapier
+                </button>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                  ✉️
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-white">Email Notifications</h3>
+                <p className="text-xs text-slate-500">Send instant email alerts to your sales team with full submission specifications.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowFormSettingsModal(true)}
+                  className="px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-200"
+                >
+                  Email Settings
+                </button>
+              </div>
             </div>
           </div>
-          <div className="flex items-center space-x-2.5">
-            <button
-              onClick={() => setShowStepTypeDropdown(true)}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Step
-            </button>
-            <button
-              onClick={() => setShowFormSettingsModal(true)}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Form Settings
-            </button>
-            <button
-              onClick={() => setShowFormThemeModal(true)}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-            >
-              <Palette className="h-4 w-4 mr-2" />
-              Form Theme
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEmbedModal(true)}
-              disabled={!formId}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-            >
-              <Code className="w-4 h-4 mr-2" />
-              Embed Form
-            </button>
-            <button
-              onClick={undo}
-              disabled={history.past.length === 0}
-              className={`inline-flex items-center p-2 rounded-full border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-              title="Undo last action"
-            >
-              <Undo className="h-4 w-4" />
-            </button>
-            <button
-              onClick={redo}
-              disabled={history.future.length === 0}
-              className={`inline-flex items-center p-2 rounded-full border transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-              title="Redo last undone action"
-            >
-              <Redo className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setShowGlobalFlowchart(true)}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              Logic Map
-            </button>
-            <button
-              onClick={() => setShowPreview(true)}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                theme === 'light'
-                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200'
-                  : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-              }`}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              Preview
-            </button>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="inline-flex items-center px-6 py-2 rounded-full font-medium transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-500/10"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Form'}
-            </button>
-          </div>
-        </div>
-      </div>
+        )}
 
-      <div className="flex h-[calc(100vh-80px)]">
-        {/* Left Sidebar */}
-        <div className={`w-[400px] border-r overflow-y-auto ${theme === 'light'
-          ? 'border-zinc-200 bg-white/60 backdrop-blur-sm'
-          : 'border-zinc-800 bg-[#1e1e1f]/30 backdrop-blur-sm'
-          }`}>
-          <div className="p-6 pb-24 space-y-6">
-            {/* Form Steps */}
-            <CollapsibleSection
-              title="Form Steps"
-              icon={<MessageSquare className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`} />}
-              isCollapsed={collapsedSections.formSteps}
-              onToggle={() => toggleSection('formSteps')}
-              animationDelay="0.1s"
-            >
-              <div className="space-y-4">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <div className="space-y-3">
-                    <SortableContext
-                      items={steps.map((_, index) => `step-${index}`)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {steps.map((step, index) => (
-                        <SortableStepItem
-                          key={`step-${index}`}
-                          step={step}
-                          index={index}
-                          isSelected={selectedStepIndex === index}
-                          onClick={() => setSelectedStepIndex(index)}
-                          onDelete={() => deleteStep(index)}
-                          onDuplicate={() => duplicateStep(index)}
-                          onPreview={() => {
-                            setPreviewStepIndex(index)
-                            setShowSingleStepPreview(true)
-                          }}
-                          canDelete={steps.length > 1}
-                        />
-                      ))}
-                    </SortableContext>
-
-                    {steps.length === 0 && (
-                      <div className="text-center py-8">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border ${
-                          theme === 'light' ? 'bg-zinc-100 border-zinc-200' : 'bg-white/10 border-white/20'
-                        }`}>
-                          <Plus className={`w-6 h-6 ${theme === 'light' ? 'text-zinc-500' : 'text-white/60'}`} />
-                        </div>
-                        <p className={`text-sm mb-6 ${theme === 'light' ? 'text-zinc-600' : 'text-white/70'}`}>Create a step to start building your form</p>
-                        <div className="flex flex-wrap justify-center gap-3">
-                          {stepTypes.map((stepType) => (
-                            <button
-                              key={stepType.type}
-                              onClick={() => addStep(stepType.type)}
-                              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                                theme === 'light'
-                                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border-zinc-200 shadow-sm'
-                                  : 'bg-[#1e1e1f] hover:bg-zinc-800 border-zinc-800 text-zinc-300 shadow-lg'
-                              }`}
-                            >
-                              <span className="mr-2 text-zinc-500 dark:text-zinc-400">{stepType.icon}</span>
-                              <span>{stepType.title}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </DndContext>
-
-                {/* Add Step Button at bottom of list */}
-                {steps.length > 0 && (
-                  <button
-                    onClick={() => setShowStepTypeDropdown(true)}
-                    className={`w-full inline-flex items-center justify-center px-4 py-3 border border-dashed rounded-full transition-all duration-200 hover:scale-[1.02] shadow-sm mt-3 ${
-                      theme === 'light'
-                        ? 'bg-zinc-50 hover:bg-zinc-100 border-zinc-300 hover:border-zinc-400 text-zinc-700 font-medium text-sm'
-                        : 'bg-zinc-950/40 hover:bg-zinc-800/40 border-zinc-800 hover:border-zinc-700 text-zinc-300 font-medium text-sm'
-                    }`}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Step
-                  </button>
-                )}
-              </div>
-            </CollapsibleSection>
-          </div>
-        </div>
-
-        {/* Main Editor Panel */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            {currentStep ? (
-              <div className={`backdrop-blur-xl rounded-2xl p-6 ${theme === 'light'
-                ? 'bg-white border border-zinc-200 shadow-md'
-                : 'bg-white/5 border border-zinc-800'
-                }`}>
-                <div className="mb-6 flex items-center justify-between">
-                  <h2 className={`text-xl font-semibold ${theme === 'light'
-                    ? 'text-zinc-800'
-                    : 'text-zinc-100'
-                    }`}>
-                    Step {selectedStepIndex! + 1} - {currentStep.question_type.replace('_', ' ')}
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowLoadTemplateModal(true)}
-                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
-                        ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-                        : 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-400/30'
-                        }`}
-                      title="Load from template"
-                    >
-                      <FolderOpen className="w-4 h-4 mr-1.5" />
-                      Load Template
-                    </button>
-                    <button
-                      onClick={() => setShowSaveTemplateModal(true)}
-                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${theme === 'light'
-                        ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
-                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'
-                        }`}
-                      title="Save as template"
-                    >
-                      <BookmarkPlus className="w-4 h-4 mr-1.5" />
-                      Save Template
-                    </button>
-                    {currentStep.question_type === 'image_selection' && (
-                      <button
-                        onClick={() => setShowLayoutSettingsModal(true)}
-                        className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${theme === 'light'
-                          ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
-                          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                          }`}
-                        title="Layout settings"
-                      >
-                        <Settings className="w-4 h-4 mr-1.5" />
-                        Layout Settings
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setShowLogicBuilder(true)}
-                      className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${theme === 'light'
-                        ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
-                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                        }`}
-                      title="Add conditional logic"
-                    >
-                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      Logic
-                      {stepLogicMap.get(currentStep.id || '')?.rules.length ? (
-                        <span className="ml-1.5 px-1.5 py-0.5 bg-zinc-600 text-white text-xs rounded-full">
-                          {stepLogicMap.get(currentStep.id || '')?.rules.length}
-                        </span>
-                      ) : null}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                      }`}>Step Title</label>
-                    <input
-                      type="text"
-                      value={currentStep.title}
-                      onChange={(e) => updateStep(selectedStepIndex!, { ...currentStep, title: e.target.value })}
-                      placeholder="What are you looking for?"
-                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent ${theme === 'light'
-                        ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                        }`}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white/90'
-                      }`}>Description (Optional)</label>
-                    <textarea
-                      value={currentStep.description || ''}
-                      onChange={(e) => updateStep(selectedStepIndex!, { ...currentStep, description: e.target.value })}
-                      placeholder="Add a short description or helpful text..."
-                      rows={2}
-                      className={`w-full px-4 py-3 backdrop-blur-sm border rounded-xl transition-all duration-200 focus:ring-2 focus:border-transparent resize-none ${theme === 'light'
-                        ? 'bg-white/90 border-gray-200 text-gray-900 placeholder-gray-500 hover:bg-white focus:ring-blue-500 shadow-sm'
-                        : 'bg-white/10 border-white/20 text-white placeholder-white/50 hover:bg-white/15 focus:ring-blue-400'
-                        }`}
-                    />
-                  </div>
-
-                  {(currentStep.question_type === 'image_selection' || currentStep.question_type === 'multiple_choice') && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium text-white/90">Options</label>
-                        <button
-                          onClick={() => addOption(selectedStepIndex!)}
-                          className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${theme === 'light'
-                            ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border-zinc-200'
-                            : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700'
-                          }`}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Option
-                        </button>
-                      </div>
-
-                      {/* Grid layout for image selection options */}
-                      {currentStep.question_type === 'image_selection' ? (
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleOptionDragEnd}
-                        >
-                          <SortableContext
-                            items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <div className={`grid gap-4 grid-auto-rows-fr ${!currentStep.crop_images_to_square ? 'items-start' : ''} ${(() => {
-                                const desktop = currentStep.images_per_row || 2
-                                const mobile = currentStep.mobile_images_per_row
-                                if (mobile != null) {
-                                  const mobileClass = mobile === 2 ? 'grid-cols-2' : mobile === 3 ? 'grid-cols-3' : 'grid-cols-1'
-                                  if (desktop === 1) return 'grid-cols-1'
-                                  if (desktop === mobile) return mobileClass
-                                  const desktopClass = desktop === 2 ? 'md:grid-cols-2' : desktop === 3 ? 'md:grid-cols-3' : desktop === 4 ? 'md:grid-cols-4' : 'md:grid-cols-2'
-                                  return `${mobileClass} ${desktopClass}`
-                                }
-                                if (desktop === 1) return 'grid-cols-1'
-                                if (desktop === 2) return 'grid-cols-1 sm:grid-cols-2'
-                                if (desktop === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                                if (desktop === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-                                return 'grid-cols-1 sm:grid-cols-2'
-                              })()}`}>
-                              {currentStep.options.map((option, optIndex) => (
-                                <SortableImageOptionItem
-                                  key={`step-${selectedStepIndex}-option-${optIndex}`}
-                                  option={option}
-                                  stepIndex={selectedStepIndex!}
-                                  optionIndex={optIndex}
-                                  onUpdate={updateOption}
-                                  onDelete={deleteOption}
-                                  onFileChange={handleFileChange}
-                                  cropImagesToSquare={currentStep.crop_images_to_square ?? true}
-                                />
-                              ))}
-                            </div>
-                          </SortableContext>
-                        </DndContext>
-                      ) : (
-                        /* Sortable layout for multiple choice options */
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleOptionDragEnd}
-                        >
-                          <SortableContext
-                            items={currentStep.options.map((_, index) => `step-${selectedStepIndex}-option-${index}`)}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <div className="space-y-4">
-                              {currentStep.options.map((option, optIndex) => (
-                                <SortableMultipleChoiceOptionItem
-                                  key={`step-${selectedStepIndex}-option-${optIndex}`}
-                                  option={option}
-                                  stepIndex={selectedStepIndex!}
-                                  optionIndex={optIndex}
-                                  onUpdate={updateOption}
-                                  onDelete={deleteOption}
-                                />
-                              ))}
-                            </div>
-                          </SortableContext>
-                        </DndContext>
-                      )}
-                    </div>
-                  )}
-
-                  {currentStep.question_type === 'file_upload' && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">File Upload Preview</label>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
-                          <div
-                            className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-cyan-400/50 transition-colors cursor-pointer"
-                          >
-                            <div className="flex flex-col items-center space-y-4">
-                              <div className="w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center">
-                                <svg className="w-8 h-8 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="text-lg font-medium text-white/90 mb-2">
-                                  Drop files here or click to browse
-                                </p>
-                                <p className="text-sm text-white/60">
-                                  Maximum file size: {currentStep.max_file_size || 5}MB
-                                </p>
-                                {(currentStep.allowed_file_types || []).length > 0 && (
-                                  <p className="text-xs text-white/50 mt-1">
-                                    Allowed types: {(currentStep.allowed_file_types || []).map(type => {
-                                      if (type === 'image/*') return 'Images'
-                                      if (type === 'application/pdf') return 'PDF'
-                                      if (type.includes('word')) return 'Word docs'
-                                      if (type === 'text/*') return 'Text files'
-                                      return type.split('/')[1]?.toUpperCase() || type
-                                    }).join(', ')}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-white/90">Maximum File Size (MB)</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={100}
-                            value={currentStep.max_file_size || 5}
-                            onChange={(e) => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              max_file_size: Number(e.target.value) || 5
-                            })}
-                            className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-white/90">Required</label>
-                          <select
-                            value={currentStep.is_required ? 'true' : 'false'}
-                            onChange={(e) => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              is_required: e.target.value === 'true'
-                            })}
-                            className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                          >
-                            <option value="true" className="bg-slate-800">Required</option>
-                            <option value="false" className="bg-slate-800">Optional</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Allowed File Types</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <label className="flex items-center space-x-2 text-sm text-white/90">
-                            <input
-                              type="checkbox"
-                              checked={(currentStep.allowed_file_types || []).includes('image/*')}
-                              onChange={(e) => {
-                                const types = currentStep.allowed_file_types || []
-                                const newTypes = e.target.checked
-                                  ? [...types.filter(t => t !== 'image/*'), 'image/*']
-                                  : types.filter(t => t !== 'image/*')
-                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
-                              }}
-                              className="rounded border-white/20 bg-white/10"
-                            />
-                            <span>Images</span>
-                          </label>
-                          <label className="flex items-center space-x-2 text-sm text-white/90">
-                            <input
-                              type="checkbox"
-                              checked={(currentStep.allowed_file_types || []).includes('application/pdf')}
-                              onChange={(e) => {
-                                const types = currentStep.allowed_file_types || []
-                                const newTypes = e.target.checked
-                                  ? [...types.filter(t => t !== 'application/pdf'), 'application/pdf']
-                                  : types.filter(t => t !== 'application/pdf')
-                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
-                              }}
-                              className="rounded border-white/20 bg-white/10"
-                            />
-                            <span>PDF Documents</span>
-                          </label>
-                          <label className="flex items-center space-x-2 text-sm text-white/90">
-                            <input
-                              type="checkbox"
-                              checked={(currentStep.allowed_file_types || []).some(t => t.includes('word'))}
-                              onChange={(e) => {
-                                const types = currentStep.allowed_file_types || []
-                                const wordTypes = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-                                const newTypes = e.target.checked
-                                  ? [...types.filter(t => !wordTypes.includes(t)), ...wordTypes]
-                                  : types.filter(t => !wordTypes.includes(t))
-                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
-                              }}
-                              className="rounded border-white/20 bg-white/10"
-                            />
-                            <span>Word Documents</span>
-                          </label>
-                          <label className="flex items-center space-x-2 text-sm text-white/90">
-                            <input
-                              type="checkbox"
-                              checked={(currentStep.allowed_file_types || []).includes('text/*')}
-                              onChange={(e) => {
-                                const types = currentStep.allowed_file_types || []
-                                const newTypes = e.target.checked
-                                  ? [...types.filter(t => t !== 'text/*'), 'text/*']
-                                  : types.filter(t => t !== 'text/*')
-                                updateStep(selectedStepIndex!, { ...currentStep, allowed_file_types: newTypes })
-                              }}
-                              className="rounded border-white/20 bg-white/10"
-                            />
-                            <span>Text Files</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep.question_type === 'text_input' && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Text Input Preview</label>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
-                          <div className="text-sm text-white/70 mb-3">Enter your response</div>
-                          <textarea
-                            placeholder="Enter your answer here..."
-                            rows={4}
-                            className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 resize-none"
-                            readOnly
-                          />
-                          {currentStep.is_required && (
-                            <p className="text-xs text-white/60 mt-2">* This field is required</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Required</label>
-                        <select
-                          value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            is_required: e.target.value === 'true'
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="true" className="bg-slate-800">Required</option>
-                          <option value="false" className="bg-slate-800">Optional</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep.question_type === 'dimensions' && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Dimensions Preview</label>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
-                          <div className="text-sm text-white/70 mb-4">Enter measurements</div>
-
-                          {/* Dimension Type Preview */}
-                          <div className="space-y-3 mb-4">
-                            <div className="flex items-center space-x-6">
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  name="dimensionTypePreview"
-                                  value="2d"
-                                  checked={currentStep.dimension_type === '2d' || !currentStep.dimension_type}
-                                  className="text-cyan-400 focus:ring-cyan-400 bg-white/10 border-white/20"
-                                  readOnly
-                                />
-                                <span className="text-white/70">2D (Width × Height)</span>
-                              </label>
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  name="dimensionTypePreview"
-                                  value="3d"
-                                  checked={currentStep.dimension_type === '3d'}
-                                  className="text-cyan-400 focus:ring-cyan-400 bg-white/10 border-white/20"
-                                  readOnly
-                                />
-                                <span className="text-white/70">3D (Width × Height × Depth)</span>
-                              </label>
-                            </div>
-                          </div>
-
-                          {/* Units Preview */}
-                          <div className="space-y-2 mb-4">
-                            <label className="block text-sm font-medium text-white/70">Units</label>
-                            <select
-                              value="mm"
-                              className="px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                              disabled
-                            >
-                              <option value="mm">Millimeters (mm)</option>
-                              <option value="cm">Centimeters (cm)</option>
-                              <option value="m">Meters (m)</option>
-                              <option value="in">Inches (in)</option>
-                              <option value="ft">Feet (ft)</option>
-                            </select>
-                          </div>
-
-                          {/* Dimension Input Fields Preview */}
-                          <div className={`grid gap-4 ${currentStep.dimension_type === '3d' ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
-                            <div>
-                              <label className="block text-sm font-medium text-white/70 mb-1">Width</label>
-                              <input
-                                type="number"
-                                placeholder="0"
-                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                                readOnly
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-white/70 mb-1">Height</label>
-                              <input
-                                type="number"
-                                placeholder="0"
-                                className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                                readOnly
-                              />
-                            </div>
-                            {currentStep.dimension_type === '3d' && (
-                              <div>
-                                <label className="block text-sm font-medium text-white/70 mb-1">Depth</label>
-                                <input
-                                  type="number"
-                                  placeholder="0"
-                                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                                  readOnly
-                                />
-                              </div>
-                            )}
-                          </div>
-
-                          {currentStep.is_required && (
-                            <p className="text-xs text-white/60 mt-2">* These fields are required</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Dimension Type</label>
-                        <div className="space-y-3">
-                          <label className="flex items-center space-x-3">
-                            <input
-                              type="radio"
-                              name="dimensionType"
-                              value="2d"
-                              checked={currentStep.dimension_type === '2d'}
-                              onChange={(e) => updateStep(selectedStepIndex!, {
-                                ...currentStep,
-                                dimension_type: e.target.value as '2d' | '3d'
-                              })}
-                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
-                            />
-                            <span className="text-white/90">2D (Width × Height)</span>
-                          </label>
-                          <label className="flex items-center space-x-3">
-                            <input
-                              type="radio"
-                              name="dimensionType"
-                              value="3d"
-                              checked={currentStep.dimension_type === '3d'}
-                              onChange={(e) => updateStep(selectedStepIndex!, {
-                                ...currentStep,
-                                dimension_type: e.target.value as '2d' | '3d'
-                              })}
-                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
-                            />
-                            <span className="text-white/90">3D (Width × Height × Depth)</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Default Units</label>
-                        <select
-                          value={currentStep.dimension_units || 'mm'}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            dimension_units: e.target.value
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="mm" className="bg-slate-800">Millimeters (mm)</option>
-                          <option value="cm" className="bg-slate-800">Centimeters (cm)</option>
-                          <option value="m" className="bg-slate-800">Meters (m)</option>
-                          <option value="in" className="bg-slate-800">Inches (in)</option>
-                          <option value="ft" className="bg-slate-800">Feet (ft)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Required</label>
-                        <select
-                          value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            is_required: e.target.value === 'true'
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="true" className="bg-slate-800">Required</option>
-                          <option value="false" className="bg-slate-800">Optional</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep.question_type === 'opinion_scale' && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Scale Preview</label>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-6">
-                          <div className="text-center">
-                            {currentStep.scale_type === 'star' ? (
-                              // Star Rating Preview (1-5)
-                              <div className="flex justify-center gap-2">
-                                {[1, 2, 3, 4, 5].map((rating) => (
-                                  <button
-                                    key={rating}
-                                    type="button"
-                                    className="text-4xl text-white/40 hover:text-cyan-300 transition-colors"
-                                    disabled
-                                  >
-                                    ⭐
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              // Number Scale Preview (configurable range)
-                              <div className="w-full overflow-x-auto">
-                                <div className="flex justify-center gap-1 sm:gap-2 min-w-max px-4">
-                                  {Array.from(
-                                    { length: (currentStep.scale_max || 10) - (currentStep.scale_min || 1) + 1 },
-                                    (_, i) => (currentStep.scale_min || 1) + i
-                                  ).map((rating) => (
-                                    <button
-                                      key={rating}
-                                      type="button"
-                                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg border-2 bg-white/10 border-white/20 text-white/70 font-semibold text-sm sm:text-base transition-all flex-shrink-0 hover:bg-white/20 hover:border-cyan-400/50"
-                                      disabled
-                                    >
-                                      {rating}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Scale Type</label>
-                        <div className="space-y-3">
-                          <label className="flex items-center space-x-3">
-                            <input
-                              type="radio"
-                              name="scaleType"
-                              value="number"
-                              checked={currentStep.scale_type === 'number'}
-                              onChange={(e) => updateStep(selectedStepIndex!, {
-                                ...currentStep,
-                                scale_type: e.target.value as 'number' | 'star',
-                                scale_min: 1,
-                                scale_max: e.target.value === 'number' ? 10 : 5
-                              })}
-                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
-                            />
-                            <span className="text-white/90">Number Scale (1-10)</span>
-                          </label>
-                          <label className="flex items-center space-x-3">
-                            <input
-                              type="radio"
-                              name="scaleType"
-                              value="star"
-                              checked={currentStep.scale_type === 'star'}
-                              onChange={(e) => updateStep(selectedStepIndex!, {
-                                ...currentStep,
-                                scale_type: e.target.value as 'number' | 'star',
-                                scale_min: 1,
-                                scale_max: e.target.value === 'number' ? 10 : 5
-                              })}
-                              className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20"
-                            />
-                            <span className="text-white/90">Star Rating (1-5)</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      {currentStep.scale_type === 'number' && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-white/90">Minimum Value</label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={9}
-                              value={currentStep.scale_min || 1}
-                              onChange={(e) => updateStep(selectedStepIndex!, {
-                                ...currentStep,
-                                scale_min: Number(e.target.value) || 1
-                              })}
-                              className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-white/90">Maximum Value</label>
-                            <input
-                              type="number"
-                              min={2}
-                              max={10}
-                              value={currentStep.scale_max || 10}
-                              onChange={(e) => updateStep(selectedStepIndex!, {
-                                ...currentStep,
-                                scale_max: Number(e.target.value) || 10
-                              })}
-                              className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Required</label>
-                        <select
-                          value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            is_required: e.target.value === 'true'
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="true" className="bg-slate-800">Required</option>
-                          <option value="false" className="bg-slate-800">Optional</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {currentStep.question_type === 'frames_plan' && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Frames Plan Preview</label>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4">
-                          <div className="space-y-4">
-                            {/* Frame count selector preview */}
-                            <div className="space-y-2">
-                              <label className="block text-sm font-medium text-white/70">How many frames do you want?</label>
-                              <select
-                                value={1}
-                                className="w-32 px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                                disabled
-                              >
-                                {Array.from({ length: currentStep.frames_max_count || 10 }, (_, i) => i + 1).map(num => (
-                                  <option key={num} value={num}>
-                                    {num} {num === 1 ? 'frame' : 'frames'}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Sample frame preview */}
-                            <div className="border border-white/20 rounded-lg p-4 bg-white/5">
-                              <h4 className="text-lg font-medium text-white/90 mb-4">Frame 1</h4>
-
-                              <div className="space-y-4">
-                                {/* Image Upload Preview */}
-                                {currentStep.frames_require_image !== false && (
-                                  <div>
-                                    <label className="block text-sm font-medium text-white/70 mb-2">
-                                      Image{currentStep.frames_require_image ? ' *' : ''}
-                                    </label>
-                                    <div className="border-2 border-dashed border-white/30 rounded-lg p-6 text-center">
-                                      <div className="flex flex-col items-center space-y-2">
-                                        <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
-                                          <svg className="w-6 h-6 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                          </svg>
-                                        </div>
-                                        <div>
-                                          <p className="text-sm font-medium text-white/70">Choose file</p>
-                                          <p className="text-xs text-white/50">PNG, JPG up to 10MB</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Location Input Preview */}
-                                {currentStep.frames_require_location !== false && (
-                                  <div>
-                                    <label className="block text-sm font-medium text-white/70 mb-2">
-                                      Room Location (e.g., bedroom){currentStep.frames_require_location ? ' *' : ''}
-                                    </label>
-                                    <input
-                                      type="text"
-                                      placeholder="e.g., bedroom"
-                                      className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                                      readOnly
-                                    />
-                                  </div>
-                                )}
-
-                                {/* Measurements Input Preview */}
-                                {currentStep.frames_require_measurements !== false && (
-                                  <div>
-                                    <label className="block text-sm font-medium text-white/70 mb-2">
-                                      Measurements (optional) - width × height in mm{currentStep.frames_require_measurements ? ' *' : ''}
-                                    </label>
-                                    <input
-                                      type="text"
-                                      placeholder="e.g., 1200 × 800"
-                                      className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/50 focus:ring-2 focus:ring-cyan-400 focus:border-transparent"
-                                      readOnly
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Maximum Number of Frames</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          value={currentStep.frames_max_count || 10}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            frames_max_count: Number(e.target.value) || 10
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        />
-                        <p className="text-xs text-white/60">Users can select up to this many frames</p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-sm font-medium text-white/90">Required Fields for Each Frame</p>
-
-                        <label className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={currentStep.frames_require_image !== false}
-                            onChange={(e) => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              frames_require_image: e.target.checked
-                            })}
-                            className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
-                          />
-                          <span className="text-white/90">Image Upload</span>
-                        </label>
-
-                        <label className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={currentStep.frames_require_location !== false}
-                            onChange={(e) => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              frames_require_location: e.target.checked
-                            })}
-                            className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
-                          />
-                          <span className="text-white/90">Location (e.g., bedroom)</span>
-                        </label>
-
-                        <label className="flex items-center space-x-3">
-                          <input
-                            type="checkbox"
-                            checked={currentStep.frames_require_measurements !== false}
-                            onChange={(e) => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              frames_require_measurements: e.target.checked
-                            })}
-                            className="text-blue-600 focus:ring-blue-500 bg-white/10 border-white/20 rounded"
-                          />
-                          <span className="text-white/90">Measurements</span>
-                        </label>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Required</label>
-                        <select
-                          value={currentStep.is_required ? 'true' : 'false'}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            is_required: e.target.value === 'true'
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="true" className="bg-slate-800">Required</option>
-                          <option value="false" className="bg-slate-800">Optional</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Contact Fields Configuration */}
-                  {currentStep.question_type === 'contact_fields' && (
-                    <div className="space-y-4">
-                      <div className="space-y-3">
-                        <p className="text-sm font-medium text-white/90">Visible Fields</p>
-                        <p className="text-xs text-white/60">Name and Email are always shown. Toggle the optional fields below.</p>
-
-                        <label className="flex items-center justify-between py-2 border-b border-white/10">
-                          <span className="text-white/90 text-sm">Phone Number</span>
-                          <button
-                            type="button"
-                            onClick={() => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              contact_show_phone: !(currentStep.contact_show_phone ?? true)
-                            })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              (currentStep.contact_show_phone ?? true) ? 'bg-blue-500' : 'bg-white/20'
-                            }`}
-                          >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              (currentStep.contact_show_phone ?? true) ? 'translate-x-6' : 'translate-x-1'
-                            }`} />
-                          </button>
-                        </label>
-
-                        <label className="flex items-center justify-between py-2 border-b border-white/10">
-                          <span className="text-white/90 text-sm">Property Address</span>
-                          <button
-                            type="button"
-                            onClick={() => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              contact_show_address: !(currentStep.contact_show_address ?? true)
-                            })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              (currentStep.contact_show_address ?? true) ? 'bg-blue-500' : 'bg-white/20'
-                            }`}
-                          >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              (currentStep.contact_show_address ?? true) ? 'translate-x-6' : 'translate-x-1'
-                            }`} />
-                          </button>
-                        </label>
-
-                        <label className="flex items-center justify-between py-2 border-b border-white/10">
-                          <span className="text-white/90 text-sm">Project Details</span>
-                          <button
-                            type="button"
-                            onClick={() => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              contact_show_project_details: !(currentStep.contact_show_project_details ?? true)
-                            })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              (currentStep.contact_show_project_details ?? true) ? 'bg-blue-500' : 'bg-white/20'
-                            }`}
-                          >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              (currentStep.contact_show_project_details ?? true) ? 'translate-x-6' : 'translate-x-1'
-                            }`} />
-                          </button>
-                        </label>
-
-                        <label className="flex items-center justify-between py-2 border-b border-white/10">
-                          <span className="text-white/90 text-sm">Preferred Contact Method</span>
-                          <button
-                            type="button"
-                            onClick={() => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              contact_show_preferred_contact: !(currentStep.contact_show_preferred_contact ?? true)
-                            })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              (currentStep.contact_show_preferred_contact ?? true) ? 'bg-blue-500' : 'bg-white/20'
-                            }`}
-                          >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              (currentStep.contact_show_preferred_contact ?? true) ? 'translate-x-6' : 'translate-x-1'
-                            }`} />
-                          </button>
-                        </label>
-
-                        <label className="flex items-center justify-between py-2">
-                          <span className="text-white/90 text-sm">File Upload</span>
-                          <button
-                            type="button"
-                            onClick={() => updateStep(selectedStepIndex!, {
-                              ...currentStep,
-                              contact_show_file_upload: !(currentStep.contact_show_file_upload ?? true)
-                            })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              (currentStep.contact_show_file_upload ?? true) ? 'bg-blue-500' : 'bg-white/20'
-                            }`}
-                          >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              (currentStep.contact_show_file_upload ?? true) ? 'translate-x-6' : 'translate-x-1'
-                            }`} />
-                          </button>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Loop Section Configuration */}
-                  {currentStep.question_type === 'loop_section' && (
-                    <div className="space-y-4">
-                      <div className="bg-blue-500/10 border border-blue-400/30 rounded-xl p-4 mb-4">
-                        <div className="flex items-start gap-3">
-                          <Repeat className="w-5 h-5 text-blue-300 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium text-blue-200 mb-1">Loop Section</p>
-                            <p className="text-xs text-blue-300/80">
-                              This allows users to repeat a set of questions multiple times. For example, add multiple windows, properties, or team members in a single form submission.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Item Label</label>
-                        <input
-                          type="text"
-                          value={currentStep.loop_label || ''}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            loop_label: e.target.value
-                          })}
-                          placeholder="e.g., Window, Property, Frame"
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        />
-                        <p className="text-xs text-white/60">What are users adding? (e.g., "Window" becomes "Add Another Window")</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Loop Start Step</label>
-                        <select
-                          value={currentStep.loop_start_step_id || ''}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            loop_start_step_id: e.target.value
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="" className="bg-slate-800">Select start step...</option>
-                          {steps
-                            .filter((s, i) => i < selectedStepIndex!)
-                            .map((step, idx) => (
-                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
-                                {idx + 1}. {step.title}
-                              </option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-white/60">First step users will see when they loop back</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Loop End Step</label>
-                        <select
-                          value={currentStep.loop_end_step_id || ''}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            loop_end_step_id: e.target.value
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        >
-                          <option value="" className="bg-slate-800">Select end step...</option>
-                          {steps
-                            .filter((s, i) => i < selectedStepIndex!)
-                            .map((step, idx) => (
-                              <option key={step.id || idx} value={step.id} className="bg-slate-800">
-                                {idx + 1}. {step.title}
-                              </option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-white/60">Last step before returning to this loop section</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Maximum Iterations</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          value={currentStep.loop_max_iterations || 10}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            loop_max_iterations: Number(e.target.value) || 10
-                          })}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        />
-                        <p className="text-xs text-white/60">Maximum times user can repeat this section</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-white/90">Button Text (Optional)</label>
-                        <input
-                          type="text"
-                          value={currentStep.loop_button_text || ''}
-                          onChange={(e) => updateStep(selectedStepIndex!, {
-                            ...currentStep,
-                            loop_button_text: e.target.value
-                          })}
-                          placeholder={`Add Another ${currentStep.loop_label || 'Item'}`}
-                          className="w-full px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 hover:bg-white/15"
-                        />
-                        <p className="text-xs text-white/60">Custom button text (leave empty for default)</p>
-                      </div>
-
-                      {/* Loop Preview */}
-                      {currentStep.loop_start_step_id && currentStep.loop_end_step_id && (
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 mt-4">
-                          <p className="text-sm font-medium text-white/90 mb-3">Loop Preview:</p>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-white/70">
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold">
-                                {steps.findIndex(s => s.id === currentStep.loop_start_step_id) + 1}
-                              </span>
-                              <span>→</span>
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold">
-                                {steps.findIndex(s => s.id === currentStep.loop_end_step_id) + 1}
-                              </span>
-                              <Repeat className="w-4 h-4 text-white/50 ml-2" />
-                              <span className="text-xs text-white/50">
-                                (repeats up to {currentStep.loop_max_iterations || 10} times)
-                              </span>
-                            </div>
-                            <p className="text-xs text-white/60">
-                              Users will see: "{currentStep.loop_button_text || `Add Another ${currentStep.loop_label || 'Item'}`}"
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Save Step Button */}
-                  <div className={`flex justify-end pt-6 mt-6 border-t ${theme === 'light' ? 'border-zinc-200' : 'border-zinc-800'}`}>
-                    <button
-                      onClick={() => saveStep(selectedStepIndex!)}
-                      disabled={saving}
-                      className="inline-flex items-center px-6 py-2.5 rounded-full font-medium transition-all duration-200 shadow-md hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed bg-orange-600 hover:bg-orange-700 text-white shadow-orange-500/10"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {saving ? 'Saving...' : (isEditing && formId ? 'Save Step' : 'Save Form & Step')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className={`backdrop-blur-xl rounded-2xl p-12 text-center ${theme === 'light'
-                ? 'bg-white border border-zinc-200 shadow-md'
-                : 'bg-white/5 border border-zinc-800'
-                }`}>
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 border ${theme === 'light'
-                  ? 'bg-zinc-50 border-zinc-200'
-                  : 'bg-zinc-800/40 border-zinc-700'
-                  }`}>
-                  <MessageSquare className={`w-8 h-8 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                    }`} />
-                </div>
-                <h3 className={`text-xl font-semibold mb-3 ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'
-                  }`}>No step selected</h3>
-                <p className={`mb-8 text-sm ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}>Create a step to start building your form</p>
-                <div className="flex flex-wrap justify-center gap-3 mb-6">
-                  {stepTypes.map((stepType) => (
-                    <button
-                      key={stepType.type}
-                      onClick={() => addStep(stepType.type)}
-                      className={`inline-flex items-center px-5 py-2.5 text-sm font-medium rounded-full border transition-all duration-200 hover:scale-105 ${
-                        theme === 'light'
-                          ? 'bg-white hover:bg-zinc-50 border-zinc-200 text-zinc-800'
-                          : 'bg-[#1e1e1f] hover:bg-zinc-800 border-zinc-800 text-zinc-300'
-                      }`}
-                    >
-                      <span className="text-zinc-500 dark:text-zinc-400 mr-2.5">{stepType.icon}</span>
-                      <span>{stepType.title}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => setShowLoadTemplateModal(true)}
-                    className={`inline-flex items-center px-6 py-2.5 rounded-full font-medium border transition-all duration-200 hover:scale-105 ${
-                      theme === 'light'
-                        ? 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-800'
-                        : 'bg-zinc-800/40 hover:bg-zinc-800/60 border-zinc-700 text-zinc-300'
-                    }`}
-                  >
-                    <FolderOpen className="w-5 h-5 mr-2" />
-                    Create from Template
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Tab 4: Share & Embed Studio */}
+        {activeStudioTab === 'share' && (
+          <ShareEmbedStudio
+            formId={formId}
+            formName={name}
+            clientName={clients.find((c) => c.id === clientId)?.name}
+          />
+        )}
       </div>
 
       {/* Add Step Type Modal */}
