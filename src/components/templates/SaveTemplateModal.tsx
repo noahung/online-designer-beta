@@ -43,33 +43,40 @@ export default function SaveTemplateModal({ isOpen, onClose, onSave, stepType }:
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`w-full max-w-md rounded-2xl shadow-xl ${
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className={`w-full max-w-md rounded-2xl shadow-2xl border transition-all ${
         theme === 'light'
-          ? 'bg-white text-gray-900'
-          : 'bg-slate-800 text-white'
+          ? 'bg-white border-zinc-200 text-zinc-900 shadow-zinc-200/50'
+          : 'bg-[#18181b] border-zinc-800 text-zinc-100 shadow-black/70'
       }`}>
-        <div className={`flex items-center justify-between p-6 border-b ${
-          theme === 'light' ? 'border-gray-200' : 'border-white/10'
+        <div className={`flex items-center justify-between px-6 py-4.5 border-b ${
+          theme === 'light' ? 'border-zinc-100 bg-white' : 'border-zinc-800/80 bg-[#18181b]'
         }`}>
-          <h2 className="text-xl font-semibold">Save Step as Template</h2>
+          <div>
+            <h2 className={`text-base font-semibold tracking-tight ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
+              Save Step as Template
+            </h2>
+            <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              Create a reusable preset from this step's configuration
+            </p>
+          </div>
           <button
             onClick={handleClose}
             disabled={saving}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-1.5 rounded-lg transition-colors ${
               theme === 'light'
-                ? 'hover:bg-gray-100 text-gray-600'
-                : 'hover:bg-white/10 text-white/70'
+                ? 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
             }`}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              theme === 'light' ? 'text-gray-700' : 'text-white/90'
+            <label className={`block text-xs font-medium mb-1.5 ${
+              theme === 'light' ? 'text-zinc-700' : 'text-zinc-300'
             }`}>
               Template Name <span className="text-red-500">*</span>
             </label>
@@ -78,10 +85,10 @@ export default function SaveTemplateModal({ isOpen, onClose, onSave, stepType }:
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Window Style Selection"
-              className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
+              className={`w-full px-3 py-2 rounded-lg text-sm border transition-colors outline-none ${
                 theme === 'light'
-                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-                  : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20'
+                  ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
               }`}
               required
               disabled={saving}
@@ -89,8 +96,8 @@ export default function SaveTemplateModal({ isOpen, onClose, onSave, stepType }:
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              theme === 'light' ? 'text-gray-700' : 'text-white/90'
+            <label className={`block text-xs font-medium mb-1.5 ${
+              theme === 'light' ? 'text-zinc-700' : 'text-zinc-300'
             }`}>
               Description (optional)
             </label>
@@ -99,39 +106,46 @@ export default function SaveTemplateModal({ isOpen, onClose, onSave, stepType }:
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe what this template is for..."
               rows={3}
-              className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 resize-none ${
+              className={`w-full px-3 py-2 rounded-lg text-sm border transition-colors outline-none resize-none ${
                 theme === 'light'
-                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-                  : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20'
+                  ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
               }`}
               disabled={saving}
             />
           </div>
 
-          <div className={`p-4 rounded-lg ${
-            theme === 'light' ? 'bg-blue-50' : 'bg-blue-500/10'
+          <div className={`p-3 rounded-lg border text-xs leading-relaxed ${
+            theme === 'light'
+              ? 'bg-zinc-50 border-zinc-200 text-zinc-600'
+              : 'bg-zinc-900/60 border-zinc-800 text-zinc-400'
           }`}>
-            <p className={`text-sm ${
-              theme === 'light' ? 'text-blue-900' : 'text-blue-200'
-            }`}>
-              <strong>Step Type:</strong> {stepType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </p>
-            <p className={`text-xs mt-1 ${
-              theme === 'light' ? 'text-blue-700' : 'text-blue-300'
-            }`}>
-              This template will include all current step settings, options, and configurations.
+            <div className="flex items-center gap-2">
+              <span className={`font-medium ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-200'}`}>
+                Step Type:
+              </span>
+              <span className={`px-1.5 py-0.5 rounded border capitalize ${
+                theme === 'light' ? 'bg-zinc-100 text-zinc-700 border-zinc-200' : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+              }`}>
+                {stepType.replace('_', ' ')}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] opacity-80">
+              This template captures all current options, layout settings, and configurations for reuse.
             </p>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className={`flex justify-end items-center gap-2.5 pt-4 border-t ${
+            theme === 'light' ? 'border-zinc-100' : 'border-zinc-800/80'
+          }`}>
             <button
               type="button"
               onClick={handleClose}
               disabled={saving}
-              className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 theme === 'light'
-                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  : 'bg-white/10 hover:bg-white/20 text-white'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60'
               }`}
             >
               Cancel
@@ -139,13 +153,13 @@ export default function SaveTemplateModal({ isOpen, onClose, onSave, stepType }:
             <button
               type="submit"
               disabled={saving || !name.trim()}
-              className={`inline-flex items-center px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
                 theme === 'light'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
+                  ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                  : 'bg-white hover:bg-zinc-200 text-zinc-900 font-semibold'
               }`}
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-3.5 h-3.5 mr-1.5" />
               {saving ? 'Saving...' : 'Save Template'}
             </button>
           </div>

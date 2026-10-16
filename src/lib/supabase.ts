@@ -103,7 +103,7 @@ export type Database = {
           form_id: string
           title: string
           description: string | null
-          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
+          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
           is_required: boolean
           step_order: number
           dimension_units: string | null
@@ -114,7 +114,7 @@ export type Database = {
           form_id: string
           title: string
           description?: string | null
-          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
+          question_type: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
           is_required?: boolean
           step_order: number
           dimension_units?: string | null
@@ -125,7 +125,7 @@ export type Database = {
           form_id?: string
           title?: string
           description?: string | null
-          question_type?: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions'
+          question_type?: 'image_selection' | 'multiple_choice' | 'text_input' | 'contact_fields' | 'file_upload' | 'dimensions' | 'opinion_scale' | 'frames_plan' | 'loop_section'
           is_required?: boolean
           step_order?: number
           dimension_units?: string | null

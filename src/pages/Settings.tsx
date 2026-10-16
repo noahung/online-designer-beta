@@ -2,7 +2,21 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { supabase } from '../lib/supabase'
-import { User, Globe, Webhook, Key } from 'lucide-react'
+import { 
+  Key, 
+  User, 
+  Globe, 
+  Copy, 
+  Check, 
+  Shield, 
+  Mail, 
+  Code, 
+  ExternalLink, 
+  RefreshCw, 
+  Lock, 
+  CheckCircle2, 
+  AlertCircle 
+} from 'lucide-react'
 
 interface UserSettings {
   webhook_url: string
@@ -11,9 +25,12 @@ interface UserSettings {
   brevo_api_key: string
 }
 
+type SettingsTab = 'general' | 'api' | 'integrations' | 'embeds'
+
 export default function Settings() {
   const { user } = useAuth()
   const { push } = useToast()
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [settings, setSettings] = useState<UserSettings>({
     webhook_url: '',
     zapier_enabled: false,
@@ -22,6 +39,17 @@ export default function Settings() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  // Interactive local states for embed settings
+  const [formHeight, setFormHeight] = useState('600')
+  const [responsiveEmbed, setResponsiveEmbed] = useState(true)
+
+  // Password reset modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [updatingPassword, setUpdatingPassword] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -49,7 +77,6 @@ export default function Settings() {
           brevo_api_key: data.brevo_api_key || ''
         })
       } else {
-        // Generate initial API key for new users
         const newApiKey = generateApiKey()
         setSettings(prev => ({ ...prev, api_key: newApiKey }))
       }
@@ -67,7 +94,7 @@ export default function Settings() {
       .join('')
   }
 
-  const saveWebhookSettings = async () => {
+  const saveSettings = async () => {
     if (!user) return
     setSaving(true)
 
@@ -84,10 +111,10 @@ export default function Settings() {
 
       if (error) throw error
 
-      push({ type: 'success', message: 'Webhook settings saved successfully!' })
-    } catch (error) {
+      push({ type: 'success', message: 'Settings saved successfully!' })
+    } catch (error: any) {
       console.error('Error saving settings:', error)
-      push({ type: 'error', message: 'Failed to save webhook settings' })
+      push({ type: 'error', message: `Failed to save settings: ${error.message}` })
     } finally {
       setSaving(false)
     }
@@ -96,18 +123,21 @@ export default function Settings() {
   const regenerateApiKey = async () => {
     try {
       setSaving(true)
+      const newKey = generateApiKey()
       
-      // Use Supabase function to generate new API key
-      const { data: newApiKey, error } = await supabase
-        .rpc('generate_new_api_key', {
-          user_id_param: user?.id
-        })
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user?.id,
+          ...settings,
+          api_key: newKey
+        }, { onConflict: 'user_id' })
 
       if (error) throw error
       
-      setSettings(prev => ({ ...prev, api_key: newApiKey }))
-      push({ type: 'success', message: 'API key regenerated successfully!' })
-    } catch (error) {
+      setSettings(prev => ({ ...prev, api_key: newKey }))
+      push({ type: 'success', message: 'New API key generated and saved!' })
+    } catch (error: any) {
       console.error('Error regenerating API key:', error)
       push({ type: 'error', message: 'Failed to regenerate API key' })
     } finally {
@@ -115,248 +145,420 @@ export default function Settings() {
     }
   }
 
+  const handleCopyKey = () => {
+    if (settings.api_key) {
+      navigator.clipboard.writeText(settings.api_key)
+      setCopied(true)
+      push({ type: 'success', message: 'API key copied to clipboard!' })
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword || newPassword.length < 6) {
+      push({ type: 'error', message: 'Password must be at least 6 characters' })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      push({ type: 'error', message: 'Passwords do not match' })
+      return
+    }
+
+    setUpdatingPassword(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      if (error) throw error
+      push({ type: 'success', message: 'Password updated successfully!' })
+      setShowPasswordModal(false)
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error: any) {
+      push({ type: 'error', message: `Failed to update password: ${error.message}` })
+    } finally {
+      setUpdatingPassword(false)
+    }
+  }
+
   return (
-    <div className="p-8 animate-fade-in">
-      <div className="mb-8 animate-slide-up">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-orange-600 to-red-600 dark:from-white dark:via-orange-100 dark:to-red-200 bg-clip-text text-transparent">Settings</h1>
-        <p className="text-gray-600 dark:text-white/70 mt-2 text-lg">Manage your account and integration settings</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Account Settings */}
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.05s'}}>
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 rounded-xl border border-blue-200 dark:border-blue-400/30 mr-3">
-              <User className="w-5 h-5 text-blue-600 dark:text-blue-200" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Account Settings</h2>
+    <div className="min-h-full w-full py-8 md:py-10 px-4 md:px-8 font-sans bg-white dark:bg-[#0d0d0d] text-zinc-900 dark:text-zinc-100 transition-colors">
+      <div className="max-w-4xl mx-auto space-y-6">
+        
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              Project Settings
+            </h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              Manage account authentication, global API keys, and workspace integrations.
+            </p>
           </div>
-          
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={user?.email || ''}
-                disabled
-                className="w-full px-4 py-3 bg-gray-100 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-600 dark:text-white/80 cursor-not-allowed"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                Account Type
-              </label>
-              <div className="px-4 py-3 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 border border-blue-200 dark:border-blue-400/30 rounded-xl">
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Agency Admin</span>
-              </div>
-            </div>
-
-            <button className="w-full px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 dark:from-slate-600 dark:to-slate-700 hover:from-gray-700 hover:to-gray-800 dark:hover:from-slate-700 dark:hover:to-slate-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm">
-              Change Password
-            </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://platform.openai.com/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+            >
+              <span>Documentation</span>
+              <ExternalLink className="w-3 h-3 text-zinc-400" />
+            </a>
           </div>
         </div>
 
-        {/* Zapier Integration - Hidden for now */}
-        {false && (
-          <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.1s'}}>
-            <div className="flex items-center mb-6">
-              <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-500/20 dark:to-pink-500/20 rounded-xl border border-purple-200 dark:border-purple-400/30 mr-3">
-                <Webhook className="w-5 h-5 text-purple-600 dark:text-purple-200" />
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Zapier Integration</h2>
-            </div>
-            
-            <div className="space-y-6">
-              <p className="text-sm text-gray-600 dark:text-white/70">
-                Connect your forms to Zapier to automatically send responses to your email, CRM, or other tools.
-              </p>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                  Webhook URL
-                </label>
-                <input
-                  type="url"
-                  value={settings.webhook_url}
-                  onChange={(e) => setSettings(prev => ({ ...prev, webhook_url: e.target.value }))}
-                  placeholder="https://hooks.zapier.com/hooks/catch/..."
-                  className="w-full px-4 py-3 bg-white dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-white/50 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 hover:bg-gray-50 dark:hover:bg-white/15"
-                />
-                <p className="text-xs text-gray-500 dark:text-white/60 mt-2">
-                  Copy this URL from your Zapier webhook trigger
-                </p>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="zapier-enabled"
-                  checked={settings.zapier_enabled}
-                  onChange={(e) => setSettings(prev => ({ ...prev, zapier_enabled: e.target.checked }))}
-                  className="w-4 h-4 text-purple-600 bg-white dark:bg-white/10 border-gray-300 dark:border-white/30 rounded focus:ring-purple-500 focus:ring-2"
-                />
-                <label htmlFor="zapier-enabled" className="ml-3 text-sm text-gray-700 dark:text-white/80">
-                  Enable Zapier webhooks for all forms
-                </label>
-              </div>
-
-              <button 
-                onClick={saveWebhookSettings}
-                disabled={saving}
-                className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-800 disabled:to-pink-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm disabled:cursor-not-allowed"
+        {/* OpenAI Clean Text Navigation Tab Bar */}
+        <div className="flex items-center gap-6 border-b border-zinc-200 dark:border-zinc-800 -mt-2 overflow-x-auto">
+          {[
+            { id: 'general', label: 'General' },
+            { id: 'api', label: 'API Keys' },
+            { id: 'integrations', label: 'Integrations & Webhooks' },
+            { id: 'embeds', label: 'Embed Defaults' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as SettingsTab)}
+                className={`pb-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white font-semibold'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
+                }`}
               >
-                {saving ? 'Saving...' : 'Save Webhook Settings'}
+                {tab.label}
               </button>
+            )
+          })}
+        </div>
+
+        {/* Tab 1: General & Profile */}
+        {activeTab === 'general' && (
+          <div className="space-y-6 pt-2 animate-fade-in">
+            <div>
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
+                Profile &amp; Authentication
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Your authenticated account details and credentials.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] p-6 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-zinc-800/80">
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-900 dark:text-white">Email Address</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Primary login and account recovery email.</p>
+                </div>
+                <div className="font-mono text-xs text-zinc-800 dark:text-zinc-200 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                  {user?.email || 'user@example.com'}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-zinc-800/80">
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-900 dark:text-white">Account Role</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Workspace permission and access tier.</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700">
+                  <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                  Agency Admin
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-900 dark:text-white">Password</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Update your password to keep your workspace secure.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-3.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#18181b] hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white text-xs font-medium shadow-xs transition-colors"
+                >
+                  Change Password
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Brevo API Key Settings */}
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.13s'}}>
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 rounded-xl border border-blue-200 dark:border-blue-400/30 mr-3">
-              <Key className="w-5 h-5 text-blue-600 dark:text-blue-200" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Brevo Email API Key</h2>
-          </div>
-          <div className="space-y-6">
-            <p className="text-sm text-gray-600 dark:text-white/70">
-              Enter your Brevo API key to enable email notifications for form responses.
-            </p>
+        {/* Tab 2: API Keys & Access */}
+        {activeTab === 'api' && (
+          <div className="space-y-6 pt-2 animate-fade-in">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                Brevo API Key
-              </label>
-              <input
-                type="text"
-                value={settings.brevo_api_key || ''}
-                onChange={e => setSettings(prev => ({ ...prev, brevo_api_key: e.target.value }))}
-                placeholder="Enter Brevo API Key"
-                className="w-full px-4 py-3 bg-gray-100 dark:bg-white/5 border border-gray-300 dark:border-white/20 rounded-xl text-gray-700 dark:text-white/80 font-mono text-sm"
-              />
-              <p className="text-xs text-gray-500 dark:text-white/60 mt-2">
-                You can find your API key in your Brevo dashboard under SMTP & API settings.
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
+                Developer API Keys
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Secret API keys used to securely authenticate programmatic requests from your own backend or headless SDK.
               </p>
             </div>
-            <button 
-              onClick={saveWebhookSettings}
-              disabled={saving}
-              className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-blue-800 disabled:to-cyan-800 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save Brevo API Key'}
-            </button>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.15s'}}>
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-500/20 dark:to-emerald-500/20 rounded-xl border border-green-200 dark:border-green-400/30 mr-3">
-              <Key className="w-5 h-5 text-green-600 dark:text-green-200" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">API Access</h2>
-          </div>
-          
-          <div className="space-y-6">
-            <p className="text-sm text-gray-600 dark:text-white/70">
-              Generate API keys to access your forms and responses programmatically.
-            </p>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                API Key
-              </label>
-              <div className="flex space-x-3">
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={loading ? 'Loading...' : (settings.api_key || 'No API key generated')}
-                    readOnly
-                    className="w-full px-4 py-3 bg-gray-100 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-700 dark:text-white/80 font-mono text-sm pr-12 select-all"
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                  />
-                  {settings.api_key && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(settings.api_key)
-                        push({ type: 'success', message: 'API key copied to clipboard!' })
-                      }}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors"
-                      title="Copy API key"
-                    >
-                      <svg className="w-4 h-4 text-gray-500 dark:text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                  )}
+
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] p-6 shadow-xs space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    Live Production API Key
+                  </label>
+                  <span className="text-[11px] font-mono text-zinc-400">Bearer Token</span>
                 </div>
-                <button 
-                  onClick={regenerateApiKey}
-                  disabled={loading}
-                  className="px-4 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 disabled:from-slate-800 disabled:to-slate-900 text-white rounded-xl transition-all duration-200 font-medium disabled:cursor-not-allowed"
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={loading ? 'Loading API key...' : (settings.api_key || 'No key generated')}
+                      readOnly
+                      className="w-full px-3.5 py-2.5 pr-10 bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-xs font-mono text-zinc-900 dark:text-zinc-100 select-all cursor-text focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    />
+                    {settings.api_key && (
+                      <button
+                        type="button"
+                        onClick={handleCopyKey}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                        title="Copy API key"
+                      >
+                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={regenerateApiKey}
+                    disabled={loading || saving}
+                    className="px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-3 h-3 text-zinc-500" />
+                    <span>Regenerate</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                  Do not share your API key in client-side code or public repositories. Requests with this key have full administrative access.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+                <h4 className="text-xs font-semibold text-zinc-900 dark:text-white mb-2">
+                  Sample cURL Request
+                </h4>
+                <pre className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 overflow-x-auto">
+{`curl -X GET "${window.location.origin}/api/forms" \\
+  -H "Authorization: Bearer ${settings.api_key || 'dk_live_your_key'}" \\
+  -H "Content-Type: application/json"`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Integrations & Brevo */}
+        {activeTab === 'integrations' && (
+          <div className="space-y-6 pt-2 animate-fade-in">
+            <div>
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
+                Email &amp; Webhook Integrations
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Configure SMTP email credentials and default Zapier webhook endpoints.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] p-6 shadow-xs space-y-6">
+              {/* Brevo SMTP Key */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    Brevo (Sendinblue) API Key
+                  </label>
+                  <a
+                    href="https://app.brevo.com/settings/keys/api"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 inline-flex items-center gap-1"
+                  >
+                    <span>Get API Key</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="text"
+                  value={settings.brevo_api_key || ''}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, brevo_api_key: e.target.value }))}
+                  placeholder="xkeysib-..."
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                />
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  Used to deliver transactional lead alert emails and submission receipts to customers.
+                </p>
+              </div>
+
+              {/* Default Webhook URL */}
+              <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+                <label className="text-xs font-semibold text-zinc-900 dark:text-white block">
+                  Default Global Zapier Webhook URL
+                </label>
+                <input
+                  type="url"
+                  value={settings.webhook_url || ''}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, webhook_url: e.target.value }))}
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                />
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                  Fallback endpoint for forms that do not have a dedicated client-level webhook configured.
+                </p>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={saveSettings}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
                 >
-                  {loading ? 'Loading...' : 'Regenerate'}
+                  {saving ? 'Saving...' : 'Save Integration Settings'}
                 </button>
               </div>
-              <p className="text-xs text-white/60 mt-2">
-                Use this key to access the API programmatically. Click the key to select all or use the copy button.
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30 rounded-xl p-4">
-              <p className="text-sm text-amber-200">
-                <strong>Important:</strong> Keep your API key secure. Don't share it in publicly accessible areas.
-              </p>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Embed Settings */}
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-gray-200 dark:border-slate-600/50 p-6 shadow-sm hover:shadow-md transition-shadow duration-100 animate-fade-in" style={{animationDelay: '0.2s'}}>
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-500/20 dark:to-blue-500/20 rounded-xl border border-cyan-200 dark:border-cyan-400/30 mr-3">
-              <Globe className="w-5 h-5 text-cyan-600 dark:text-cyan-200" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Embed Settings</h2>
-          </div>
-          
-          <div className="space-y-6">
-            <p className="text-sm text-gray-600 dark:text-white/70">
-              Configure default settings for embedded forms.
-            </p>
-            
+        {/* Tab 4: Embed Defaults */}
+        {activeTab === 'embeds' && (
+          <div className="space-y-6 pt-2 animate-fade-in">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-white/90 mb-2">
-                Default Form Height
-              </label>
-              <select className="w-full px-4 py-3 bg-white dark:bg-white/10 backdrop-blur-sm border border-gray-300 dark:border-white/20 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200 hover:bg-gray-50 dark:hover:bg-white/15">
-                <option value="600" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">600px</option>
-                <option value="800" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">800px</option>
-                <option value="1000" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">1000px</option>
-                <option value="auto" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">Auto</option>
-              </select>
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">
+                Embed &amp; Player Defaults
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Configure default iframe viewport height and responsive behavior for published forms.
+              </p>
             </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="responsive-embed"
-                defaultChecked
-                className="w-4 h-4 text-cyan-600 bg-white dark:bg-white/10 border-gray-300 dark:border-white/30 rounded focus:ring-cyan-500 focus:ring-2"
-              />
-              <label htmlFor="responsive-embed" className="ml-3 text-sm text-gray-700 dark:text-white/80">
-                Enable responsive embeds
-              </label>
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] p-6 shadow-xs space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-zinc-900 dark:text-white block">
+                  Default Embed Viewport Height
+                </label>
+                <select
+                  value={formHeight}
+                  onChange={(e) => setFormHeight(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 rounded-xl text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                >
+                  <option value="600">600px (Compact)</option>
+                  <option value="800">800px (Standard Desktop)</option>
+                  <option value="1000">1000px (Large Screen)</option>
+                  <option value="auto">Auto Responsive Height</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between py-3 border-t border-b border-zinc-100 dark:border-zinc-800/80">
+                <div>
+                  <h4 className="text-xs font-semibold text-zinc-900 dark:text-white">
+                    Enable Responsive Mobile Embeds
+                  </h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Automatically scales form container width and font sizes when viewed on small touch devices.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={responsiveEmbed}
+                    onChange={(e) => setResponsiveEmbed(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-300 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-zinc-900 dark:peer-checked:bg-white dark:peer-checked:after:bg-zinc-900" />
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => push({ type: 'success', message: 'Embed preferences updated!' })}
+                  className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold shadow-xs transition-colors"
+                >
+                  Save Embed Preferences
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-white">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Change Password</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(false)}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-xs"
+              >
+                ✕
+              </button>
             </div>
 
-            <button className="w-full px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl transition-colors duration-100 font-medium shadow-sm">
-              Update Embed Settings
-            </button>
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  required
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your new password"
+                  required
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingPassword}
+                  className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
+                >
+                  {updatingPassword ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

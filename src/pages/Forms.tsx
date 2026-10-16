@@ -6,9 +6,12 @@ import { Plus, Edit, Trash2, Eye, Code, Search, BarChart3, MoreVertical, Copy as
 import { useToast } from '../contexts/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import FolderSidebar from '../components/folders/FolderSidebar'
+import FormTypeSelectionModal from '../components/FormTypeSelectionModal'
+import EmbedModal from '../components/ui/EmbedModal'
 import FolderModal from '../components/folders/FolderModal'
 import FolderBadge from '../components/folders/FolderBadge'
 import BulkActions from '../components/folders/BulkActions'
+import { FormCard } from '../components/ui/form-card'
 import { 
   getFolders, 
   createFolder, 
@@ -29,6 +32,7 @@ interface Form {
   created_at: string
   client_id: string
   folder_id: string | null
+  form_type?: string | null
   clients: {
     name: string
     primary_color: string
@@ -49,6 +53,17 @@ export default function Forms() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   
+  // Duplication progress state
+  const [duplicatingState, setDuplicatingState] = useState<{
+    isDuplicating: boolean;
+    currentStep: string;
+    progress: number;
+  }>({
+    isDuplicating: false,
+    currentStep: '',
+    progress: 0
+  })
+  
   // Folder state
   const [folders, setFolders] = useState<FolderType[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
@@ -65,6 +80,12 @@ export default function Forms() {
   
   // Dropdown menu state
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  // Form type selection modal
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false)
+
+  // Embed modal state
+  const [embedModalForm, setEmbedModalForm] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     fetchForms()
@@ -188,43 +209,28 @@ export default function Forms() {
   }
 
   const copyEmbedCode = (formId: string) => {
-    const baseUrl = window.location.origin;
-    // Use custom domain detection - if on custom domain, no basename needed
-    const isCustomDomain = window.location.hostname !== 'noahung.github.io';
-    const basename = import.meta.env.PROD && !isCustomDomain ? '/online-designer-beta' : '';
-    const embedCode = `<div style="width:100%;"><iframe id="designerFormIframe" src="${baseUrl}${basename}/form/${formId}" style="width:100%;border:none;min-height:400px;" allowfullscreen></iframe></div>
-<script>
-window.addEventListener("message", function(event) {
-  if (event.data && event.data.type === "designerFormHeight" && event.data.height) {
-    var iframe = document.getElementById("designerFormIframe");
-    if (iframe) {
-      var newHeight = Math.max(event.data.height, 200); // Ensure minimum height
-      iframe.style.height = newHeight + "px";
-      console.log('[Parent] Updated iframe height to:', newHeight);
-    }
-  }
-}, false);
-
-// Also listen for load events to ensure initial sizing
-document.addEventListener("DOMContentLoaded", function() {
-  var iframe = document.getElementById("designerFormIframe");
-  if (iframe) {
-    // Set a reasonable initial height
-    iframe.style.height = "400px";
-  }
-});
-</script>`;
-    navigator.clipboard.writeText(embedCode);
-    push({ type: 'success', message: 'Embed code copied to clipboard' });
+    const form = forms.find(f => f.id === formId)
+    setEmbedModalForm({ id: formId, name: form?.name || 'Form' })
   }
 
   const openEditModal = async (formId: string) => {
-    // Navigate to the FormBuilder in edit mode instead of opening a modal
-    navigate(`/forms/edit/${formId}`)
+    // Find the form to check its type
+    const form = forms.find(f => f.id === formId)
+    if (form?.form_type === 'single_page') {
+      navigate(`/forms/edit-single/${formId}`)
+    } else {
+      navigate(`/forms/edit/${formId}`)
+    }
   }
 
   const duplicateForm = async (formId: string) => {
     try {
+      setDuplicatingState({
+        isDuplicating: true,
+        currentStep: 'Fetching form details...',
+        progress: 2
+      })
+
       // Get the original form
       const { data: originalForm, error: fetchError } = await supabase
         .from('forms')
@@ -246,6 +252,23 @@ document.addEventListener("DOMContentLoaded", function() {
 
       if (stepsError) throw stepsError
 
+      // Get all step logic for this form
+      const { data: originalLogic, error: logicError } = await supabase
+        .from('step_logic')
+        .select('*')
+        .eq('form_id', formId)
+
+      if (logicError) {
+        console.error('Error fetching original step logic:', logicError)
+        throw logicError
+      }
+
+      setDuplicatingState(prev => ({
+        ...prev,
+        currentStep: 'Creating form clone...',
+        progress: 8
+      }))
+
       // Create a new form with the same data but new ID and name
       const { data: newForm, error: createError } = await supabase
         .from('forms')
@@ -265,15 +288,28 @@ document.addEventListener("DOMContentLoaded", function() {
           primary_button_text_color: originalForm.primary_button_text_color,
           secondary_button_color: originalForm.secondary_button_color,
           secondary_button_text_color: originalForm.secondary_button_text_color,
-          internal_name: originalForm.internal_name
+          internal_name: originalForm.internal_name,
+          form_type: originalForm.form_type || 'multi_step'
         })
         .select()
         .single()
 
       if (createError) throw createError
 
-      // Copy all form steps and their options
+      const stepIdMap = new Map<string, string>()
+      const optionIdMap = new Map<string, string>()
+
+      // Pass 1: Copy all form steps and map their IDs
+      const stepsCount = originalSteps?.length || 0
+      let stepIndex = 0
       for (const step of originalSteps || []) {
+        stepIndex++
+        setDuplicatingState({
+          isDuplicating: true,
+          currentStep: `Copying step ${stepIndex} of ${stepsCount}: ${step.title || 'Untitled'}`,
+          progress: 8 + (stepIndex / stepsCount) * 35 // maps 8% to 43%
+        })
+
         const { data: newStep, error: stepError } = await supabase
           .from('form_steps')
           .insert({
@@ -301,28 +337,143 @@ document.addEventListener("DOMContentLoaded", function() {
           .single()
 
         if (stepError) throw stepError
+        stepIdMap.set(step.id, newStep.id)
+      }
 
-        // Copy all options for this step
-        for (const option of step.form_options || []) {
-          const { error: optionError } = await supabase
+      // Pass 2: Copy all options for all steps and map their IDs
+      stepIndex = 0
+      for (const step of originalSteps || []) {
+        stepIndex++
+        const newStepId = stepIdMap.get(step.id)
+        if (!newStepId) continue
+
+        const optionsList = step.form_options || []
+        const optionsCount = optionsList.length
+        let optIndex = 0
+
+        for (const option of optionsList) {
+          optIndex++
+          setDuplicatingState({
+            isDuplicating: true,
+            currentStep: `Copying options for step ${stepIndex} of ${stepsCount}...`,
+            progress: 43 + (stepIndex / stepsCount) * 32 // maps 43% to 75%
+          })
+
+          const { data: newOption, error: optionError } = await supabase
             .from('form_options')
             .insert({
-              step_id: newStep.id,
+              step_id: newStepId,
               label: option.label,
               image_url: option.image_url,
               option_order: option.option_order,
               jump_to_step: option.jump_to_step
             })
+            .select()
+            .single()
 
-          if (optionError) throw optionError
+          if (optionError) {
+            console.error('[Duplicate] Error inserting option:', optionError)
+            throw optionError
+          }
+          optionIdMap.set(option.id, newOption.id)
         }
       }
 
-      fetchForms() // Refresh the forms list
+      // Pass 3: Copy and rewrite step logic rules
+      const logicCount = originalLogic?.length || 0
+      let logicIndex = 0
+      for (const logic of originalLogic || []) {
+        logicIndex++
+        setDuplicatingState({
+          isDuplicating: true,
+          currentStep: `Copying step logic ${logicIndex} of ${logicCount}...`,
+          progress: 75 + (logicIndex / logicCount) * 20 // maps 75% to 95%
+        })
+
+        const newStepId = stepIdMap.get(logic.step_id)
+        if (!newStepId) {
+          console.warn('[Duplicate] Logic step_id not found in stepIdMap:', logic.step_id)
+          continue
+        }
+
+        // Rewrite rules
+        const mappedRules = (logic.rules || []).map((rule: any) => {
+          const newRuleStepId = stepIdMap.get(rule.step_id) || rule.step_id
+          const newActionTarget = rule.action?.target_step_id ? (stepIdMap.get(rule.action.target_step_id) || rule.action.target_step_id) : undefined
+
+          const mappedConditions = (rule.conditions || []).map((cond: any) => {
+            const mappedCond = { ...cond }
+            if (cond.option_id) {
+              mappedCond.option_id = optionIdMap.get(cond.option_id) || cond.option_id
+            }
+            return mappedCond
+          })
+
+          const mappedAction = { ...rule.action }
+          if (newActionTarget !== undefined) {
+            mappedAction.target_step_id = newActionTarget
+          }
+
+          return {
+            ...rule,
+            step_id: newRuleStepId,
+            conditions: mappedConditions,
+            action: mappedAction
+          }
+        })
+
+        // Rewrite default action
+        let mappedDefaultAction = null
+        if (logic.default_action) {
+          const newDefaultStepId = stepIdMap.get(logic.default_action.step_id) || logic.default_action.step_id
+          const newDefaultTarget = logic.default_action.action?.target_step_id
+            ? (stepIdMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id)
+            : undefined
+
+          const mappedAction = { ...logic.default_action.action }
+          if (newDefaultTarget !== undefined) {
+            mappedAction.target_step_id = newDefaultTarget
+          }
+
+          mappedDefaultAction = {
+            ...logic.default_action,
+            step_id: newDefaultStepId,
+            action: mappedAction
+          }
+        }
+
+        const { error: insertLogicError } = await supabase
+          .from('step_logic')
+          .insert({
+            step_id: newStepId,
+            form_id: newForm.id,
+            rules: mappedRules,
+            default_action: mappedDefaultAction
+          })
+
+        if (insertLogicError) {
+          console.error('[Duplicate] Error inserting duplicated step logic:', insertLogicError)
+          throw insertLogicError
+        }
+      }
+
+      setDuplicatingState({
+        isDuplicating: true,
+        currentStep: 'Completing duplication...',
+        progress: 98
+      })
+
+      await fetchForms() // Refresh the forms list
       push({ type: 'success', message: 'Form duplicated successfully!' })
     } catch (error) {
       console.error('Error duplicating form:', error)
       push({ type: 'error', message: 'Failed to duplicate form' })
+    } finally {
+      setDuplicatingState({
+        isDuplicating: false,
+        currentStep: '',
+        progress: 0
+      })
     }
   }
 
@@ -467,333 +618,230 @@ document.addEventListener("DOMContentLoaded", function() {
           onDeleteFolder={handleDeleteFolder}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onCreateForm={() => setIsTypeModalOpen(true)}
         />
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-8 animate-fade-in">
-            <div className="flex items-center justify-between mb-8">
-              <div className="animate-slide-up">
-                <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-                  theme === 'light' 
-                    ? 'from-gray-800 via-orange-600 to-red-600' 
-                    : 'from-white via-orange-100 to-red-200'
-                }`}>
-                  Forms
-                </h1>
-                <p className={`mt-2 text-lg ${
-                  theme === 'light' ? 'text-gray-600' : 'text-white/70'
-                }`}>Create and manage your client forms</p>
-              </div>
-              <button 
-                onClick={() => navigate('/forms/new')} 
-                className="group flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 animate-slide-up"
-          style={{animationDelay: '0.2s'}}
-        >
-          <Plus className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-200" />
-          Create Form
-        </button>
-      </div>
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-[#0d0d0d]">
+          <div className="p-8 space-y-5 max-w-6xl mx-auto">
+            {/* OpenAI API Keys-Style Header */}
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                Forms
+              </h1>
 
-      {/* Search Bar */}
-      {forms.length > 0 && (
-        <div className="mb-6 animate-slide-up" style={{animationDelay: '0.3s'}}>
-          <div className="relative">
-            <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-              theme === 'light' ? 'text-gray-400' : 'text-white/40'
-            }`} />
-            <input
-              type="text"
-              placeholder="Search forms by name, internal name, description, or client..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all duration-200 ${
-                theme === 'light'
-                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
-                  : 'bg-white/10 backdrop-blur-xl border-white/20 text-white placeholder-white/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20'
-              } focus:outline-none`}
-            />
-            {searchQuery && (
+              {/* Underline Tabs */}
+              <div className="flex items-center gap-6 border-b border-zinc-200 dark:border-zinc-800 mt-4 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolderId(null)}
+                  className={`pb-2.5 relative transition-colors ${
+                    selectedFolderId === null
+                      ? 'text-zinc-950 dark:text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-zinc-950 dark:after:bg-white'
+                      : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  All Forms
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolderId('uncategorized')}
+                  className={`pb-2.5 relative transition-colors ${
+                    selectedFolderId === 'uncategorized'
+                      ? 'text-zinc-950 dark:text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-zinc-950 dark:after:bg-white'
+                      : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Uncategorized
+                </button>
+              </div>
+            </div>
+
+            {/* Top Action Row */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setIsTypeModalOpen(true)} 
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-semibold text-xs shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create new form</span>
+                </button>
+              </div>
+            </div>
+
+            {/* OpenAI Search & Filter Chips Row */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {/* Search Pill */}
+              <div className="relative min-w-[200px] max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1 bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600"
+                />
+              </div>
+
+              {/* Active Filter Chip */}
               <button
-                onClick={() => setSearchQuery('')}
-                className={`absolute right-4 top-1/2 transform -translate-y-1/2 text-sm font-medium transition-colors ${
-                  theme === 'light'
-                    ? 'text-gray-500 hover:text-gray-700'
-                    : 'text-white/60 hover:text-white'
-                }`}
+                type="button"
+                className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#18181b] text-xs text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
-                Clear
+                <span>✓ Active</span>
               </button>
+
+              {/* Add Filter Chip */}
+              <button
+                type="button"
+                className="px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add filter</span>
+              </button>
+
+              <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-1 font-normal">
+                {filteredForms.length} result{filteredForms.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3 pt-2">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-10 rounded-lg bg-zinc-100 dark:bg-zinc-900/60 animate-pulse border border-zinc-200/50 dark:border-zinc-800/40" />
+                ))}
+              </div>
+            ) : forms.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                </div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">No forms yet</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-4 text-xs max-w-md mx-auto">Create your first form to start collecting responses.</p>
+                <button 
+                  onClick={() => setIsTypeModalOpen(true)} 
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-semibold text-xs shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Your First Form</span>
+                </button>
+              </div>
+            ) : filteredForms.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
+                </div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">No forms found</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 mb-4 text-xs max-w-md mx-auto">No forms match your search query.</p>
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="px-3.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Clear Search
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-left border-collapse font-sans">
+                    <thead>
+                      <tr className="border-b border-zinc-200 dark:border-zinc-800/80 text-[11px] font-normal text-zinc-400 dark:text-zinc-500">
+                        <th className="py-2.5 px-3">Name</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Workspace</th>
+                        <th className="py-2.5 px-3">Responses</th>
+                        <th className="py-2.5 px-3">Created</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredForms.map((form, index) => (
+                        <FormCard
+                          key={form.id}
+                          form={form}
+                          index={index}
+                          responseCount={responseCounts[form.id] || 0}
+                          isSelected={selectedFormIds.has(form.id)}
+                          onToggleSelect={() => toggleFormSelection(form.id)}
+                          onViewResponses={() => navigate(`/forms/${form.id}/responses`)}
+                          onMoveToFolder={(folderId) => handleMoveFormToFolder(form.id, folderId)}
+                          onCopyEmbed={() => copyEmbedCode(form.id)}
+                          onPreview={() => window.open(`/form/${form.id}`, '_blank')}
+                          onEdit={() => openEditModal(form.id)}
+                          onDuplicate={() => duplicateForm(form.id)}
+                          onToggleStatus={() => toggleFormStatus(form.id, form.is_active)}
+                          onDelete={() => deleteForm(form.id)}
+                          folders={folders}
+                          openMenuId={openMenuId}
+                          onToggleMenu={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
+                          theme={theme}
+                          FolderBadge={FolderBadge}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
-          </div>
-          {searchQuery && (
-            <p className={`mt-2 text-sm ${
-              theme === 'light' ? 'text-gray-600' : 'text-white/60'
-            }`}>
-              Found {filteredForms.length} form{filteredForms.length !== 1 ? 's' : ''}
-            </p>
-          )}
-        </div>
-      )}
 
-      {loading ? (
-        <div className="space-y-6">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`backdrop-blur-xl rounded-2xl border p-6 animate-pulse ${
-              theme === 'light' 
-                ? 'bg-white/50 border-gray-200' 
-                : 'bg-white/10 border-white/20'
-            }`}>
-              <div className="flex items-center justify-between">
-                <div className="space-y-3">
-                  <div className={`h-6 rounded-lg w-48 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-4 rounded-lg w-32 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-3 rounded-lg w-24 ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                </div>
-                <div className="flex space-x-3">
-                  <div className={`h-10 w-24 rounded-lg ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                  <div className={`h-10 w-10 rounded-lg ${
-                    theme === 'light' ? 'bg-gray-200' : 'bg-white/20'
-                  }`}></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : forms.length === 0 ? (
-        <div className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-blue-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <FileText className="w-10 h-10 text-blue-300" />
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No forms yet</h3>
-          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">Create your first form to start collecting responses from your clients</p>
-          <button 
-            onClick={() => navigate('/forms/new')} 
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Create Your First Form
-          </button>
-        </div>
-      ) : filteredForms.length === 0 ? (
-        <div className="text-center py-16 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-r from-orange-500/20 to-red-600/20 backdrop-blur-xl rounded-2xl border border-orange-400/30 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-            <Search className="w-10 h-10 text-orange-300" />
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-3">No forms found</h3>
-          <p className="text-white/70 mb-8 text-lg max-w-md mx-auto">No forms match your search criteria. Try a different search term.</p>
-          <button 
-            onClick={() => setSearchQuery('')}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105"
-          >
-            Clear Search
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filteredForms.map((form, index) => (
-            <div key={form.id} className={`group bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 p-6 hover:bg-white/15 hover:border-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 animate-fade-in ${openMenuId === form.id ? 'relative z-50' : ''}`} style={{animationDelay: `${index * 0.1}s`}}>
-              <div className="flex items-start justify-between">
-                {/* Checkbox for bulk selection */}
-                <div className="flex items-start space-x-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedFormIds.has(form.id)}
-                    onChange={() => toggleFormSelection(form.id)}
-                    className="mt-1 w-5 h-5 rounded border-2 border-white/30 bg-white/10 checked:bg-orange-500 checked:border-orange-500 cursor-pointer transition-all"
-                  />
-                  
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3 flex-wrap">
-                      <h3 className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors duration-200">
-                        {form.name}
-                      </h3>
-                      {form.internal_name && (
-                        <span className="px-2 py-1 text-xs font-semibold rounded bg-orange-500/20 text-orange-300 border border-orange-400/30">
-                          {form.internal_name}
-                        </span>
-                      )}
-                      <span className={`px-3 py-1.5 text-xs font-medium rounded-full backdrop-blur-sm border ${
-                        form.is_active 
-                          ? 'bg-green-500/20 text-green-300 border-green-400/30'
-                          : 'bg-slate-500/20 text-slate-300 border-slate-400/30'
-                      }`}>
-                        {form.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                      {form.form_folders && (
-                        <FolderBadge
-                          folderName={form.form_folders.name}
-                          folderColor={form.form_folders.color}
-                          size="sm"
-                        />
-                      )}
-                    </div>
-                    
-                    {form.description && (
-                      <p className="text-white/70 mb-4 text-base leading-relaxed">{form.description}</p>
-                    )}
-                    
-                    <div className="flex items-center space-x-4 text-sm text-white/60">
-                      <span className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                        Client: {form.clients?.name}
-                      </span>
-                      <span>•</span>
-                      <span>Created {new Date(form.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  {/* Responses Button */}
-                  <button
-                    onClick={() => navigate(`/forms/${form.id}/responses`)}
-                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white hover:from-blue-500/30 hover:to-purple-600/30 hover:scale-105"
-                    title="View responses"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Responses</span>
-                    {responseCounts[form.id] > 0 && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-blue-400 text-white font-semibold">
-                        {responseCounts[form.id]}
-                      </span>
-                    )}
-                  </button>
-                  
-                  {/* Move to Folder dropdown */}
-                  <select
-                    value={form.folder_id || ''}
-                    onChange={(e) => handleMoveFormToFolder(form.id, e.target.value || null)}
-                    className="px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/20 bg-white/10 text-white hover:bg-white/20 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-                    title="Move to folder"
-                  >
-                    <option value="" className="bg-gray-800">📭 Uncategorized</option>
-                    {folders.map((folder) => (
-                      <option key={folder.id} value={folder.id} className="bg-gray-800">
-                        📁 {folder.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Embed Code Button */}
-                  <button
-                    onClick={() => copyEmbedCode(form.id)}
-                    className="p-3 text-white/60 hover:text-blue-300 hover:bg-blue-500/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-blue-400/30"
-                    title="Copy embed code"
-                  >
-                    <Code className="w-5 h-5" />
-                  </button>
-
-                  {/* More Actions Dropdown */}
-                  <div className="relative z-50">
-                    <button
-                      onClick={() => setOpenMenuId(openMenuId === form.id ? null : form.id)}
-                      className="p-3 text-white/60 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-white/30"
-                      title="More actions"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-
-                    {openMenuId === form.id && (
-                      <>
-                        {/* Backdrop to close menu */}
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setOpenMenuId(null)}
-                        />
-                        
-                        {/* Dropdown Menu */}
-                        <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-gray-800 border border-white/20 shadow-2xl overflow-hidden z-50 animate-scale-in">
-                          <button
-                            onClick={() => {
-                              window.open(`/form/${form.id}`, '_blank')
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Eye className="w-4 h-4 text-green-300" />
-                            <span>Preview</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              openEditModal(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Edit className="w-4 h-4 text-purple-300" />
-                            <span>Edit</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              duplicateForm(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <Duplicate className="w-4 h-4 text-orange-300" />
-                            <span>Duplicate</span>
-                          </button>
-
-                          <div className="h-px bg-white/10 my-1" />
-
-                          <button
-                            onClick={() => {
-                              toggleFormStatus(form.id, form.is_active)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            {form.is_active ? (
-                              <>
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-slate-400" />
-                                </div>
-                                <span>Deactivate</span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-4 h-4 flex items-center justify-center">
-                                  <div className="w-2 h-2 rounded-full bg-green-400" />
-                                </div>
-                                <span>Activate</span>
-                              </>
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              deleteForm(form.id)
-                              setOpenMenuId(null)
-                            }}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
           </div>
         </div>
       </div>
+
+      {/* Form type selection modal */}
+      <FormTypeSelectionModal
+        isOpen={isTypeModalOpen}
+        onClose={() => setIsTypeModalOpen(false)}
+        onSelect={(type) => {
+          setIsTypeModalOpen(false)
+          if (type === 'single_page') {
+            navigate('/forms/new-single')
+          } else {
+            navigate('/forms/new')
+          }
+        }}
+      />
+
+      {/* Embed modal */}
+      {embedModalForm && (
+        <EmbedModal
+          formId={embedModalForm.id}
+          formName={embedModalForm.name}
+          isOpen={true}
+          onClose={() => setEmbedModalForm(null)}
+        />
+      )}
+
+      {/* Duplication Progress Modal */}
+      {duplicatingState.isDuplicating && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center space-y-4">
+            {/* Spinning loading icon */}
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
+              <div 
+                className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"
+                style={{ clipPath: 'polygon(0 0, 100% 0, 100% 50%, 0 50%)' }}
+              ></div>
+              <span className="text-xs font-bold text-blue-400">{Math.round(duplicatingState.progress)}%</span>
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-white">Duplicating Form</h3>
+              <p className="text-xs text-white/60 min-h-[32px]">{duplicatingState.currentStep}</p>
+            </div>
+            
+            {/* Progress bar */}
+            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-300 ease-out" 
+                style={{ width: `${duplicatingState.progress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

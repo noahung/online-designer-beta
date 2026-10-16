@@ -18,7 +18,7 @@ export default function FormPreview({
   React.useEffect(() => {
     if (isOpen && formId) {
       // Open the embedded form in a new tab
-      const previewUrl = `${window.location.origin}/form/${formId}`
+      const previewUrl = `${window.location.origin}/form/${formId}?t=${Date.now()}`
       window.open(previewUrl, '_blank', 'width=800,height=900,scrollbars=yes,resizable=yes')
       // Close the modal immediately since we're opening in new tab
       onClose()
@@ -58,7 +58,7 @@ export default function FormPreview({
               <Button 
                 variant="primary" 
                 onClick={() => {
-                  const previewUrl = `${window.location.origin}/form/${formId}`
+                  const previewUrl = `${window.location.origin}/form/${formId}?t=${Date.now()}`
                   window.open(previewUrl, '_blank', 'width=800,height=900,scrollbars=yes,resizable=yes')
                 }}
               >

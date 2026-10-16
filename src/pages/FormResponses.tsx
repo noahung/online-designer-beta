@@ -202,10 +202,8 @@ export default function FormResponses() {
 
           <div className="flex items-center justify-between">
             <div className="animate-slide-up">
-              <h1 className={`text-4xl font-bold bg-gradient-to-r bg-clip-text text-transparent ${
-                theme === 'light'
-                  ? 'from-gray-800 via-orange-600 to-red-600'
-                  : 'from-white via-orange-100 to-red-200'
+              <h1 className={`text-4xl font-bold ${
+                theme === 'light' ? 'text-zinc-900' : 'text-white'
               }`}>
                 {formName}
               </h1>

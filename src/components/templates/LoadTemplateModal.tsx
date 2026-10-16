@@ -153,148 +153,159 @@ export default function LoadTemplateModal({ isOpen, onClose, onSelect, filterTyp
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-xl flex flex-col ${
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className={`w-full max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl border flex flex-col transition-all ${
         theme === 'light'
-          ? 'bg-white text-gray-900'
-          : 'bg-slate-800 text-white'
+          ? 'bg-white border-zinc-200 text-zinc-900 shadow-zinc-200/50'
+          : 'bg-[#18181b] border-zinc-800 text-zinc-100 shadow-black/70'
       }`}>
-        <div className={`flex items-center justify-between p-6 border-b ${
-          theme === 'light' ? 'border-gray-200' : 'border-white/10'
+        <div className={`flex items-center justify-between px-6 py-4.5 border-b ${
+          theme === 'light' ? 'border-zinc-100 bg-white' : 'border-zinc-800/80 bg-[#18181b]'
         }`}>
           <div>
-            <h2 className="text-xl font-semibold">Load Step Template</h2>
-            <p className={`text-sm mt-1 ${
-              theme === 'light' ? 'text-gray-600' : 'text-white/70'
-            }`}>
+            <h2 className={`text-base font-semibold tracking-tight ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
+              Load Step Template
+            </h2>
+            <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'}`}>
               Choose a saved template to quickly configure this step
             </p>
           </div>
           <button
             onClick={onClose}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-1.5 rounded-lg transition-colors ${
               theme === 'light'
-                ? 'hover:bg-gray-100 text-gray-600'
-                : 'hover:bg-white/10 text-white/70'
+                ? 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
             }`}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-6 space-y-4 flex-1 overflow-hidden flex flex-col">
           {/* Search */}
           <div className="relative">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${
-              theme === 'light' ? 'text-gray-400' : 'text-white/40'
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
+              theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'
             }`} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search templates..."
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-200 ${
+              placeholder="Search templates by name or step type..."
+              className={`w-full pl-9 pr-4 py-2 rounded-lg text-sm border transition-colors outline-none ${
                 theme === 'light'
-                  ? 'bg-white border-gray-200 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-                  : 'bg-white/10 border-white/20 text-white placeholder-white/50 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20'
+                  ? 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400'
+                  : 'bg-zinc-900 border-zinc-800 text-zinc-100 placeholder-zinc-500 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600'
               }`}
             />
           </div>
 
           {/* Templates List */}
-          <div className="flex-1 overflow-y-auto space-y-3">
+          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-400 border-t-transparent"></div>
               </div>
             ) : filteredTemplates.length === 0 ? (
               <div className={`text-center py-12 ${
-                theme === 'light' ? 'text-gray-500' : 'text-white/50'
+                theme === 'light' ? 'text-zinc-400' : 'text-zinc-500'
               }`}>
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">
-                  {searchQuery ? 'No templates found' : 'No templates yet'}
+                <FileText className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-medium mb-1">
+                  {searchQuery ? 'No templates found' : 'No saved templates yet'}
                 </p>
-                <p className="text-sm">
+                <p className="text-xs">
                   {searchQuery
                     ? 'Try a different search term'
-                    : 'Save your first template to reuse step configurations'}
+                    : 'Save any configured step as a template to reuse it across forms'}
                 </p>
               </div>
             ) : (
               filteredTemplates.map((template) => (
-                <button
+                <div
                   key={template.id}
                   onClick={() => setSelectedTemplate(template)}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 ${
+                  className={`w-full text-left p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
                     selectedTemplate?.id === template.id
                       ? theme === 'light'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-blue-400 bg-blue-500/10'
+                        ? 'border-zinc-900 bg-zinc-100/80 shadow-sm'
+                        : 'border-zinc-500 bg-zinc-800/90 shadow-sm'
                       : theme === 'light'
-                        ? 'border-gray-200 hover:border-gray-300 bg-white'
-                        : 'border-white/10 hover:border-white/20 bg-white/5'
+                        ? 'border-zinc-200/80 hover:border-zinc-300 bg-white hover:bg-zinc-50/80'
+                        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800/60'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3 flex-1">
-                      <div className={`p-2 rounded-lg ${
-                        theme === 'light' ? 'bg-gray-100' : 'bg-white/10'
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border ${
+                        theme === 'light'
+                          ? 'bg-zinc-100 border-zinc-200 text-zinc-700'
+                          : 'bg-zinc-800 border-zinc-700/60 text-zinc-300'
                       }`}>
-                        {stepTypeIcons[template.question_type] || <FileText className="w-5 h-5" />}
+                        {stepTypeIcons[template.question_type] || <FileText className="w-4 h-4" />}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold mb-1">{template.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className={`text-sm font-medium leading-snug truncate ${theme === 'light' ? 'text-zinc-900' : 'text-zinc-100'}`}>
+                            {template.name}
+                          </h3>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border capitalize flex-shrink-0 ${
+                            theme === 'light' ? 'bg-zinc-100 text-zinc-600 border-zinc-200' : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                          }`}>
+                            {template.question_type.replace('_', ' ')}
+                          </span>
+                        </div>
                         {template.description && (
-                          <p className={`text-sm mb-2 ${
-                            theme === 'light' ? 'text-gray-600' : 'text-white/70'
+                          <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${
+                            theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                           }`}>
                             {template.description}
                           </p>
                         )}
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className={`px-2 py-1 rounded-md ${
-                            theme === 'light' ? 'bg-gray-100 text-gray-700' : 'bg-white/10 text-white/80'
-                          }`}>
-                            {template.question_type.replace('_', ' ')}
-                          </span>
-                          {template.options && template.options.length > 0 && (
-                            <span className={`px-2 py-1 rounded-md ${
-                              theme === 'light' ? 'bg-blue-100 text-blue-700' : 'bg-blue-500/20 text-blue-300'
+                        {template.options && template.options.length > 0 && (
+                          <div className="mt-2 text-xs">
+                            <span className={`text-[11px] font-normal ${
+                              theme === 'light' ? 'text-zinc-500' : 'text-zinc-400'
                             }`}>
-                              {template.options.length} options
+                              {template.options.length} options included
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button
-                      onClick={(e) => handleDelete(template.id, e)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(template.id, e)
+                      }}
                       disabled={deletingId === template.id}
-                      className={`p-2 rounded-lg transition-colors ml-2 ${
+                      className={`p-1.5 rounded-lg transition-colors ml-2 flex-shrink-0 ${
                         theme === 'light'
-                          ? 'hover:bg-red-100 text-red-600'
-                          : 'hover:bg-red-500/20 text-red-400'
+                          ? 'hover:bg-red-50 text-zinc-400 hover:text-red-600'
+                          : 'hover:bg-red-950/40 text-zinc-500 hover:text-red-400'
                       }`}
                       title="Delete template"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-white/10">
+          <div className={`flex justify-end items-center gap-2.5 pt-4 border-t ${
+            theme === 'light' ? 'border-zinc-100' : 'border-zinc-800/80'
+          }`}>
             <button
               type="button"
               onClick={onClose}
-              className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 theme === 'light'
-                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  : 'bg-white/10 hover:bg-white/20 text-white'
+                  ? 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700'
+                  : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/60'
               }`}
             >
               Cancel
@@ -302,10 +313,10 @@ export default function LoadTemplateModal({ isOpen, onClose, onSelect, filterTyp
             <button
               onClick={handleSelect}
               disabled={!selectedTemplate}
-              className={`inline-flex items-center px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
                 theme === 'light'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
-                  : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
+                  ? 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                  : 'bg-white hover:bg-zinc-200 text-zinc-900 font-semibold'
               }`}
             >
               Apply Template
