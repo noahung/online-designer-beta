@@ -67,6 +67,7 @@ export default function LogicBuilder({
       currentStep.question_type === 'opinion_scale' ||
       currentStep.question_type === 'dimensions'
 
+    const firstOption = currentStep.options?.[0]
     const newRule: LogicRule = {
       id: generateId(),
       step_id: currentStep.id || '',
@@ -76,9 +77,9 @@ export default function LogicBuilder({
         {
           id: generateId(),
           field_type: isOptionBased ? 'option' : isNumeric ? 'scale' : 'text',
-          option_id: isOptionBased && currentStep.options?.[0]?.id ? currentStep.options[0].id : undefined,
+          option_id: isOptionBased && firstOption?.id ? firstOption.id : undefined,
           condition_type: isOptionBased ? 'is' : isNumeric ? 'greater_than' : 'contains',
-          comparison_value: isNumeric ? 5 : ''
+          comparison_value: isOptionBased ? (firstOption?.label || '') : isNumeric ? 5 : ''
         }
       ],
       action: {
@@ -117,6 +118,7 @@ export default function LogicBuilder({
       currentStep.question_type === 'opinion_scale' ||
       currentStep.question_type === 'dimensions'
 
+    const firstOption = currentStep.options?.[0]
     setRules(
       rules.map((rule) => {
         if (rule.id !== ruleId) return rule
@@ -127,9 +129,9 @@ export default function LogicBuilder({
             {
               id: generateId(),
               field_type: isOptionBased ? 'option' : isNumeric ? 'scale' : 'text',
-              option_id: isOptionBased && currentStep.options?.[0]?.id ? currentStep.options[0].id : undefined,
+              option_id: isOptionBased && firstOption?.id ? firstOption.id : undefined,
               condition_type: isOptionBased ? 'is' : isNumeric ? 'greater_than' : 'contains',
-              comparison_value: ''
+              comparison_value: isOptionBased ? (firstOption?.label || '') : ''
             }
           ]
         }
@@ -281,12 +283,20 @@ export default function LogicBuilder({
                             </select>
 
                             <select
-                              value={cond.option_id || ''}
-                              onChange={(e) =>
-                                handleUpdateCondition(rule.id, cond.id, {
-                                  option_id: e.target.value
-                                })
+                              value={
+                                cond.option_id ||
+                                currentStep.options?.find(
+                                  (o) => o.label?.toLowerCase() === String(cond.comparison_value || '').toLowerCase()
+                                )?.id ||
+                                ''
                               }
+                              onChange={(e) => {
+                                const selectedOpt = currentStep.options?.find((o) => o.id === e.target.value)
+                                handleUpdateCondition(rule.id, cond.id, {
+                                  option_id: e.target.value,
+                                  comparison_value: selectedOpt?.label || ''
+                                })
+                              }}
                               className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-medium flex-1 min-w-[140px]"
                             >
                               {currentStep.options?.map((opt) => (
@@ -400,7 +410,13 @@ export default function LogicBuilder({
 
                     {rule.action.type !== 'go_to_end' && (
                       <select
-                        value={rule.action.target_step_id || ''}
+                        value={
+                          targetStepOptions.find(
+                            (s) =>
+                              s.id === rule.action.target_step_id ||
+                              String(s.step_order) === String(rule.action.target_step_id)
+                          )?.id || rule.action.target_step_id || ''
+                        }
                         onChange={(e) =>
                           handleUpdateAction(rule.id, { target_step_id: e.target.value })
                         }
@@ -441,7 +457,13 @@ export default function LogicBuilder({
                 value={
                   defaultAction?.action.type === 'go_to_end'
                     ? 'end'
-                    : defaultAction?.action.target_step_id || 'next'
+                    : targetStepOptions.find(
+                        (s) =>
+                          s.id === defaultAction?.action.target_step_id ||
+                          String(s.step_order) === String(defaultAction?.action.target_step_id)
+                      )?.id ||
+                      defaultAction?.action.target_step_id ||
+                      'next'
                 }
                 onChange={(e) => {
                   const val = e.target.value

@@ -1604,9 +1604,12 @@ export default function FormBuilder() {
           // Track old->new option ID mapping for logic condition updates (keyed by final step ID)
           if (insertedOpts) {
             const optionMap = new Map<string, string>()
-            resolvedOptions.forEach(({ opt }, idx) => {
-              if (opt.id && insertedOpts[idx]?.id) {
-                optionMap.set(opt.id, insertedOpts[idx].id)
+            resolvedOptions.forEach(({ opt, order }) => {
+              const matchedInserted = insertedOpts.find(
+                (io: any) => io.option_order === order || (io.label && io.label === opt.label)
+              )
+              if (opt.id && matchedInserted?.id) {
+                optionMap.set(opt.id, matchedInserted.id)
               }
             })
             optionIdMapByStep.set(stepId, optionMap)
@@ -1630,29 +1633,58 @@ export default function FormBuilder() {
         }
 
         const optionIdMap = optionIdMapByStep.get(finalStepId) || new Map<string, string>()
+        const currentStepObj = steps.find(s => s.id === mapStepId || idMap.get(s.id || '') === finalStepId)
 
-        const updatedRules = logic.rules.map(rule => ({
-          ...rule,
-          step_id: finalStepId,
-          conditions: rule.conditions.map(c => ({
-            ...c,
-            option_id: c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
-          })),
-          action: {
-            ...rule.action,
-            target_step_id: rule.action.target_step_id
-              ? (idMap.get(rule.action.target_step_id) || rule.action.target_step_id)
-              : undefined
+        const updatedRules = logic.rules.map(rule => {
+          let resolvedTargetId = rule.action.target_step_id
+          if (resolvedTargetId) {
+            if (idMap.has(resolvedTargetId)) {
+              resolvedTargetId = idMap.get(resolvedTargetId)
+            } else {
+              // If target was saved as step_order, resolve to real step ID
+              const stepByOrder = steps.find(s => String(s.step_order) === String(resolvedTargetId))
+              if (stepByOrder?.id) {
+                resolvedTargetId = idMap.get(stepByOrder.id) || stepByOrder.id
+              }
+            }
           }
-        }))
+
+          return {
+            ...rule,
+            step_id: finalStepId,
+            conditions: rule.conditions.map(c => {
+              const newOptionId = c.option_id ? (optionIdMap.get(c.option_id) || c.option_id) : undefined
+              const optLabel = c.comparison_value || currentStepObj?.options?.find(o => o.id === c.option_id)?.label || ''
+              return {
+                ...c,
+                option_id: newOptionId,
+                comparison_value: optLabel || c.comparison_value
+              }
+            }),
+            action: {
+              ...rule.action,
+              target_step_id: resolvedTargetId
+            }
+          }
+        })
+
+        let resolvedDefaultTargetId = logic.default_action?.action.target_step_id
+        if (resolvedDefaultTargetId) {
+          if (idMap.has(resolvedDefaultTargetId)) {
+            resolvedDefaultTargetId = idMap.get(resolvedDefaultTargetId)
+          } else {
+            const stepByOrder = steps.find(s => String(s.step_order) === String(resolvedDefaultTargetId))
+            if (stepByOrder?.id) {
+              resolvedDefaultTargetId = idMap.get(stepByOrder.id) || stepByOrder.id
+            }
+          }
+        }
 
         const updatedDefaultAction = logic.default_action ? {
           ...logic.default_action,
           action: {
             ...logic.default_action.action,
-            target_step_id: logic.default_action.action.target_step_id
-              ? (idMap.get(logic.default_action.action.target_step_id) || logic.default_action.action.target_step_id)
-              : undefined
+            target_step_id: resolvedDefaultTargetId
           }
         } : undefined
 
@@ -3080,13 +3112,31 @@ export default function FormBuilder() {
           currentStep={currentStep}
           allSteps={steps}
           stepLogic={stepLogicMap.get(currentStep.id || '') || null}
-          onSave={(logic) => {
+          onSave={async (logic) => {
+            const stepId = currentStep.id || ''
             setStepLogicMap(prev => {
               const newMap = new Map(prev)
-              newMap.set(currentStep.id || '', logic)
+              newMap.set(stepId, logic)
               return newMap
             })
-            push({ type: 'success', message: 'Logic rules saved successfully' })
+
+            // Immediately persist to DB if form and step exist so preview/embed gets fresh rules
+            if (formId && stepId && !stepId.startsWith('temp_')) {
+              try {
+                await supabase.from('step_logic').delete().eq('step_id', stepId)
+                if ((logic.rules && logic.rules.length > 0) || logic.default_action) {
+                  await supabase.from('step_logic').insert({
+                    step_id: stepId,
+                    form_id: formId,
+                    rules: logic.rules,
+                    default_action: logic.default_action || null
+                  })
+                }
+              } catch (err) {
+                console.error('Error auto-saving step logic:', err)
+              }
+            }
+            push({ type: 'success', message: 'Logic rules applied and saved' })
           }}
           onClose={() => setShowLogicBuilder(false)}
         />

@@ -589,13 +589,15 @@ export default function FormEmbed() {
 
   // Helper function to evaluate logic rules and determine next step
   const evaluateLogicRules = (currentStepId: string, response: any): number | null => {
-    console.log('🔍 [FORM] Evaluating logic for step:', currentStepId)
+    console.log('🔍 [FORM] Evaluating logic for step:', currentStepId, response)
     const logic = stepLogicMap.get(currentStepId)
     if (!logic) {
+      console.log('🔍 [FORM] No logic configured for step:', currentStepId)
       return null
     }
 
     const evaluation = evaluateStepLogic(currentStepId, response, logic, steps)
+    console.log('🔍 [FORM] Logic evaluation result:', evaluation)
     if (evaluation.isEnd) {
       return steps.length
     }
@@ -608,6 +610,8 @@ export default function FormEmbed() {
       [currentStepIndex]: { 
         ...(r[currentStepIndex] || {}), 
         option_id: option.id,
+        label: option.label,
+        option_label: option.label,
         iteration_number: currentIteration
       } 
     }))

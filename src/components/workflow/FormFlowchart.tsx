@@ -132,9 +132,14 @@ export default function FormFlowchart({
       const ruleLabels = rules.map((r, i) => {
         if (r.conditions && r.conditions[0]) {
           const c = r.conditions[0]
-          if (c.field_type === 'option' && c.option_id) {
-            const opt = step.options?.find((o) => o.id === c.option_id)
-            return opt ? `If "${opt.label}"` : `Condition ${i + 1}`
+          if (c.field_type === 'option') {
+            const opt = step.options?.find(
+              (o) =>
+                (c.option_id && o.id === c.option_id) ||
+                (c.option_id && o.label?.toLowerCase() === String(c.option_id).toLowerCase()) ||
+                (c.comparison_value && o.label?.toLowerCase() === String(c.comparison_value).toLowerCase())
+            )
+            return opt ? `If "${opt.label}"` : c.comparison_value ? `If "${c.comparison_value}"` : `Condition ${i + 1}`
           }
           return `If ${c.condition_type?.replace('_', ' ')} ${c.comparison_value || ''}`
         }
@@ -167,10 +172,17 @@ export default function FormFlowchart({
           let label = `Rule ${rIdx + 1}`
           if (rule.conditions && rule.conditions[0]) {
             const firstCond = rule.conditions[0]
-            if (firstCond.field_type === 'option' && firstCond.option_id) {
-              const matchedOpt = step.options?.find((o) => o.id === firstCond.option_id)
+            if (firstCond.field_type === 'option') {
+              const matchedOpt = step.options?.find(
+                (o) =>
+                  (firstCond.option_id && o.id === firstCond.option_id) ||
+                  (firstCond.option_id && o.label?.toLowerCase() === String(firstCond.option_id).toLowerCase()) ||
+                  (firstCond.comparison_value && o.label?.toLowerCase() === String(firstCond.comparison_value).toLowerCase())
+              )
               if (matchedOpt) {
                 label = `"${matchedOpt.label}"`
+              } else if (firstCond.comparison_value) {
+                label = `"${firstCond.comparison_value}"`
               }
             } else if (firstCond.condition_type) {
               label = `${firstCond.condition_type.replace('_', ' ')} ${firstCond.comparison_value || ''}`
@@ -193,11 +205,17 @@ export default function FormFlowchart({
               labelBgStyle: { fill: '#FEF3C7', fillOpacity: 0.95, rx: 6, ry: 6 }
             })
           } else if (rule.action.target_step_id) {
+            const targetStep = sortedSteps.find(
+              (s) =>
+                s.id === rule.action.target_step_id ||
+                String(s.step_order) === String(rule.action.target_step_id)
+            )
+            const resolvedTargetId = targetStep?.id || rule.action.target_step_id
             edges.push({
-              id: `edge-${step.id}-${rule.action.target_step_id}-${rule.id}`,
+              id: `edge-${step.id}-${resolvedTargetId}-${rule.id}`,
               source: step.id!,
               sourceHandle: 'out',
-              target: rule.action.target_step_id,
+              target: resolvedTargetId,
               targetHandle: 'in',
               label,
               type: ConnectionLineType.Bezier,
@@ -212,7 +230,11 @@ export default function FormFlowchart({
       }
 
       // Default fallback edge
-      const defaultTargetId = logic?.default_action?.action?.target_step_id
+      const rawDefaultTargetId = logic?.default_action?.action?.target_step_id
+      const defaultTargetStep = sortedSteps.find(
+        (s) => s.id === rawDefaultTargetId || String(s.step_order) === String(rawDefaultTargetId)
+      )
+      const defaultTargetId = defaultTargetStep?.id || rawDefaultTargetId
       const defaultIsEnd = logic?.default_action?.action?.type === 'go_to_end'
 
       if (defaultIsEnd) {

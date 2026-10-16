@@ -18,7 +18,8 @@ export interface StepMinimal {
  */
 export function evaluateCondition(
   condition: LogicCondition,
-  userResponse: any
+  userResponse: any,
+  stepOptions?: Array<{ id?: string; label: string; image_url?: string }>
 ): boolean {
   if (userResponse === undefined || userResponse === null) {
     return condition.condition_type === 'is_empty'
@@ -26,26 +27,73 @@ export function evaluateCondition(
 
   switch (condition.field_type) {
     case 'option': {
-      // Option can be stored as option_id directly, object { id, option_id }, or array for multi-choice
-      const selectedOptionId =
-        typeof userResponse === 'string'
-          ? userResponse
-          : userResponse?.option_id || userResponse?.id
+      // Find the condition target in stepOptions if available
+      const conditionTargetOpt = stepOptions?.find(
+        (o) =>
+          (condition.option_id && o.id && o.id === condition.option_id) ||
+          (condition.option_id && o.label && o.label.trim().toLowerCase() === String(condition.option_id).trim().toLowerCase()) ||
+          (condition.comparison_value && o.label && o.label.trim().toLowerCase() === String(condition.comparison_value).trim().toLowerCase())
+      )
+
+      const targetId = condition.option_id || conditionTargetOpt?.id
+      const targetLabel = (conditionTargetOpt?.label || condition.comparison_value || '')
+        .toString()
+        .trim()
+        .toLowerCase()
+
+      const checkSingleMatch = (item: any): boolean => {
+        let selectedId: string | undefined = undefined
+        let selectedLabel: string | undefined = undefined
+
+        if (typeof item === 'string') {
+          selectedId = item
+          const matchedByLabel = stepOptions?.find(
+            (o) => o.label?.trim().toLowerCase() === item.trim().toLowerCase()
+          )
+          if (matchedByLabel) {
+            selectedLabel = matchedByLabel.label
+            if (!selectedId.includes('-')) {
+              selectedId = matchedByLabel.id
+            }
+          }
+        } else if (item && typeof item === 'object') {
+          selectedId = item.option_id || item.id || item.value
+          selectedLabel = item.label || item.option_label || item.text
+        }
+
+        if (!selectedLabel && selectedId && stepOptions) {
+          const found = stepOptions.find((o) => o.id === selectedId)
+          if (found) selectedLabel = found.label
+        }
+
+        const normSelectedLabel = (selectedLabel || '').trim().toLowerCase()
+
+        // 1. Match by ID (exact UUID)
+        const idMatches = Boolean(selectedId && targetId && selectedId === targetId)
+        // 2. Match by Label (exact text match, case-insensitive)
+        const labelMatches = Boolean(
+          normSelectedLabel && targetLabel && normSelectedLabel === targetLabel
+        )
+        // 3. Match if condition.option_id itself was stored as the label
+        const directOptionIdLabelMatches = Boolean(
+          normSelectedLabel &&
+            condition.option_id &&
+            normSelectedLabel === String(condition.option_id).trim().toLowerCase()
+        )
+
+        return idMatches || labelMatches || directOptionIdLabelMatches
+      }
 
       if (Array.isArray(userResponse)) {
-        const ids = userResponse.map((item) =>
-          typeof item === 'string' ? item : item?.option_id || item?.id
-        )
-        if (condition.condition_type === 'is_not') {
-          return !ids.includes(condition.option_id)
-        }
-        return ids.includes(condition.option_id)
+        const isAnyMatch = userResponse.some((item) => checkSingleMatch(item))
+        return condition.condition_type === 'is_not' ? !isAnyMatch : isAnyMatch
       }
 
+      const isMatch = checkSingleMatch(userResponse)
       if (condition.condition_type === 'is_not') {
-        return selectedOptionId !== condition.option_id
+        return !isMatch
       }
-      return selectedOptionId === condition.option_id
+      return isMatch
     }
 
     case 'scale':
@@ -121,6 +169,21 @@ export function evaluateCondition(
 }
 
 /**
+ * Helper to find step index in allSteps matching by ID or step_order
+ */
+function findStepIndex(allSteps: StepMinimal[], target: string | number | undefined): number {
+  if (!target) return -1
+  const targetStr = String(target).trim().toLowerCase()
+  return allSteps.findIndex(
+    (s) =>
+      (s.id && s.id.toLowerCase() === targetStr) ||
+      String(s.step_order) === targetStr ||
+      `step_${s.step_order}` === targetStr ||
+      `step ${s.step_order}` === targetStr
+  )
+}
+
+/**
  * Evaluates the step logic for a given step and user response,
  * returning the target step ID, index, and whether it leads to the form ending.
  */
@@ -140,6 +203,11 @@ export function evaluateStepLogic(
     return result
   }
 
+  const currentStep = allSteps.find(
+    (s) => s.id === currentStepId || String(s.step_order) === String(currentStepId)
+  )
+  const stepOptions = currentStep?.options
+
   // 1. Evaluate explicit rules in sequential order
   if (Array.isArray(stepLogic.rules) && stepLogic.rules.length > 0) {
     for (const rule of stepLogic.rules) {
@@ -149,9 +217,9 @@ export function evaluateStepLogic(
       let isMatch = false
 
       if (operator === 'AND') {
-        isMatch = rule.conditions.every((cond) => evaluateCondition(cond, userResponse))
+        isMatch = rule.conditions.every((cond) => evaluateCondition(cond, userResponse, stepOptions))
       } else {
-        isMatch = rule.conditions.some((cond) => evaluateCondition(cond, userResponse))
+        isMatch = rule.conditions.some((cond) => evaluateCondition(cond, userResponse, stepOptions))
       }
 
       if (isMatch) {
@@ -164,9 +232,11 @@ export function evaluateStepLogic(
         }
 
         if (rule.action.target_step_id) {
-          result.targetStepId = rule.action.target_step_id
-          const targetIndex = allSteps.findIndex((s) => s.id === rule.action.target_step_id)
+          const targetIndex = findStepIndex(allSteps, rule.action.target_step_id)
           result.targetStepIndex = targetIndex >= 0 ? targetIndex : null
+          result.targetStepId = targetIndex >= 0 && allSteps[targetIndex]?.id
+            ? allSteps[targetIndex].id!
+            : rule.action.target_step_id
           return result
         }
       }
@@ -183,9 +253,11 @@ export function evaluateStepLogic(
     }
 
     if (action.target_step_id) {
-      result.targetStepId = action.target_step_id
-      const targetIndex = allSteps.findIndex((s) => s.id === action.target_step_id)
+      const targetIndex = findStepIndex(allSteps, action.target_step_id)
       result.targetStepIndex = targetIndex >= 0 ? targetIndex : null
+      result.targetStepId = targetIndex >= 0 && allSteps[targetIndex]?.id
+        ? allSteps[targetIndex].id!
+        : action.target_step_id
       return result
     }
   }
@@ -270,11 +342,21 @@ export function detectCycles(
     if (logic && logic.rules && logic.rules.length > 0) {
       for (const rule of logic.rules) {
         if (rule.action.type === 'go_to_step' && rule.action.target_step_id) {
-          neighbors.push(rule.action.target_step_id)
+          const resolved = steps.find(
+            (s) =>
+              s.id === rule.action.target_step_id ||
+              String(s.step_order) === String(rule.action.target_step_id)
+          )?.id || rule.action.target_step_id
+          neighbors.push(resolved)
         }
       }
       if (logic.default_action?.action.target_step_id) {
-        neighbors.push(logic.default_action.action.target_step_id)
+        const resolved = steps.find(
+          (s) =>
+            s.id === logic.default_action?.action.target_step_id ||
+            String(s.step_order) === String(logic.default_action?.action.target_step_id)
+        )?.id || logic.default_action.action.target_step_id
+        neighbors.push(resolved)
       }
     } else {
       // Default linear progression
