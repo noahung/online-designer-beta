@@ -185,8 +185,8 @@ function AppContent() {
 
   if (isFormEmbed) {
     return (
-      <div className="relative min-h-screen w-full overflow-hidden bg-transparent">
-        <div className="relative z-10 min-h-screen bg-transparent">
+      <div className="relative min-h-0 h-auto w-full overflow-visible bg-transparent">
+        <div className="relative z-10 min-h-0 h-auto bg-transparent">
           <AuthProvider>
             <ToastProvider>
               <Router basename={basename}>

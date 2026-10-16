@@ -299,92 +299,74 @@ export default function FormEmbed() {
 
   // --- Add postMessage logic for iframe auto-resize ---
   // Send height to parent window
-  const sendHeightToParent = () => {
+  const sendHeightToParent = useCallback(() => {
     // Use requestAnimationFrame to ensure DOM is fully updated
     requestAnimationFrame(() => {
       let height = 0;
       
-      // Try multiple methods to get the most accurate height
-      if (formContainerRef.current) {
-        // Method 1: Use the container ref
-        height = formContainerRef.current.offsetHeight;
-        
-        // Method 2: Also check scrollHeight for content that might overflow
-        const scrollHeight = formContainerRef.current.scrollHeight;
-        height = Math.max(height, scrollHeight);
+      const targetEl = formContainerRef.current || document.body;
+      if (targetEl) {
+        const rectHeight = Math.ceil(targetEl.getBoundingClientRect().height);
+        const scrollHeight = targetEl.scrollHeight;
+        const offsetHeight = (targetEl as HTMLElement).offsetHeight || 0;
+        height = Math.max(rectHeight, scrollHeight, offsetHeight);
       } else {
-        // Fallback: Use document body
         height = document.body.scrollHeight;
       }
       
       // Ensure minimum height to prevent collapsing
       height = Math.max(height, 200);
       
-      // Account for potential scrollbars
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      if (scrollbarWidth > 0) {
-        height += 20; // Extra buffer if scrollbar exists
-      }
+      // Extra bottom padding (32px) so shadow, mobile action buttons and safe area are never cut off
+      height += 32;
       
-      // Add some padding for safety
-      height += 20;
-      
-      console.log('[FormEmbed] Sending designerFormHeight:', height, 'Scrollbar detected:', scrollbarWidth > 0);
       window.parent.postMessage({
         type: 'designerFormHeight',
         height: height
       }, '*');
     });
-  };
+  }, []);
 
   useEffect(() => {
     sendHeightToParent();
     window.addEventListener('resize', sendHeightToParent);
-    
-    // Also send height after a short delay to ensure everything is rendered
-    const initialTimeout = setTimeout(() => {
-      sendHeightToParent();
-    }, 500);
-    
-    // Send height when window fully loads
-    const handleLoad = () => sendHeightToParent();
-    window.addEventListener('load', handleLoad);
-    
-    // Periodic height checks for dynamic content (every 2 seconds for 10 seconds)
-    let periodicCheckCount = 0;
-    const periodicCheck = setInterval(() => {
-      if (periodicCheckCount < 5) {
+    window.addEventListener('load', sendHeightToParent);
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
         sendHeightToParent();
-        periodicCheckCount++;
-      } else {
-        clearInterval(periodicCheck);
+      });
+      if (formContainerRef.current) {
+        observer.observe(formContainerRef.current);
       }
-    }, 2000);
-    
+      if (document.body) {
+        observer.observe(document.body);
+      }
+    }
+
+    const t1 = setTimeout(sendHeightToParent, 300);
+    const t2 = setTimeout(sendHeightToParent, 800);
+
     return () => {
       window.removeEventListener('resize', sendHeightToParent);
-      window.removeEventListener('load', handleLoad);
-      clearTimeout(initialTimeout);
-      clearInterval(periodicCheck);
+      window.removeEventListener('load', sendHeightToParent);
+      if (observer) observer.disconnect();
+      clearTimeout(t1);
+      clearTimeout(t2);
     };
-  }, []);
+  }, [sendHeightToParent]);
 
-  // Call sendHeightToParent after each step change, response change, or frame count change
+  // Call sendHeightToParent after each step change, response change, or loading state change
   useEffect(() => {
-    // Use setTimeout to ensure all DOM updates and animations are complete
-    const timeoutId = setTimeout(() => {
-      sendHeightToParent();
-      
-      // Send again after potential CSS transitions (animations, etc.)
-      const secondTimeoutId = setTimeout(() => {
-        sendHeightToParent();
-      }, 300);
-      
-      return () => clearTimeout(secondTimeoutId);
-    }, 200);
-
-    return () => clearTimeout(timeoutId);
-  }, [currentStepIndex, steps, responses]);
+    sendHeightToParent();
+    const t1 = setTimeout(sendHeightToParent, 150);
+    const t2 = setTimeout(sendHeightToParent, 350);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [currentStepIndex, steps, responses, loading, sendHeightToParent]);
 
   // Initialize frames_count for frames_plan steps
   useEffect(() => {
@@ -2176,14 +2158,14 @@ export default function FormEmbed() {
   const step = steps[currentStepIndex]
 
   return (
-  <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', minHeight: '100vh', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
+    <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', minHeight: 'auto', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
       {/* Dynamic theme decorations if any */}
       {currentTheme.styles.decorations && (
         <div dangerouslySetInnerHTML={{ __html: currentTheme.styles.decorations }} />
       )}
       
-  <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, paddingBottom: '0', width: '100%', maxWidth: '100%' }}>
-  <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)}`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius), ...(isTransparent ? { background: 'transparent', backdropFilter: 'none', WebkitBackdropFilter: 'none', border: 'none', boxShadow: 'none' } : {}) }}>
+      <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, minHeight: 'auto', paddingBottom: '16px', width: '100%', maxWidth: '100%' }}>
+        <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)}`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius), ...(isTransparent ? { background: 'transparent', backdropFilter: 'none', WebkitBackdropFilter: 'none', border: 'none', boxShadow: 'none' } : {}) }}>
         {/* Client Header */}
     {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">

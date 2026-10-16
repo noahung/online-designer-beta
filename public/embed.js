@@ -171,6 +171,7 @@
     el.parentNode.replaceChild(wrapper, el);
 
     register(formId, { 
+      wrapper: wrapper,
       iframe: iframe, 
       mode: 'inline',
       fixedHeight: hasFixedOuterHeight
@@ -452,9 +453,21 @@
       Object.keys(registry).forEach(function (formId) {
         registry[formId].forEach(function (entry) {
           if (entry.iframe && entry.iframe.contentWindow === event.source) {
+            var h = Math.max(parseInt(data.height, 10), 200);
             if (!entry.fixedHeight) {
-              var h = Math.max(parseInt(data.height, 10), 200);
               entry.iframe.style.height = h + 'px';
+              if (entry.wrapper) {
+                entry.wrapper.style.height = 'auto';
+              }
+            } else {
+              // If fixed height was originally set but on mobile screen width (< 768px),
+              // release fixed height to prevent cut-off buttons
+              if (window.innerWidth < 768) {
+                entry.iframe.style.height = h + 'px';
+                if (entry.wrapper) {
+                  entry.wrapper.style.height = 'auto';
+                }
+              }
             }
           }
         });
