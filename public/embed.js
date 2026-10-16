@@ -50,6 +50,7 @@
     if (opts.hideLogo === 'true' || opts.hideLogo === true) params.push('hide_logo=1');
     if (opts.hideTitle === 'true' || opts.hideTitle === true) params.push('hide_title=1');
     if (opts.hideDescription === 'true' || opts.hideDescription === true) params.push('hide_description=1');
+    if (opts.hideProgress === 'true' || opts.hideProgress === true) params.push('hide_progress=1');
     if (opts.redirect) params.push('redirect=' + encodeURIComponent(opts.redirect));
     return params.length ? base + '?' + params.join('&') : base;
   }
@@ -77,16 +78,18 @@
     iframe.setAttribute('allowfullscreen', '');
     iframe.setAttribute('frameborder', '0');
     iframe.setAttribute('scrolling', 'no');
+    iframe.setAttribute('allowtransparency', 'true');
     if (opts.lazy) iframe.setAttribute('loading', 'lazy');
 
-    var transparent = opts.transparent === 'true' || opts.transparent === true;
+    // Default to transparent background so the host website background shows through around the form card
+    var isOpaque = opts.transparent === 'false' && opts.opaque === 'true';
 
     iframe.style.cssText = [
       'width:100%',
       'border:none',
       'display:block',
       'overflow:hidden',
-      transparent ? 'background:transparent' : 'background:#fff',
+      isOpaque ? 'background:#fff' : 'background:transparent',
       'transition:height 0.2s ease'
     ].join(';');
 
@@ -115,6 +118,7 @@
       hideLogo: el.getAttribute('data-hide-logo') || 'false',
       hideTitle: el.getAttribute('data-hide-title') || 'false',
       hideDescription: el.getAttribute('data-hide-description') || 'false',
+      hideProgress: el.getAttribute('data-hide-progress') || 'false',
       redirect: el.getAttribute('data-redirect') || '',
       width: el.getAttribute('data-width') || '',
       height: el.getAttribute('data-height') || '',

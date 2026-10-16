@@ -214,14 +214,16 @@ export default function FormEmbed() {
 
   // Embed display options passed via URL query params from embed.js
   const _embedParams = new URLSearchParams(window.location.search)
+  const isEmbedded = window.self !== window.top || _embedParams.get('embedded') === '1' || _embedParams.get('transparent') === '1' || _embedParams.get('transparent') === 'true'
   const isTransparent = _embedParams.get('transparent') === '1' || _embedParams.get('transparent') === 'true'
   const embedHideLogo = _embedParams.get('hide_logo') === '1'
   const embedHideTitle = _embedParams.get('hide_title') === '1'
   const embedHideDescription = _embedParams.get('hide_description') === '1'
+  const embedHideProgress = _embedParams.get('hide_progress') === '1' || _embedParams.get('hide_progress') === 'true'
 
-  // Make html + body transparent when requested so host site bg shows through
+  // Make html + body transparent when embedded so host site bg shows through
   useEffect(() => {
-    if (isTransparent) {
+    if (isEmbedded || isTransparent) {
       document.documentElement.style.background = 'transparent'
       document.body.style.background = 'transparent'
       return () => {
@@ -229,7 +231,7 @@ export default function FormEmbed() {
         document.body.style.background = ''
       }
     }
-  }, [])
+  }, [isEmbedded, isTransparent])
   const [steps, setSteps] = useState<Step[]>([])
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
@@ -293,6 +295,7 @@ export default function FormEmbed() {
   const [cardRadius, setCardRadius] = useState<string>('2xl')
   const [headingColor, setHeadingColor] = useState<string | undefined>(undefined)
   const [descriptionColor, setDescriptionColor] = useState<string | undefined>(undefined)
+  const [showProgressBar, setShowProgressBar] = useState<boolean>(true)
 
   // Auto-inject dynamic Google Fonts, CSS variables, and glassmorphic tokens
   useFormThemeInjector(formTheme, formColors)
@@ -455,6 +458,7 @@ export default function FormEmbed() {
       setCardRadius(design.cardRadius)
       setHeadingColor(design.headingColor)
       setDescriptionColor(design.descriptionColor)
+      setShowProgressBar(design.showProgressBar)
 
       const { data: s, error: stepsError } = await supabase
         .from('form_steps')
@@ -2056,7 +2060,7 @@ export default function FormEmbed() {
 
   if (loading) {
     return (
-      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
+      <div className={`${isEmbedded ? 'bg-transparent' : currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full text-center`}>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold">Loading form...</h2>
@@ -2068,7 +2072,7 @@ export default function FormEmbed() {
 
   if (error) {
     return (
-      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
+      <div className={`${isEmbedded ? 'bg-transparent' : currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full text-center`}>
           <div className="text-red-500 text-4xl mb-4">⚠️</div>
           <h2 className="text-xl font-semibold text-red-600">Error Loading Form</h2>
@@ -2090,7 +2094,7 @@ export default function FormEmbed() {
 
   if (!steps || steps.length === 0) {
     return (
-      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
+      <div className={`${isEmbedded ? 'bg-transparent' : currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full text-center`}>
           <h2 className="text-xl font-semibold">Form not available</h2>
           <p className={currentTheme.styles.text.body}>This form isn't published or contains no steps.</p>
@@ -2101,7 +2105,7 @@ export default function FormEmbed() {
 
   if (currentStepIndex >= steps.length) {
     return (
-      <div className={`${currentTheme.styles.background} flex items-center justify-center`}>
+      <div className={`${isEmbedded ? 'bg-transparent' : currentTheme.styles.background} flex items-center justify-center`}>
         <div className={`${currentTheme.styles.card} w-full text-center`}>
           <h2 className="text-xl font-semibold">Thank you</h2>
           <p className={currentTheme.styles.text.body}>Your submission has been received.</p>
@@ -2158,14 +2162,14 @@ export default function FormEmbed() {
   const step = steps[currentStepIndex]
 
   return (
-    <div ref={formContainerRef} className={isTransparent ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', minHeight: 'auto', paddingBottom: '0', ...(isTransparent ? { background: 'transparent' } : {}) }}>
+    <div ref={formContainerRef} className={isEmbedded ? '' : `${currentTheme.styles.background}`} style={{ position: 'relative', minHeight: 'auto', paddingBottom: '0', ...(isEmbedded ? { background: 'transparent' } : {}) }}>
       {/* Dynamic theme decorations if any */}
-      {currentTheme.styles.decorations && (
+      {!isEmbedded && currentTheme.styles.decorations && (
         <div dangerouslySetInnerHTML={{ __html: currentTheme.styles.decorations }} />
       )}
       
       <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, minHeight: 'auto', paddingBottom: '16px', width: '100%', maxWidth: '100%' }}>
-        <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)}`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius), ...(isTransparent ? { background: 'transparent', backdropFilter: 'none', WebkitBackdropFilter: 'none', border: 'none', boxShadow: 'none' } : {}) }}>
+        <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)}`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius) }}>
         {/* Client Header */}
     {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
@@ -2202,14 +2206,16 @@ export default function FormEmbed() {
         )}
         
         {/* Step Progress Stepper */}
-        <StepperProgress
-          currentStepIndex={currentStepIndex}
-          totalSteps={steps.length}
-          steps={steps}
-          themeConfig={currentTheme}
-          primaryColor={formColors.primaryButtonColor}
-          variant={steps.length <= 6 ? 'numbers' : 'bar'}
-        />
+        {showProgressBar && !embedHideProgress && (
+          <StepperProgress
+            currentStepIndex={currentStepIndex}
+            totalSteps={steps.length}
+            steps={steps}
+            themeConfig={currentTheme}
+            primaryColor={formColors.primaryButtonColor}
+            variant={steps.length <= 6 ? 'numbers' : 'bar'}
+          />
+        )}
 
         {!embedHideTitle && (
           <h1
@@ -2931,12 +2937,12 @@ export default function FormEmbed() {
           </div>
         )}
 
-        <div className="flex justify-between items-center gap-3 mt-8 pt-4 border-t border-slate-200/50">
+        <div className="flex justify-between items-center gap-2 sm:gap-3 mt-6 sm:mt-8 pt-3 sm:pt-4 border-t border-slate-200/50">
           <button 
             type="button"
             onClick={goPrev} 
             disabled={currentStepIndex === 0} 
-            className={`${currentTheme.styles.button.secondary} ${getButtonRadiusClass(buttonRadius)} ${currentStepIndex === 0 ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
+            className={`${currentTheme.styles.button.secondary} ${getButtonRadiusClass(buttonRadius)} ${currentStepIndex === 0 ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''} text-xs sm:text-base px-3.5 py-2 sm:px-6 sm:py-3.5 whitespace-nowrap shrink-0`}
             style={{
               backgroundColor: formColors.secondaryButtonColor,
               color: formColors.secondaryButtonTextColor,
@@ -2951,7 +2957,7 @@ export default function FormEmbed() {
             <button 
               type="button"
               onClick={(e) => goNext(e)} 
-              className={`${currentTheme.styles.button.primary} ${getButtonRadiusClass(buttonRadius)}`}
+              className={`${currentTheme.styles.button.primary} ${getButtonRadiusClass(buttonRadius)} text-xs sm:text-base px-3.5 py-2 sm:px-7 sm:py-3.5 whitespace-nowrap`}
               style={{
                 backgroundColor: formColors.primaryButtonColor,
                 color: formColors.primaryButtonTextColor,
@@ -2964,7 +2970,7 @@ export default function FormEmbed() {
                   ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit Form') 
                   : 'Next Step'}
               </span>
-              <span className="text-base font-bold">→</span>
+              <span className="text-sm sm:text-base font-bold">→</span>
             </button>
           </div>
         </div>

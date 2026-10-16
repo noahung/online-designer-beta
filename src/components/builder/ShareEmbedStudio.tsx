@@ -41,6 +41,7 @@ export default function ShareEmbedStudio({
   const [iframeHeight, setIframeHeight] = useState('700px')
   const [transparentBg, setTransparentBg] = useState(true)
   const [hideHeader, setHideHeader] = useState(false)
+  const [hideProgress, setHideProgress] = useState(false)
   const [buttonText, setButtonText] = useState('Open Form')
   const [buttonColor, setButtonColor] = useState('#000000')
   const [tabPosition, setTabPosition] = useState<'right' | 'left'>('right')
@@ -53,9 +54,10 @@ export default function ShareEmbedStudio({
     const params = new URLSearchParams()
     if (transparentBg) params.set('transparent', 'true')
     if (hideHeader) params.set('hideHeader', 'true')
+    if (hideProgress) params.set('hide_progress', '1')
     const qs = params.toString()
     return qs ? `?${qs}` : ''
-  }, [transparentBg, hideHeader])
+  }, [transparentBg, hideHeader, hideProgress])
 
   const embedUrl = `${shareUrl}${embedParams}`
 
@@ -300,19 +302,32 @@ export default function ShareEmbedStudio({
 
             <div>
               <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
-                Background
+                Display Options
               </label>
-              <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={transparentBg}
-                  onChange={(e) => setTransparentBg(e.target.checked)}
-                  className="w-4 h-4 rounded text-zinc-900 dark:text-white focus:ring-0"
-                />
-                <span className="text-xs text-zinc-700 dark:text-zinc-300">
-                  Transparent Background
-                </span>
-              </label>
+              <div className="space-y-1.5 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={transparentBg}
+                    onChange={(e) => setTransparentBg(e.target.checked)}
+                    className="w-4 h-4 rounded text-zinc-900 dark:text-white focus:ring-0"
+                  />
+                  <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                    Transparent Background
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hideProgress}
+                    onChange={(e) => setHideProgress(e.target.checked)}
+                    className="w-4 h-4 rounded text-zinc-900 dark:text-white focus:ring-0"
+                  />
+                  <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                    Hide Progress Bar
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 

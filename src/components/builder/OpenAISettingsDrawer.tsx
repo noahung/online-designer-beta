@@ -39,6 +39,8 @@ interface OpenAISettingsDrawerProps {
   onChangeHeadingColor?: (color: string) => void;
   descriptionColor?: string;
   onChangeDescriptionColor?: (color: string) => void;
+  showProgressBar?: boolean;
+  onChangeShowProgressBar?: (show: boolean) => void;
   systemTheme?: 'light' | 'dark';
   onSave?: () => Promise<void> | void;
   isSaving?: boolean;
@@ -77,6 +79,8 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
   onChangeHeadingColor,
   descriptionColor,
   onChangeDescriptionColor,
+  showProgressBar = true,
+  onChangeShowProgressBar,
   systemTheme = 'dark',
   onSave,
   isSaving = false,
@@ -295,6 +299,35 @@ export const OpenAISettingsDrawer: React.FC<OpenAISettingsDrawerProps> = ({
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Progress Bar Toggle */}
+              {onChangeShowProgressBar && (
+                <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                      Step &amp; Progress Bar
+                    </h4>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Show step indicator numbers and completion progress bar
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onChangeShowProgressBar(!showProgressBar)}
+                    role="switch"
+                    aria-checked={showProgressBar}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      showProgressBar ? 'bg-indigo-600' : 'bg-zinc-300 dark:bg-zinc-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        showProgressBar ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
               )}
             </div>

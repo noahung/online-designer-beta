@@ -87,8 +87,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       card: 'bg-white shadow-xl shadow-slate-200/60 border border-slate-200/80 p-6 sm:p-10 w-full max-w-2xl transition-all duration-300',
       input: 'w-full px-4 py-3.5 bg-slate-50/70 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-600 transition-all duration-200 text-base',
       button: {
-        primary: 'w-full sm:w-auto px-7 py-3.5 text-white font-semibold transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]',
-        secondary: 'w-full sm:w-auto px-6 py-3.5 text-slate-700 font-medium transition-all duration-200 border border-slate-200 inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]',
+        primary: 'w-full sm:w-auto px-4 py-2.5 sm:px-7 sm:py-3.5 text-sm sm:text-base text-white font-semibold transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-[0.99]',
+        secondary: 'w-full sm:w-auto px-4 py-2.5 sm:px-6 sm:py-3.5 text-sm sm:text-base text-slate-700 font-medium transition-all duration-200 border border-slate-200 inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-[0.99]',
         skip: 'text-sm text-slate-500 hover:text-slate-800 transition-colors py-2'
       },
       text: {
@@ -146,8 +146,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       card: 'apple-glass-card shadow-2xl p-6 sm:p-10 w-full max-w-2xl transition-all duration-300 relative',
       input: 'apple-input w-full px-5 py-4 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none transition-all duration-300 text-base',
       button: {
-        primary: 'apple-button w-full sm:w-auto text-white px-8 py-4 font-semibold inline-flex items-center justify-center gap-3 transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer active:scale-[0.99]',
-        secondary: 'apple-button-secondary w-full sm:w-auto text-slate-700 px-7 py-4 font-semibold transition-all duration-300 inline-flex items-center justify-center gap-3 cursor-pointer shadow-sm active:scale-[0.99]',
+        primary: 'apple-button w-full sm:w-auto text-white px-4 py-2.5 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold inline-flex items-center justify-center gap-1.5 sm:gap-3 transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer active:scale-[0.99]',
+        secondary: 'apple-button-secondary w-full sm:w-auto text-slate-700 px-4 py-2.5 sm:px-7 sm:py-4 text-sm sm:text-base font-semibold transition-all duration-300 inline-flex items-center justify-center gap-1.5 sm:gap-3 cursor-pointer shadow-sm active:scale-[0.99]',
         skip: 'text-sm text-slate-500 hover:text-slate-800 transition-colors py-2'
       },
       text: {
@@ -212,8 +212,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       card: 'bg-[#111726] shadow-2xl shadow-black/80 border border-slate-800/90 p-6 sm:p-10 w-full max-w-2xl transition-all duration-300 relative',
       input: 'w-full px-4 py-3.5 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 text-base',
       button: {
-        primary: 'w-full sm:w-auto px-7 py-3.5 text-white font-semibold transition-all duration-200 shadow-lg shadow-indigo-600/30 inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]',
-        secondary: 'w-full sm:w-auto px-6 py-3.5 text-slate-300 font-medium transition-all duration-200 border border-slate-700 inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]',
+        primary: 'w-full sm:w-auto px-4 py-2.5 sm:px-7 sm:py-3.5 text-sm sm:text-base text-white font-semibold transition-all duration-200 shadow-lg shadow-indigo-600/30 inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-[0.99]',
+        secondary: 'w-full sm:w-auto px-4 py-2.5 sm:px-6 sm:py-3.5 text-sm sm:text-base text-slate-300 font-medium transition-all duration-200 border border-slate-700 inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-[0.99]',
         skip: 'text-sm text-slate-400 hover:text-white transition-colors py-2'
       },
       text: {
@@ -271,8 +271,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       card: 'bg-[#FFFDF9] shadow-xl shadow-stone-300/40 border border-stone-200 p-6 sm:p-10 w-full max-w-2xl transition-all duration-300',
       input: 'w-full px-4 py-3.5 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 placeholder-stone-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-stone-400/20 focus:border-stone-800 transition-all duration-200 text-base font-sans',
       button: {
-        primary: 'w-full sm:w-auto px-7 py-3.5 text-stone-50 font-semibold transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center justify-center gap-2 cursor-pointer font-sans active:scale-[0.99]',
-        secondary: 'w-full sm:w-auto px-6 py-3.5 text-stone-700 font-medium transition-all duration-200 border border-stone-300 inline-flex items-center justify-center gap-2 cursor-pointer font-sans active:scale-[0.99]',
+        primary: 'w-full sm:w-auto px-4 py-2.5 sm:px-7 sm:py-3.5 text-sm sm:text-base text-stone-50 font-semibold transition-all duration-200 shadow-md hover:shadow-lg inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer font-sans active:scale-[0.99]',
+        secondary: 'w-full sm:w-auto px-4 py-2.5 sm:px-6 sm:py-3.5 text-sm sm:text-base text-stone-700 font-medium transition-all duration-200 border border-stone-300 inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer font-sans active:scale-[0.99]',
         skip: 'text-sm text-stone-500 hover:text-stone-800 transition-colors py-2 font-sans'
       },
       text: {
@@ -330,8 +330,8 @@ export const formThemes: Record<FormTheme, FormThemeConfig> = {
       card: 'bg-white shadow-2xl shadow-purple-500/10 border border-purple-100 p-6 sm:p-10 w-full max-w-2xl transition-all duration-300',
       input: 'w-full px-5 py-4 bg-purple-50/40 border border-purple-200/80 rounded-2xl text-slate-900 placeholder-purple-300 focus:bg-white focus:outline-none focus:ring-4 focus:ring-purple-500/15 focus:border-purple-600 transition-all duration-200 text-base',
       button: {
-        primary: 'w-full sm:w-auto px-8 py-4 text-white font-bold transition-all duration-200 shadow-lg shadow-purple-500/25 inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]',
-        secondary: 'w-full sm:w-auto px-7 py-4 text-purple-900 font-semibold transition-all duration-200 border border-purple-200 inline-flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]',
+        primary: 'w-full sm:w-auto px-4 py-2.5 sm:px-8 sm:py-4 text-sm sm:text-base text-white font-bold transition-all duration-200 shadow-lg shadow-purple-500/25 inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-[0.99]',
+        secondary: 'w-full sm:w-auto px-4 py-2.5 sm:px-7 sm:py-4 text-sm sm:text-base text-purple-900 font-semibold transition-all duration-200 border border-purple-200 inline-flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer active:scale-[0.99]',
         skip: 'text-sm text-purple-600 hover:text-purple-900 transition-colors py-2'
       },
       text: {
@@ -377,10 +377,11 @@ export interface FormDesignMeta {
   cardRadius?: string;
   headingColor?: string;
   descriptionColor?: string;
+  showProgressBar?: boolean;
 }
 
 /**
- * Extracts design metadata (theme, button radius, card radius, headingColor, descriptionColor) seamlessly from description or formTheme
+ * Extracts design metadata (theme, button radius, card radius, headingColor, descriptionColor, showProgressBar) seamlessly from description or formTheme
  */
 export function extractDesignMeta(
   description?: string | null,
@@ -391,6 +392,7 @@ export function extractDesignMeta(
   cardRadius: string;
   headingColor?: string;
   descriptionColor?: string;
+  showProgressBar: boolean;
   cleanDescription: string;
 } {
   let theme: FormTheme = 'generic';
@@ -398,6 +400,7 @@ export function extractDesignMeta(
   let cardRadius = '2xl';
   let headingColor: string | undefined = undefined;
   let descriptionColor: string | undefined = undefined;
+  let showProgressBar: boolean = true;
   let cleanDescription = description || '';
 
   // 1. Check metadata embedded in description: <!--style:{...}-->
@@ -411,6 +414,7 @@ export function extractDesignMeta(
         if (parsed.cardRadius) cardRadius = parsed.cardRadius;
         if (parsed.headingColor) headingColor = parsed.headingColor;
         if (parsed.descriptionColor) descriptionColor = parsed.descriptionColor;
+        if (parsed.showProgressBar !== undefined) showProgressBar = parsed.showProgressBar;
       }
       cleanDescription = description.replace(/<!--style:.*?-->/g, '').trim();
     } catch (e) {
@@ -427,6 +431,7 @@ export function extractDesignMeta(
         if (k === 'card' && v) cardRadius = v;
         if (k === 'heading' && v) headingColor = v.startsWith('#') ? v : `#${v}`;
         if (k === 'description' && v) descriptionColor = v.startsWith('#') ? v : `#${v}`;
+        if (k === 'progress') showProgressBar = v !== 'false' && v !== '0';
       }
     }
   }
@@ -491,6 +496,7 @@ export function parseThemeString(
   cardRadius: string;
   headingColor?: string;
   descriptionColor?: string;
+  showProgressBar: boolean;
 } {
   return extractDesignMeta(undefined, themeString);
 }
@@ -511,11 +517,13 @@ export function encodeThemeString(
   buttonRadius: string = 'xl',
   cardRadius: string = '2xl',
   headingColor?: string,
-  descriptionColor?: string
+  descriptionColor?: string,
+  showProgressBar?: boolean
 ): string {
   let str = `${theme}|button:${buttonRadius}|card:${cardRadius}`;
   if (headingColor) str += `|heading:${headingColor.replace('#', '')}`;
   if (descriptionColor) str += `|description:${descriptionColor.replace('#', '')}`;
+  if (showProgressBar !== undefined) str += `|progress:${showProgressBar ? '1' : '0'}`;
   return str;
 }
 

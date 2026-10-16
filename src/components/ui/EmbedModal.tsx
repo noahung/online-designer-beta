@@ -21,6 +21,7 @@ interface EmbedConfig {
   hideLogo: boolean
   hideTitle: boolean
   hideDescription: boolean
+  hideProgress: boolean
   // Popup options
   popupTrigger: PopupTrigger
   popupDelay: number
@@ -57,6 +58,7 @@ const defaultConfig: EmbedConfig = {
   hideLogo: false,
   hideTitle: false,
   hideDescription: false,
+  hideProgress: false,
   popupTrigger: 'click',
   popupDelay: 5,
   buttonText: 'Get a Quote',
@@ -83,6 +85,7 @@ function generateCode(formId: string, config: EmbedConfig, baseUrl: string): str
   if (config.hideLogo) attrs.push(`data-hide-logo="true"`)
   if (config.hideTitle) attrs.push(`data-hide-title="true"`)
   if (config.hideDescription) attrs.push(`data-hide-description="true"`)
+  if (config.hideProgress) attrs.push(`data-hide-progress="true"`)
   if (!config.lazy) attrs.push(`data-lazy="false"`)
 
   if (config.mode === 'inline') {
@@ -572,6 +575,22 @@ export default function EmbedModal({ formId, formName, isOpen, onClose }: EmbedM
                     aria-label="Show description"
                   >
                     <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${!config.hideDescription ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-white/60">Show Progress Bar</p>
+                    <p className="text-xs text-white/30">Step indicator &amp; progress percentage</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={toggleClass(!config.hideProgress)}
+                    onClick={() => update('hideProgress', !config.hideProgress)}
+                    role="switch"
+                    aria-checked={!config.hideProgress}
+                    aria-label="Show progress bar"
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${!config.hideProgress ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                   </button>
                 </div>
               </Section>

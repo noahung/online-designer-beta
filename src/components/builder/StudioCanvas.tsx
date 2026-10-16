@@ -61,6 +61,7 @@ interface StudioCanvasProps {
   cardRadius?: string
   headingColor?: string
   descriptionColor?: string
+  showProgressBar?: boolean
   totalSteps?: number
   currentStepIndex?: number
 }
@@ -83,6 +84,7 @@ export default function StudioCanvas({
   cardRadius = '2xl',
   headingColor,
   descriptionColor,
+  showProgressBar = true,
   totalSteps = 3,
   currentStepIndex = 0
 }: StudioCanvasProps) {
@@ -182,15 +184,17 @@ export default function StudioCanvas({
           )}
 
           {/* Stepper Progress Bar at Top */}
-          <div className="mb-6">
-            <StepperProgress
-              currentStepIndex={currentStepIndex}
-              totalSteps={totalSteps}
-              themeConfig={themeConfig}
-              primaryColor={primaryButtonColor}
-              variant={totalSteps <= 5 ? 'numbers' : 'bar'}
-            />
-          </div>
+          {showProgressBar && (
+            <div className="mb-6">
+              <StepperProgress
+                currentStepIndex={currentStepIndex}
+                totalSteps={totalSteps}
+                themeConfig={themeConfig}
+                primaryColor={primaryButtonColor}
+                variant={totalSteps <= 5 ? 'numbers' : 'bar'}
+              />
+            </div>
+          )}
 
           {/* Question Title Inline Editing */}
           <div className="mb-2 flex items-center">

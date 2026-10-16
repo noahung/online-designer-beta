@@ -663,6 +663,7 @@ export default function FormBuilder() {
   const [secondaryButtonTextColor, setSecondaryButtonTextColor] = useState('#334155')
   const [headingColor, setHeadingColor] = useState<string | undefined>(undefined)
   const [descriptionColor, setDescriptionColor] = useState<string | undefined>(undefined)
+  const [showProgressBar, setShowProgressBar] = useState<boolean>(true)
   const [steps, setSteps] = useState<Step[]>([])
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [activeStudioTab, setActiveStudioTab] = useState<StudioTab>('content')
@@ -893,6 +894,7 @@ export default function FormBuilder() {
       setCardRadius(design.cardRadius)
       setHeadingColor(design.headingColor)
       setDescriptionColor(design.descriptionColor)
+      setShowProgressBar(design.showProgressBar)
       setPrimaryButtonColor(cleanPrimary)
       setPrimaryButtonTextColor(cleanColorString(formData.primary_button_text_color) || '#FFFFFF')
       setSecondaryButtonColor(cleanSecondary)
@@ -1416,6 +1418,7 @@ export default function FormBuilder() {
         cardRadius,
         headingColor: headingColor || undefined,
         descriptionColor: descriptionColor || undefined,
+        showProgressBar,
       })
       const safeTheme = formTheme === 'soft-ui' ? 'soft-ui' : 'generic'
 
@@ -2081,6 +2084,7 @@ export default function FormBuilder() {
               cardRadius={cardRadius}
               headingColor={headingColor}
               descriptionColor={descriptionColor}
+              showProgressBar={showProgressBar}
               totalSteps={steps.length || 1}
               currentStepIndex={selectedStepIndex ?? 0}
             />
@@ -2750,6 +2754,8 @@ export default function FormBuilder() {
         onChangeHeadingColor={setHeadingColor}
         descriptionColor={descriptionColor}
         onChangeDescriptionColor={setDescriptionColor}
+        showProgressBar={showProgressBar}
+        onChangeShowProgressBar={setShowProgressBar}
         systemTheme={theme}
         onSave={save}
         isSaving={saving}
