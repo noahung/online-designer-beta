@@ -2167,8 +2167,8 @@ export default function FormEmbed() {
         <div dangerouslySetInnerHTML={{ __html: currentTheme.styles.decorations }} />
       )}
       
-      <div className={currentTheme.styles.container} style={{ position: 'relative', zIndex: 10, minHeight: 'auto', paddingBottom: '16px', width: '100%', maxWidth: '100%' }}>
-        <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)}`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius) }}>
+      <div className={`${currentTheme.styles.container} !px-2 sm:!px-4 !py-2 sm:!py-8`} style={{ position: 'relative', zIndex: 10, minHeight: 'auto', paddingBottom: '16px', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div className={`${currentTheme.styles.card} ${getCardRadiusClass(cardRadius)} !p-4 sm:!p-8 sm:!p-10`} style={{ marginBottom: '0', borderRadius: getCardRadiusValue(cardRadius), boxSizing: 'border-box', width: '100%', maxWidth: '100%' }}>
         {/* Client Header */}
     {formData?.clients && (
           <div className="text-center mb-6 pb-4 border-b border-gray-200">
@@ -2936,12 +2936,12 @@ export default function FormEmbed() {
           </div>
         )}
 
-        <div className="flex justify-between items-center gap-2 sm:gap-3 mt-6 sm:mt-8 pt-3 sm:pt-4 border-t border-slate-200/50">
+        <div className="flex justify-between items-center gap-2 sm:gap-3 mt-6 sm:mt-8 pt-3 sm:pt-4 border-t border-slate-200/50 w-full">
           <button 
             type="button"
             onClick={goPrev} 
             disabled={currentStepIndex === 0} 
-            className={`${currentTheme.styles.button.secondary} ${getButtonRadiusClass(buttonRadius)} ${currentStepIndex === 0 ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''} text-xs sm:text-base px-3.5 py-2 sm:px-6 sm:py-3.5 whitespace-nowrap shrink-0`}
+            className={`${currentTheme.styles.button.secondary} ${getButtonRadiusClass(buttonRadius)} ${currentStepIndex === 0 ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''} !w-auto !px-3 sm:!px-6 !py-2 sm:!py-3.5 !text-xs sm:!text-base whitespace-nowrap shrink-0`}
             style={{
               backgroundColor: formColors.secondaryButtonColor,
               color: formColors.secondaryButtonTextColor,
@@ -2952,11 +2952,11 @@ export default function FormEmbed() {
             ← Previous
           </button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button 
               type="button"
               onClick={(e) => goNext(e)} 
-              className={`${currentTheme.styles.button.primary} ${getButtonRadiusClass(buttonRadius)} text-xs sm:text-base px-3.5 py-2 sm:px-7 sm:py-3.5 whitespace-nowrap`}
+              className={`${currentTheme.styles.button.primary} ${getButtonRadiusClass(buttonRadius)} !w-auto !px-3.5 sm:!px-7 !py-2 sm:!py-3.5 !text-xs sm:!text-base whitespace-nowrap`}
               style={{
                 backgroundColor: formColors.primaryButtonColor,
                 color: formColors.primaryButtonTextColor,
@@ -2966,10 +2966,10 @@ export default function FormEmbed() {
             >
               <span>
                 {currentStepIndex === steps.length - 1 
-                  ? (step.question_type === 'contact_fields' ? 'Get My Free Quote' : 'Submit Form') 
-                  : 'Next Step'}
+                  ? (step.question_type === 'contact_fields' ? 'Get Quote' : 'Submit') 
+                  : 'Next'}
               </span>
-              <span className="text-sm sm:text-base font-bold">→</span>
+              <span className="text-xs sm:text-base font-bold">→</span>
             </button>
           </div>
         </div>
